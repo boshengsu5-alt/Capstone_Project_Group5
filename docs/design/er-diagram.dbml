@@ -1,0 +1,157 @@
+// UniGear — Campus Asset Management System
+// Database ER Diagram (paste into https://dbdiagram.io)
+
+Table profiles {
+  id uuid [pk, note: 'FK → auth.users']
+  full_name text [not null]
+  student_id text [unique]
+  email text [not null]
+  phone text
+  avatar_url text
+  role user_role [not null, default: 'student']
+  credit_score integer [not null, default: 100, note: '0-200']
+  department text
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+}
+
+Table categories {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  name text [not null, unique]
+  name_zh text
+  icon text
+  description text
+  created_at timestamptz [not null, default: `now()`]
+}
+
+Table assets {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  category_id uuid [not null, ref: > categories.id]
+  created_by uuid [ref: > profiles.id]
+  name text [not null]
+  description text
+  serial_number text [unique]
+  qr_code text [unique, note: 'For mobile scanning']
+  condition asset_condition [not null, default: 'good']
+  status asset_status [not null, default: 'available']
+  location text
+  images text[]
+  warranty_status warranty_status [not null, default: 'none']
+  warranty_expiry date
+  purchase_date date
+  purchase_price decimal
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+}
+
+Table bookings {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  asset_id uuid [not null, ref: > assets.id]
+  borrower_id uuid [not null, ref: > profiles.id]
+  approver_id uuid [ref: > profiles.id]
+  status booking_status [not null, default: 'pending']
+  start_date timestamptz [not null]
+  end_date timestamptz [not null]
+  actual_return_date timestamptz
+  pickup_photo_url text
+  return_photo_url text [note: 'Condition proof photo']
+  notes text
+  rejection_reason text
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+}
+
+Table damage_reports {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  booking_id uuid [not null, ref: > bookings.id]
+  asset_id uuid [not null, ref: > assets.id]
+  reporter_id uuid [not null, ref: > profiles.id]
+  description text [not null]
+  severity damage_severity [not null, default: 'minor']
+  photo_urls text[]
+  status damage_report_status [not null, default: 'open']
+  resolution_notes text
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+}
+
+Table notifications {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  user_id uuid [not null, ref: > profiles.id]
+  type notification_type [not null]
+  title text [not null]
+  message text
+  is_read boolean [not null, default: false]
+  metadata jsonb
+  created_at timestamptz [not null, default: `now()`]
+}
+
+Table reviews {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  booking_id uuid [not null, unique, ref: - bookings.id]
+  reviewer_id uuid [not null, ref: > profiles.id]
+  rating integer [not null, note: '1-5']
+  comment text
+  created_at timestamptz [not null, default: `now()`]
+}
+
+// Enums
+
+Enum user_role {
+  student
+  admin
+  staff
+}
+
+Enum asset_condition {
+  new
+  good
+  fair
+  poor
+  damaged
+}
+
+Enum asset_status {
+  available
+  borrowed
+  maintenance
+  retired
+}
+
+Enum warranty_status {
+  active
+  expired
+  none
+}
+
+Enum booking_status {
+  pending
+  approved
+  rejected
+  active
+  returned
+  overdue
+  cancelled
+}
+
+Enum damage_severity {
+  minor
+  moderate
+  severe
+}
+
+Enum damage_report_status {
+  open
+  investigating
+  resolved
+  dismissed
+}
+
+Enum notification_type {
+  booking_approved
+  booking_rejected
+  return_reminder
+  overdue_alert
+  damage_reported
+  system
+}

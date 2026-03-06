@@ -64,3 +64,6 @@ Thumbs.db
 
 # Supabase local (Supabase 本地)
 supabase/.temp/
+
+# Project Handbook (不上传手册)
+docs/PROJECT_HANDBOOK.md
