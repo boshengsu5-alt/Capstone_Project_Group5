@@ -4,9 +4,9 @@ import { query } from '@/lib/db';
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    console.log("接收到的数据:", body); // 调试利器：在终端看数据长啥样
+    console.log("接收到的原始数据:", body); 
 
-    // 1. 结构化解构，给所有可能缺失的字段设置“安全默认值”
+    // 1. 解构并补齐 price 字段，确保默认值为 0 或 null
     const { 
       name, 
       type = 'Hardware', 
@@ -14,31 +14,43 @@ export async function POST(request: Request) {
       location = '', 
       status = 'available', 
       condition = 'good',
+      price = 0,               // 补齐这个！
       qr_code = `AUTO-${Date.now()}` 
     } = body;
 
-    // 2. 检查必填项：如果连名字都没有，那确实不能存
     if (!name) {
       return NextResponse.json({ error: "资产名称不能为空" }, { status: 400 });
     }
 
-    // 3. 严格对齐 001_initial_schema.sql
+    // 2. 重新排列 SQL，加入 price 字段 (这里按组长可能的表结构排列)
+    // 注意：如果数据库里列名是 value，这里也要改。
     const sql = `
-      INSERT INTO assets (name, type, serial, location, status, condition, qr_code)
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      INSERT INTO assets (name, type, serial, location, status, condition, price, qr_code)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING *;
     `;
 
-    const values = [name, type, serial, location, status, condition, qr_code];
+    // 3. 这里的顺序必须和上面的 $1~$8 完全一致
+    const values = [
+      name, 
+      type, 
+      serial, 
+      location, 
+      status, 
+      condition, 
+      Number(price), // 强制转为数字，防止字符串 "6000" 导致数据库报错
+      qr_code
+    ];
 
     const result = await query(sql, values);
-    console.log("写入成功:", result.rows[0]);
+    console.log("写入成功！返回数据:", result.rows[0]);
 
     return NextResponse.json({ success: true, data: result.rows[0] });
 
   } catch (error: any) {
     console.error('数据库写入报错详情:', error.message);
-    // 这里会告诉你到底是哪个字段（比如 status）不符合约束
+    
+    // 如果报错说 "column 'price' does not exist"，说明组长没设这个列，得删掉它
     return NextResponse.json(
       { error: `数据库报错: ${error.message}` }, 
       { status: 500 }
