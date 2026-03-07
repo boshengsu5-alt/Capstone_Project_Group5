@@ -1,58 +1,83 @@
 import { NextResponse } from 'next/server';
-import { query } from '@/lib/db'; 
+import { supabase } from '@/lib/supabase';
+import type { Database } from '../../../../database/types/supabase';
+
+type AssetInsert = Database['public']['Tables']['assets']['Insert'];
+
+export async function GET() {
+  try {
+    const { data, error } = await supabase
+      .from('assets')
+      .select('*, categories(name)') // Fetch associated category name if needed
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Supabase query error:', error);
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json(data);
+  } catch (error) {
+    console.error('Error fetching assets:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+  }
+}
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    console.log("接收到的原始数据:", body); 
+    const { name, category_id, serial_number, purchase_price, location, status, condition } = body;
 
-    // 1. 解构并补齐 price 字段，确保默认值为 0 或 null
-    const { 
-      name, 
-      type = 'Hardware', 
-      serial = '', 
-      location = '', 
-      status = 'available', 
-      condition = 'good',
-      price = 0,               // 补齐这个！
-      qr_code = `AUTO-${Date.now()}` 
-    } = body;
-
-    if (!name) {
-      return NextResponse.json({ error: "资产名称不能为空" }, { status: 400 });
+    // Basic validation
+    if (!name || !category_id) {
+      return NextResponse.json({ error: 'Name and Category ID are required' }, { status: 400 });
     }
 
-    // 2. 重新排列 SQL，加入 price 字段 (这里按组长可能的表结构排列)
-    // 注意：如果数据库里列名是 value，这里也要改。
-    const sql = `
-      INSERT INTO assets (name, type, serial, location, status, condition, price, qr_code)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-      RETURNING *;
-    `;
+    // Construct the payload matching the strict Database Types contract
+    const assetData: AssetInsert = {
+      name,
+      category_id,
+      serial_number: serial_number || null,
+      purchase_price: purchase_price ? parseFloat(purchase_price) : null,
+      location: location || '',
+      status: status || 'available',
+      condition: condition || 'good',
+      // Optional defaults depending on your API needs
+      description: body.description || '',
+      images: body.images || [],
+      warranty_status: body.warranty_status || 'none',
+      qr_code: body.qr_code || null,
+      purchase_date: body.purchase_date || null,
+      warranty_expiry: body.warranty_expiry || null,
+      created_by: null // Assuming auth will handle this later, or RLS is set up
+    };
 
-    // 3. 这里的顺序必须和上面的 $1~$8 完全一致
-    const values = [
-      name, 
-      type, 
-      serial, 
-      location, 
-      status, 
-      condition, 
-      Number(price), // 强制转为数字，防止字符串 "6000" 导致数据库报错
-      qr_code
-    ];
+    const { data, error } = await supabase
+      .from('assets')
+      .insert([assetData] as any) // Cast to any to bypass strict generic inference bug in supabase-js with complex unions
+      .select()
+      .single();
 
-    const result = await query(sql, values);
-    console.log("写入成功！返回数据:", result.rows[0]);
+    if (error) {
+      console.error('Supabase insert error details:', error);
+      return NextResponse.json(
+        {
+          error: 'Failed to save asset',
+          details: error.message,
+          code: error.code
+        },
+        { status: 400 } // Often 400 for constraint violations like unique serial_number
+      );
+    }
 
-    return NextResponse.json({ success: true, data: result.rows[0] });
-
+    return NextResponse.json(data, { status: 201 });
   } catch (error: any) {
-    console.error('数据库写入报错详情:', error.message);
-    
-    // 如果报错说 "column 'price' does not exist"，说明组长没设这个列，得删掉它
+    console.error('Unexpected error creating asset:', error);
     return NextResponse.json(
-      { error: `数据库报错: ${error.message}` }, 
+      {
+        error: 'Terminal server error saving asset',
+        details: error.message || String(error)
+      },
       { status: 500 }
     );
   }
