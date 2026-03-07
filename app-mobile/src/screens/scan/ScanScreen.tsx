@@ -1,38 +1,20 @@
 import React from 'react';
-import { StyleSheet, Text, View, Button, SafeAreaView, TouchableOpacity } from 'react-native';
-import { Camera, CameraView, useCameraPermissions } from 'expo-camera';
+import { StyleSheet, Text, View, SafeAreaView } from 'react-native';
+import QRScanner from '../../components/QRScanner';
 
 export default function ScanScreen() {
-  const [permission, requestPermission] = useCameraPermissions();
-
-  if (!permission) {
-    // 权限还在加载中
-    return <View style={styles.container} />;
-  }
-
-  if (!permission.granted) {
-    // 未授予权限时，显示系统权限申请
-    return (
-      <SafeAreaView style={styles.permissionContainer}>
-        <Text style={styles.permissionText}>需要相机权限来扫描设备的二维码</Text>
-        <TouchableOpacity style={styles.button} onPress={requestPermission}>
-          <Text style={styles.buttonText}>授权相机</Text>
-        </TouchableOpacity>
-      </SafeAreaView>
-    );
-  }
+  const handleScan = (data: string) => {
+    console.log("Extracted QR Code Data:", data);
+    alert(`扫描成功: ${data}`);
+  };
 
   return (
-    <View style={styles.container}>
-      <CameraView style={styles.camera} facing="back">
-        <View style={styles.overlay}>
-          <View style={styles.scanMask}>
-            <View style={styles.scanFrame} />
-          </View>
-          <Text style={styles.scanHint}>请将设备二维码放入框内即可自动扫描</Text>
-        </View>
-      </CameraView>
-    </View>
+    <SafeAreaView style={styles.container}>
+      <Text style={styles.title}>设备扫码出库</Text>
+      <View style={styles.scannerWrapper}>
+        <QRScanner onScan={handleScan} />
+      </View>
+    </SafeAreaView>
   );
 }
 

@@ -19,7 +19,12 @@ export default function ReturnScreen() {
         <Text style={styles.subtext}>为了明确责任，请拍摄设备现状照片：</Text>
         
         <View style={styles.photoContainer}>
-          <PhotoCapture />
+          <PhotoCapture 
+            onPhotoCaptured={(uri) => {
+              console.log("Photo Captured URI:", uri);
+              setPhotoCaptured(true);
+            }} 
+          />
         </View>
 
         <TouchableOpacity 
