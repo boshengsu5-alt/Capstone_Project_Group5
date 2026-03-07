@@ -1,65 +1,101 @@
-import Image from "next/image";
-import { AssetStatus, AssetCondition, CreateAssetPayload } from '@/lib/database.types';
-export default function Home() {
+"use client";
+
+import { useState } from "react";
+import { CreateAssetPayload } from '@/lib/database.types';
+
+export default function Dashboard() {
+  const [formData, setFormData] = useState<CreateAssetPayload>({
+    name: '',
+    type: 'Hardware',
+    serial: '',
+    location: '',
+    status: 'available',    // 严格对应组长 SQL 的枚举
+    condition: 'good',      // 严格对应组长 SQL 的枚举
+    qr_code: '',            // 组长要求的核心字段
+  });
+
+  const [message, setMessage] = useState("");
+
+  const handleSave = async () => {
+    try {
+      const response = await fetch('/api/assets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...formData,
+          qr_code: `QR-${Date.now()}` // 自动生成一个临时二维码
+        }),
+      });
+
+      if (response.ok) {
+        setMessage("✅ 成功！数据已入库 (Supabase Active)");
+        setFormData({ name: '', type: 'Hardware', serial: '', location: '', status: 'available', condition: 'good', qr_code: '' });
+      } else {
+        const err = await response.json();
+        setMessage(`❌ 失败: ${err.error || "未知错误"}`);
+      }
+    } catch (error) {
+      setMessage("❌ 网络错误，请检查 API 路由");
+    }
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+    <div className="p-10 bg-zinc-50 min-h-screen dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100">
+      <div className="max-w-2xl mx-auto bg-white dark:bg-zinc-900 p-8 rounded-2xl shadow-xl border border-zinc-200 dark:border-zinc-800">
+        <h1 className="text-2xl font-bold mb-6">资产管理系统 (Letao 版)</h1>
+        
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-1">资产名称</label>
+            <input 
+              className="w-full p-2 rounded border dark:bg-zinc-800 dark:border-zinc-700"
+              value={formData.name}
+              onChange={(e) => setFormData({...formData, name: e.target.value})}
+              placeholder="例如: MacBook Pro 2024"
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+          </div>
+          
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">状态</label>
+              <select 
+                className="w-full p-2 rounded border dark:bg-zinc-800 dark:border-zinc-700"
+                value={formData.status}
+                onChange={(e) => setFormData({...formData, status: e.target.value as any})}
+              >
+                <option value="available">空闲 (Available)</option>
+                <option value="borrowed">借出 (Borrowed)</option>
+                <option value="maintenance">维修 (Maintenance)</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">健康状况</label>
+              <select 
+                className="w-full p-2 rounded border dark:bg-zinc-800 dark:border-zinc-700"
+                value={formData.condition}
+                onChange={(e) => setFormData({...formData, condition: e.target.value as any})}
+              >
+                <option value="new">全新 (New)</option>
+                <option value="good">良好 (Good)</option>
+                <option value="damaged">损坏 (Damaged)</option>
+              </select>
+            </div>
+          </div>
+
+          <button 
+            onClick={handleSave}
+            className="w-full py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-all"
           >
-            Documentation
-          </a>
+            保存到 Supabase 数据库
+          </button>
+
+          {message && (
+            <div className={`p-4 rounded-lg text-center font-medium ${message.includes('✅') ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+              {message}
+            </div>
+          )}
         </div>
-      </main>
+      </div>
     </div>
   );
 }
