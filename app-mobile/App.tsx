@@ -1,46 +1,10 @@
+import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, SafeAreaView, StatusBar, Animated, ScrollView } from 'react-native';
-import ScanScreen from './src/screens/scan/ScanScreen';
-import NotificationScreen from './src/screens/profile/NotificationScreen';
-import BookingHistoryScreen from './src/screens/booking/BookingHistoryScreen';
-import ReturnScreen from './src/screens/booking/ReturnScreen';
-import DamageReportScreen from './src/screens/damage/DamageReportScreen';
-
-type ScreenName = 'home' | 'scan' | 'notifications' | 'booking_history' | 'return_device' | 'damage_report';
-
-// Temporary home screen to test all views
-const TempHomeScreen = ({ onNavigate }: { onNavigate: (screen: ScreenName) => void }) => (
-  <SafeAreaView style={styles.homeContainer}>
-    <Text style={styles.homeTitle}>UniGear</Text>
-    <Text style={styles.homeSubtitle}>校园资产管理系统</Text>
-    
-    <ScrollView contentContainerStyle={styles.scrollButtons}>
-      <TouchableOpacity style={styles.scanButton} onPress={() => onNavigate('scan')}>
-        <Text style={styles.scanButtonText}>📸 扫码出库 (ScanScreen)</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity style={styles.navButton} onPress={() => onNavigate('booking_history')}>
-        <Text style={styles.navButtonText}>📋 借用记录 (BookingHistory)</Text>
-      </TouchableOpacity>
-      
-      <TouchableOpacity style={styles.navButton} onPress={() => onNavigate('return_device')}>
-        <Text style={styles.navButtonText}>📦 归还设备 (ReturnScreen)</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity style={styles.navButton} onPress={() => onNavigate('damage_report')}>
-        <Text style={styles.navButtonText}>⚠️ 损坏报修 (DamageReport)</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity style={styles.navButton} onPress={() => onNavigate('notifications')}>
-        <Text style={styles.navButtonText}>🔔 消息通知 (Notifications)</Text>
-      </TouchableOpacity>
-    </ScrollView>
-  </SafeAreaView>
-);
+import { View, Text, StyleSheet, Animated, StatusBar } from 'react-native';
+import RootNavigator from './src/navigation/RootNavigator';
 
 export default function App() {
   const [isAppReady, setIsAppReady] = useState(false);
-  const [currentScreen, setCurrentScreen] = useState<ScreenName>('home');
   const fadeAnim = useState(new Animated.Value(1))[0];
 
   useEffect(() => {
@@ -54,12 +18,12 @@ export default function App() {
         setIsAppReady(true);
       });
     }, 2500); // 2.5s splash screen
-  }, []);
+  }, [fadeAnim]);
 
   if (!isAppReady) {
     return (
       <Animated.View style={[styles.splashContainer, { opacity: fadeAnim }]}>
-        <StatusBar barStyle="light-content" />
+        <StatusBar barStyle="light-content" backgroundColor="#1E1B4B" />
         <View style={styles.logoCircle}>
           <Text style={styles.logoText}>U</Text>
         </View>
@@ -70,68 +34,15 @@ export default function App() {
     );
   }
 
-  const renderScreen = () => {
-    switch (currentScreen) {
-      case 'home':
-        return <TempHomeScreen onNavigate={setCurrentScreen} />;
-      case 'scan':
-        return <ScanScreen onBack={() => setCurrentScreen('home')} />;
-      case 'notifications':
-        return (
-          <View style={{ flex: 1 }}>
-            <View style={styles.simulatedHeader}><TouchableOpacity onPress={() => setCurrentScreen('home')}><Text style={styles.simulatedBack}>← 返回大厅</Text></TouchableOpacity></View>
-            <NotificationScreen />
-          </View>
-        );
-      case 'booking_history':
-        return (
-          <View style={{ flex: 1 }}>
-            <View style={styles.simulatedHeader}><TouchableOpacity onPress={() => setCurrentScreen('home')}><Text style={styles.simulatedBack}>← 返回大厅</Text></TouchableOpacity></View>
-            <BookingHistoryScreen />
-          </View>
-        );
-      case 'return_device':
-        return (
-          <View style={{ flex: 1 }}>
-            <View style={styles.simulatedHeader}><TouchableOpacity onPress={() => setCurrentScreen('home')}><Text style={styles.simulatedBack}>← 返回大厅</Text></TouchableOpacity></View>
-            <ReturnScreen />
-          </View>
-        );
-      case 'damage_report':
-        return (
-          <View style={{ flex: 1 }}>
-            <View style={styles.simulatedHeader}><TouchableOpacity onPress={() => setCurrentScreen('home')}><Text style={styles.simulatedBack}>← 返回大厅</Text></TouchableOpacity></View>
-            <DamageReportScreen />
-          </View>
-        );
-    }
-  };
-
   return (
-    <View style={styles.appContainer}>
-      <StatusBar barStyle="dark-content" />
-      {renderScreen()}
-    </View>
+    <>
+      <RootNavigator />
+      <ExpoStatusBar style="auto" />
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  appContainer: { flex: 1, backgroundColor: '#F7F7FD' },
-  simulatedHeader: { paddingTop: 50, paddingBottom: 10, paddingHorizontal: 16, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#eee' },
-  simulatedBack: { color: '#6200ee', fontWeight: 'bold', fontSize: 16 },
-  
-  // Home Screen Styles
-  homeContainer: { flex: 1, backgroundColor: '#F7F7FD', alignItems: 'center', paddingTop: 60 },
-  homeTitle: { fontSize: 32, fontWeight: '900', color: '#6200ee' },
-  homeSubtitle: { fontSize: 16, color: '#666', marginTop: 8, marginBottom: 20 },
-  scrollButtons: { alignItems: 'center', paddingBottom: 40, width: '100%', paddingHorizontal: 20 },
-  
-  scanButton: { backgroundColor: '#6200ee', width: '100%', paddingVertical: 18, borderRadius: 16, alignItems: 'center', marginBottom: 20, shadowColor: '#6200ee', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 5 },
-  scanButtonText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
-  
-  navButton: { backgroundColor: '#ffffff', width: '100%', paddingVertical: 16, borderRadius: 12, alignItems: 'center', marginBottom: 16, borderWidth: 1, borderColor: '#e0e0e0' },
-  navButtonText: { color: '#333', fontSize: 16, fontWeight: '600' },
-  
   // Splash Screen Styles
   splashContainer: {
     flex: 1,
