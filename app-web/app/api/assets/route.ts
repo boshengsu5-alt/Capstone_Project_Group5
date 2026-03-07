@@ -1,59 +1,47 @@
 import { NextResponse } from 'next/server';
-import { query } from '@/lib/db'; // 确保你的 db.ts 路径正确
+import { query } from '@/lib/db'; 
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { name, type, serial, location, status, condition, qr_code } = body;
+    console.log("接收到的数据:", body); // 调试利器：在终端看数据长啥样
 
-    // 1. 严格对应组长 001_initial_schema.sql 中的 assets 表字段
-    // 注意：去掉了可能冲突的 id 和 created_at，让数据库自动生成
+    // 1. 结构化解构，给所有可能缺失的字段设置“安全默认值”
+    const { 
+      name, 
+      type = 'Hardware', 
+      serial = '', 
+      location = '', 
+      status = 'available', 
+      condition = 'good',
+      qr_code = `AUTO-${Date.now()}` 
+    } = body;
+
+    // 2. 检查必填项：如果连名字都没有，那确实不能存
+    if (!name) {
+      return NextResponse.json({ error: "资产名称不能为空" }, { status: 400 });
+    }
+
+    // 3. 严格对齐 001_initial_schema.sql
     const sql = `
-      INSERT INTO assets (
-        name, 
-        type, 
-        serial, 
-        location, 
-        status, 
-        condition, 
-        qr_code
-      )
+      INSERT INTO assets (name, type, serial, location, status, condition, qr_code)
       VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING *;
     `;
 
-    const values = [
-      name, 
-      type || 'Hardware', 
-      serial || null, 
-      location || null, 
-      status || 'available', 
-      condition || 'good', 
-      qr_code || `QR-${Date.now()}`
-    ];
+    const values = [name, type, serial, location, status, condition, qr_code];
 
     const result = await query(sql, values);
+    console.log("写入成功:", result.rows[0]);
 
-    return NextResponse.json({ 
-      success: true, 
-      data: result.rows[0] 
-    });
+    return NextResponse.json({ success: true, data: result.rows[0] });
 
   } catch (error: any) {
-    console.error('Database Error:', error);
-    // 2. 返回更具体的错误，帮我们判断是哪里没对齐
+    console.error('数据库写入报错详情:', error.message);
+    // 这里会告诉你到底是哪个字段（比如 status）不符合约束
     return NextResponse.json(
-      { error: error.message || '数据库写入失败' }, 
+      { error: `数据库报错: ${error.message}` }, 
       { status: 500 }
     );
-  }
-}
-
-export async function GET() {
-  try {
-    const result = await query('SELECT * FROM assets ORDER BY created_at DESC');
-    return NextResponse.json(result.rows);
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
