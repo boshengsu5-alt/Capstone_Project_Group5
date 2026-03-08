@@ -1,165 +1,103 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { signIn } from "@/lib/auth"; // 确保你已经创建了 lib/auth.ts
+import { LockKeyhole, Mail, Loader2 } from "lucide-react";
 
-export default function AssetDashboard() {
-  // 1. 初始化表单：增加 category_id 兼容组长可能的必填项
-  const [formData, setFormData] = useState({
-    name: '',
-    type: 'Hardware',
-    serial: '',
-    location: '',
-    price: '',              
-    status: 'available',    
-    condition: 'good',      
-    qr_code: '',
-    category_id: '', // 新增字段
-  });
+export default function LoginPage() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const router = useRouter();
 
-  const [message, setMessage] = useState("");
-  const [errorDetails, setErrorDetails] = useState(""); // 专门存具体的报错原因
-  const [isSaving, setIsSaving] = useState(false);
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
 
-  const handleSave = async () => {
-    setIsSaving(true);
-    setMessage("");
-    setErrorDetails("");
-    
     try {
-      // 2. 构造“多保险”Payload：同时发送多种可能的字段名
-      const cleanPrice = parseFloat(String(formData.price).replace(/[^0-9.]/g, '')) || 0;
+      // 调用我们在 lib/auth.ts 中封装的函数
+      const { data, error: authError } = await signIn(email, password);
       
-      const payload = {
-        ...formData,
-        // 双重字段备份，确保后端不管是选哪个名都能接到
-        purchase_price: cleanPrice, 
-        price: cleanPrice,
-        serial_number: formData.serial,
-        serial: formData.serial,
-        qr_code: formData.qr_code || `QR-${Date.now()}`,
-        // 确保 category_id 是数字或 null
-        category_id: formData.category_id ? parseInt(formData.category_id) : null 
-      };
+      if (authError) throw authError;
 
-      const response = await fetch('/api/assets', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      const result = await response.json();
-
-      if (response.ok) {
-        setMessage("✅ 成功！数据已入库，你可以去 Supabase 查看了");
-        setFormData({ name: '', type: 'Hardware', serial: '', location: '', price: '', status: 'available', condition: 'good', qr_code: '', category_id: '' });
-      } else {
-        // 3. 把后端的“真心话”打印出来
-        setMessage(`❌ 失败: ${result.error || "字段约束不匹配"}`);
-        if (result.details) setErrorDetails(result.details);
-      }
-    } catch (error: any) {
-      setMessage("❌ 网络错误: 请确认本地服务器正在运行 (npm run dev)");
+      // 登录成功，跳转到仪表盘主页
+      router.push("/dashboard");
+    } catch (err: any) {
+      setError(err.message || "登录失败，请检查账号密码");
     } finally {
-      setIsSaving(false);
+      setLoading(false);
     }
   };
 
   return (
-    <div className="p-10 bg-zinc-50 min-h-screen dark:bg-black text-zinc-900 dark:text-zinc-100">
-      <div className="max-w-xl mx-auto bg-white dark:bg-zinc-900 p-8 rounded-3xl shadow-2xl border border-zinc-200 dark:border-zinc-800">
-        <h1 className="text-2xl font-bold mb-2 text-center text-blue-600">资产管理 (Letao 独立版)</h1>
-        <p className="text-center text-zinc-400 text-sm mb-8">自动侦测字段名 & 格式强校验</p>
-        
-        <div className="space-y-5">
-          {/* 资产名称 */}
-          <div>
-            <label className="block text-sm font-semibold mb-2">资产名称 *</label>
-            <input 
-              className="w-full p-3 rounded-xl border dark:bg-zinc-800 dark:border-zinc-700 focus:ring-2 focus:ring-blue-500 outline-none"
-              value={formData.name}
-              onChange={(e) => setFormData({...formData, name: e.target.value})}
-              placeholder="请输入资产名称"
-            />
+    <div className="min-h-screen flex items-center justify-center bg-[#050505] relative overflow-hidden text-white">
+      {/* 氛围灯光效果 */}
+      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600/10 blur-[120px] rounded-full" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-indigo-600/10 blur-[120px] rounded-full" />
+
+      <div className="w-full max-w-[420px] z-10 p-4">
+        <div className="p-8 rounded-[2.5rem] bg-zinc-900/40 border border-white/10 backdrop-blur-2xl shadow-2xl">
+          {/* Logo 与 标题 */}
+          <div className="text-center mb-10">
+            <div className="w-16 h-16 bg-gradient-to-tr from-blue-600 to-indigo-500 rounded-2xl mx-auto mb-6 flex items-center justify-center shadow-[0_0_30px_rgba(37,99,235,0.3)]">
+              <LockKeyhole className="w-8 h-8 text-white" />
+            </div>
+            <h1 className="text-3xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-b from-white to-zinc-500">
+              Letao Assets
+            </h1>
+            <p className="text-zinc-500 text-sm mt-2 font-medium">企业级资产管理系统</p>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            {/* 价格 */}
-            <div>
-              <label className="block text-sm font-semibold mb-2">价值 (Price)</label>
+          <form onSubmit={handleLogin} className="space-y-5">
+            <div className="relative group">
+              <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500 group-focus-within:text-blue-500 transition-colors" />
               <input 
-                className="w-full p-3 rounded-xl border dark:bg-zinc-800 dark:border-zinc-700"
-                value={formData.price}
-                onChange={(e) => setFormData({...formData, price: e.target.value})}
-                placeholder="数字，如 6000"
+                type="email" 
+                placeholder="管理员邮箱" 
+                required
+                className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 pl-12 outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all text-sm"
+                onChange={e => setEmail(e.target.value)}
               />
             </div>
-            {/* 分类 ID */}
-            <div>
-              <label className="block text-sm font-semibold mb-2">分类 ID (可选)</label>
+
+            <div className="relative group">
+              <LockKeyhole className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500 group-focus-within:text-blue-500 transition-colors" />
               <input 
-                className="w-full p-3 rounded-xl border dark:bg-zinc-800 dark:border-zinc-700"
-                value={formData.category_id}
-                onChange={(e) => setFormData({...formData, category_id: e.target.value})}
-                placeholder="数字 ID"
+                type="password" 
+                placeholder="准入密码" 
+                required
+                className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 pl-12 outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all text-sm"
+                onChange={e => setPassword(e.target.value)}
               />
             </div>
-          </div>
 
-          <div>
-            <label className="block text-sm font-semibold mb-2">序列号 (Serial)</label>
-            <input 
-              className="w-full p-3 rounded-xl border dark:bg-zinc-800 dark:border-zinc-700"
-              value={formData.serial}
-              onChange={(e) => setFormData({...formData, serial: e.target.value})}
-              placeholder="序列号或编号"
-            />
-          </div>
+            {error && (
+              <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-xs p-3 rounded-xl text-center">
+                {error}
+              </div>
+            )}
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-semibold mb-2">状态</label>
-              <select 
-                className="w-full p-3 rounded-xl border dark:bg-zinc-800 dark:border-zinc-700"
-                value={formData.status}
-                onChange={(e) => setFormData({...formData, status: e.target.value})}
-              >
-                <option value="available">空闲 (Available)</option>
-                <option value="borrowed">借出 (Borrowed)</option>
-                <option value="maintenance">维修 (Maintenance)</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-semibold mb-2">健康状况</label>
-              <select 
-                className="w-full p-3 rounded-xl border dark:bg-zinc-800 dark:border-zinc-700"
-                value={formData.condition}
-                onChange={(e) => setFormData({...formData, condition: e.target.value})}
-              >
-                <option value="new">全新 (New)</option>
-                <option value="good">良好 (Good)</option>
-                <option value="damaged">损坏 (Damaged)</option>
-              </select>
-            </div>
-          </div>
+            <button 
+              disabled={loading}
+              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-zinc-800 py-4 rounded-2xl font-bold transition-all active:scale-[0.98] shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  正在身份验证...
+                </>
+              ) : (
+                "进入管理面板"
+              )}
+            </button>
+          </form>
 
-          <button 
-            onClick={handleSave}
-            disabled={isSaving || !formData.name}
-            className={`w-full py-4 rounded-2xl font-bold text-white transition-all shadow-lg ${
-              isSaving ? 'bg-zinc-400' : 'bg-blue-600 hover:bg-blue-700 active:scale-95'
-            }`}
-          >
-            {isSaving ? "正在拼命入库..." : "立即保存"}
-          </button>
-
-          {message && (
-            <div className={`p-4 rounded-xl text-center font-bold ${
-              message.includes('✅') ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-            }`}>
-              <div>{message}</div>
-              {errorDetails && <div className="text-xs font-normal mt-2 opacity-80 underline">原因: {errorDetails}</div>}
-            </div>
-          )}
+          <p className="text-center text-zinc-600 text-[10px] mt-8 uppercase tracking-widest">
+            Secured by Supabase Auth
+          </p>
         </div>
       </div>
     </div>
