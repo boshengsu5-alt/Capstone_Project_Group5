@@ -40,39 +40,45 @@ export default function DashboardPage() {
     fetchAssets();
   }, []);
 
-  const handleSave = async () => {
-    // Simple validation, ensure at least name is provided
+const handleSave = async () => {
     if (!formData.name.trim()) return;
 
     try {
+      // 1. 核心修复：手动对齐 001 脚本的字段名
+      const payload = {
+        name: formData.name,
+        // 先去数据库查一个分类 ID 填上，或者这里先填一个你数据库里有的 UUID
+        // 如果不填 category_id，这里 100% 会报错
+        category_id: "你在 categories 表里看到的任意一个 UUID", 
+        purchase_price: parseFloat(formData.price) || 0,
+        serial_number: formData.serial || `SN-${Date.now()}`,
+        location: formData.location || 'Unassigned',
+        condition: 'good', // 必须是枚举值之一
+        status: 'available', // 必须是枚举值之一
+        qr_code: `QR-${Date.now()}` // 必填唯一码
+      };
+
       const res = await fetch('/api/assets', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: formData.name,
-          type: formData.type || 'Other',
-          serial: formData.serial || 'N/A',
-          price: Number(formData.price) || 0,
-          location: formData.location || 'Unassigned',
-          status: 'available',
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
       });
 
       if (res.ok) {
-        // Refresh the list from the database
         await fetchAssets();
         setIsModalOpen(false);
-        setFormData({ name: '', type: '', serial: '', price: '', location: '' }); // Reset
+        setFormData({ name: '', type: '', serial: '', price: '', location: '' });
       } else {
-        console.error('Failed to save asset');
+        // 重要：让浏览器打印出后端到底在烦什么
+        const errorDetail = await res.json();
+        console.error('数据库拒绝理由:', errorDetail);
+        alert(`保存失败：${errorDetail.details || '字段不匹配'}`);
       }
     } catch (error) {
-      console.error('Error saving asset:', error);
+      console.error('网络或服务器错误:', error);
     }
   };
-
+  
   return (
     <>
       <div>
