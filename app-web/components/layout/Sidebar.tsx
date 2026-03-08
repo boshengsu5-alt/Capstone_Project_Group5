@@ -3,7 +3,6 @@
 import type { FC } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-// 1. 导入符合业务逻辑的图标
 import { 
   LayoutDashboard, 
   Package, 
@@ -11,7 +10,8 @@ import {
   Undo2, 
   AlertTriangle, 
   X,
-  Settings 
+  Settings,
+  Users
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -30,7 +30,8 @@ const Sidebar: FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
     { name: 'Bookings', href: '/dashboard/bookings', icon: CalendarClock },
     { name: 'Returns', href: '/dashboard/returns', icon: Undo2 },
     { name: 'Damage Reports', href: '/dashboard/damage', icon: AlertTriangle },
-    { name: 'Settings', href: '/settings', icon: Settings }, // 保留设置项
+    { name: 'Users', href: '/dashboard/users', icon: Users },
+    { name: 'Settings', href: '/dashboard/settings', icon: Settings },
   ];
 
   return (
