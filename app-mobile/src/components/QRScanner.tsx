@@ -26,12 +26,11 @@ export default function QRScanner({ onScan }: QRScannerProps) {
   }
 
   const handleBarcodeScanned = ({ type, data }: { type: string; data: string }) => {
-    if (!scanned) {
-      setScanned(true);
-      onScan(data);
-      // Scan cooldown
-      setTimeout(() => setScanned(false), 2000);
-    }
+    if (scanned) return;
+    setScanned(true);
+    onScan(data);
+    // Scan cooldown
+    setTimeout(() => setScanned(false), 2000);
   };
 
   return (
@@ -42,9 +41,9 @@ export default function QRScanner({ onScan }: QRScannerProps) {
         barcodeScannerSettings={{
           barcodeTypes: ["qr", "ean13", "code128"],
         }}
-        onBarcodeScanned={scanned ? undefined : handleBarcodeScanned}
+        onBarcodeScanned={handleBarcodeScanned}
       >
-        <View style={styles.overlay}>
+        <View style={styles.overlay} pointerEvents="none">
           <View style={styles.scannerBox} />
           <Text style={styles.scanText}>
             {scanned ? "识别成功！" : "请将二维码放入框内"}
