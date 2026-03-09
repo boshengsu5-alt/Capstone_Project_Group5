@@ -1,0 +1,219 @@
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  SafeAreaView,
+  KeyboardAvoidingView,
+  Platform,
+  ActivityIndicator,
+  Alert,
+} from 'react-native';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { theme } from '../../theme';
+import { signIn } from '../../services/authService';
+
+export type AuthStackParamList = {
+  Login: undefined;
+  Register: undefined;
+};
+
+type Props = NativeStackScreenProps<AuthStackParamList, 'Login'>;
+
+export default function LoginScreen({ navigation }: Props) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleLogin = async () => {
+    if (!email.trim() || !password.trim()) {
+      Alert.alert('提示', '请填写邮箱和密码');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await signIn(email.trim(), password);
+      // 登录成功后 RootNavigator 会自动监听 auth 状态变化并跳转到主页
+    } catch (error: any) {
+      Alert.alert('登录失败', error.message || '请检查邮箱和密码');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardView}
+      >
+        <View style={styles.content}>
+          {/* Logo */}
+          <View style={styles.logoContainer}>
+            <View style={styles.logoCircle}>
+              <Text style={styles.logoText}>U</Text>
+            </View>
+            <Text style={styles.brandName}>UniGear</Text>
+            <Text style={styles.slogan}>高校智能资产租赁平台</Text>
+          </View>
+
+          {/* Form */}
+          <View style={styles.form}>
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>邮箱</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="请输入学校邮箱"
+                placeholderTextColor="#9CA3AF"
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+            </View>
+
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>密码</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="请输入密码"
+                placeholderTextColor="#9CA3AF"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+              />
+            </View>
+
+            <TouchableOpacity
+              style={[styles.loginButton, loading && styles.disabledButton]}
+              onPress={handleLogin}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.loginButtonText}>登 录</Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.registerLink}
+              onPress={() => navigation.navigate('Register')}
+            >
+              <Text style={styles.registerText}>
+                还没有账号？<Text style={styles.registerHighlight}>立即注册</Text>
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#1E1B4B',
+  },
+  keyboardView: {
+    flex: 1,
+  },
+  content: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+  },
+  logoContainer: {
+    alignItems: 'center',
+    marginBottom: 48,
+  },
+  logoCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#6366F1',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+    shadowColor: '#6366F1',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6,
+    shadowRadius: 15,
+    elevation: 8,
+  },
+  logoText: {
+    fontSize: 40,
+    fontWeight: '900',
+    color: '#fff',
+  },
+  brandName: {
+    fontSize: 32,
+    fontWeight: '900',
+    color: '#fff',
+    letterSpacing: 2,
+  },
+  slogan: {
+    fontSize: 14,
+    color: '#A5B4FC',
+    marginTop: 8,
+  },
+  form: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  inputContainer: {
+    marginBottom: 20,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.text,
+    marginBottom: 8,
+  },
+  input: {
+    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 16,
+    color: theme.colors.text,
+  },
+  loginButton: {
+    backgroundColor: theme.colors.primary,
+    borderRadius: 12,
+    paddingVertical: 16,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  disabledButton: {
+    opacity: 0.6,
+  },
+  loginButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  registerLink: {
+    marginTop: 20,
+    alignItems: 'center',
+  },
+  registerText: {
+    fontSize: 14,
+    color: theme.colors.gray,
+  },
+  registerHighlight: {
+    color: theme.colors.primary,
+    fontWeight: 'bold',
+  },
+});

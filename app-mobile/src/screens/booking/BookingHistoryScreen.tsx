@@ -1,25 +1,51 @@
 import React from 'react';
 import { View, Text, StyleSheet, FlatList, SafeAreaView } from 'react-native';
 
-const FAKE_BOOKINGS = [
-  { id: '1', item: 'Sony A7M4', date: '2026-03-05', status: '已归还' },
-  { id: '2', item: 'DJI Ronin RS3', date: '2026-03-07', status: '已借用' },
-  { id: '3', item: 'Canon 24-70mm', date: '2026-03-01', status: '已逾期' },
-  { id: '4', item: 'Apple iPad Pro', date: '2026-03-06', status: '已借用' },
+import type { BookingStatus } from '../../../../database/types/supabase';
+
+// Use an extended type because frontend needs to display asset names (typically from a join query).
+// (因前端列表需展示资产名称，此处定义带有资产名称的联合数据类型以适配UI)
+type BookingWithAsset = {
+  id: string;
+  asset_name: string;
+  date: string;
+  status: BookingStatus;
+};
+
+const FAKE_BOOKINGS: BookingWithAsset[] = [
+  { id: '1', asset_name: 'Sony A7M4', date: '2026-03-05', status: 'returned' },
+  { id: '2', asset_name: 'DJI Ronin RS3', date: '2026-03-07', status: 'active' },
+  { id: '3', asset_name: 'Canon 24-70mm', date: '2026-03-01', status: 'overdue' },
+  { id: '4', asset_name: 'Apple iPad Pro', date: '2026-03-06', status: 'active' },
 ];
 
+const getStatusLabel = (status: BookingStatus) => {
+  switch (status) {
+    case 'returned': return '已归还';
+    case 'active': return '已借用';
+    case 'overdue': return '已逾期';
+    case 'pending': return '待审批';
+    case 'approved': return '已通过';
+    case 'rejected': return '已拒绝';
+    case 'cancelled': return '已取消';
+    default: return status;
+  }
+};
+
 export default function BookingHistoryScreen() {
-  const renderItem = ({ item }: { item: any }) => {
-    let statusColor = '#4CAF50'; // 绿 - 已归还
-    if (item.status === '已逾期') statusColor = '#F44336'; // 红
-    if (item.status === '已借用') statusColor = '#FF9800'; // 黄
+  const renderItem = ({ item }: { item: BookingWithAsset }) => {
+    // Determine visual priority based on status. Overdue items should be highly visible to enforce return policies.
+    // (根据状态决定视觉优先级：逾期物品必须高亮警示，以强制执行资产归还政策)
+    let statusColor = '#4CAF50';
+    if (item.status === 'overdue') statusColor = '#F44336';
+    if (item.status === 'active') statusColor = '#FF9800';
 
     return (
       <View style={[styles.card, { borderLeftColor: statusColor }]}>
         <View style={styles.cardHeader}>
-          <Text style={styles.itemName}>{item.item}</Text>
+          <Text style={styles.itemName}>{item.asset_name}</Text>
           <View style={[styles.statusBadge, { backgroundColor: statusColor + '20' }]}>
-            <Text style={[styles.status, { color: statusColor }]}>{item.status}</Text>
+            <Text style={[styles.status, { color: statusColor }]}>{getStatusLabel(item.status)}</Text>
           </View>
         </View>
         <Text style={styles.date}>借用日期：{item.date}</Text>

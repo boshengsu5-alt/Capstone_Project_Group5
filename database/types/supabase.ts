@@ -190,36 +190,62 @@ export interface Database {
                 Row: Profile;
                 Insert: ProfileInsert;
                 Update: ProfileUpdate;
+                Relationships: [];
             };
             categories: {
                 Row: Category;
                 Insert: CategoryInsert;
                 Update: CategoryUpdate;
+                Relationships: [];
             };
             assets: {
                 Row: Asset;
                 Insert: AssetInsert;
                 Update: AssetUpdate;
+                Relationships: [];
             };
             bookings: {
                 Row: Booking;
                 Insert: BookingInsert;
                 Update: BookingUpdate;
+                Relationships: [];
             };
             damage_reports: {
                 Row: DamageReport;
                 Insert: DamageReportInsert;
                 Update: DamageReportUpdate;
+                Relationships: [];
             };
             notifications: {
                 Row: Notification;
                 Insert: NotificationInsert;
                 Update: NotificationUpdate;
+                Relationships: [];
             };
             reviews: {
                 Row: Review;
                 Insert: ReviewInsert;
                 Update: ReviewUpdate;
+                Relationships: [];
+            };
+        };
+        Views: {};
+        Functions: {
+            activate_booking: {
+                Args: { p_booking_id: string };
+                Returns: void;
+            };
+            return_booking: {
+                Args: { p_booking_id: string; p_photo_url: string };
+                Returns: void;
+            };
+            check_overdue_bookings: {
+                Args: Record<string, never>;
+                Returns: void;
+            };
+            update_credit_score: {
+                Args: { p_user_id: string; p_delta: number; p_reason: string };
+                Returns: void;
             };
         };
         Enums: {
@@ -232,5 +258,6 @@ export interface Database {
             damage_report_status: DamageReportStatus;
             notification_type: NotificationType;
         };
+        CompositeTypes: {};
     };
 }

@@ -3,7 +3,7 @@
 import type { FC } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Users, Settings, Briefcase, FileText, X } from 'lucide-react';
+import { LayoutDashboard, Package, ClipboardList, RotateCcw, AlertTriangle, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface SidebarProps {
@@ -16,10 +16,10 @@ const Sidebar: FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
 
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-    { name: 'Users', href: '/users', icon: Users },
-    { name: 'Projects', href: '/projects', icon: Briefcase },
-    { name: 'Reports', href: '/reports', icon: FileText },
-    { name: 'Settings', href: '/settings', icon: Settings },
+    { name: 'Assets', href: '/dashboard/assets', icon: Package },
+    { name: 'Bookings', href: '/dashboard/bookings', icon: ClipboardList },
+    { name: 'Returns', href: '/dashboard/returns', icon: RotateCcw },
+    { name: 'Damage Reports', href: '/dashboard/damage', icon: AlertTriangle },
   ];
 
   return (
@@ -44,7 +44,7 @@ const Sidebar: FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
               <LayoutDashboard className="h-5 w-5 text-white" />
             </div>
             <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-indigo-400">
-              AdminPro
+              UniGear
             </span>
           </div>
           <button
