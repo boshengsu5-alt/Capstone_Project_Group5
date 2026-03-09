@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { QRCodeSVG } from 'qrcode.react';
 import Header from '@/components/layout/Header';
 import AssetForm from '@/components/assets/AssetForm';
 import { cn } from '@/lib/utils';
@@ -69,6 +70,7 @@ export default function AssetsPage() {
                         <tr>
                           <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 dark:text-white sm:pl-6">Name</th>
                           <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">Serial Number</th>
+                          <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">设备标识 (QR)</th>
                           <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">Price</th>
                           <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">Location</th>
                           <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">Condition</th>
@@ -85,7 +87,7 @@ export default function AssetsPage() {
                            </tr>
                         ) : assets.length === 0 ? (
                            <tr>
-                             <td colSpan={7} className="text-center py-10 text-gray-500">No assets found. Click "Add new asset" to track your first item.</td>
+                             <td colSpan={8} className="text-center py-10 text-gray-500">No assets found. Click "Add new asset" to track your first item.</td>
                            </tr>
                         ) : (
                           assets.map((asset) => (
@@ -94,6 +96,17 @@ export default function AssetsPage() {
                               {asset.name}
                             </td>
                             <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">{asset.serial_number || 'N/A'}</td>
+                            <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">
+                              {asset.qr_code ? (
+                                <div className="group relative w-10 h-10">
+                                  <QRCodeSVG 
+                                    value={asset.qr_code} 
+                                    size={40} 
+                                    className="cursor-pointer transition-transform duration-300 group-hover:scale-150 group-hover:z-10 relative bg-white p-1 rounded shadow-sm"
+                                  />
+                                </div>
+                              ) : 'N/A'}
+                            </td>
                             <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">${asset.purchase_price}</td>
                             <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">{asset.location}</td>
                             <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400 capitalize">{asset.condition}</td>
