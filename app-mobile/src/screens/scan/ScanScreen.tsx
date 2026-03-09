@@ -61,7 +61,9 @@ export default function ScanScreen({ onBack }: ScanScreenProps) {
           style={styles.camera}
           facing="front"
           onBarcodeScanned={({ data }) => handleScan(data)}
-        />
+        >
+          {/* Mask if needed can be placed here */}
+        </CameraView>
       </View>
       <View style={styles.hintContainer}>
         <Text style={styles.hintText}>将二维码对准扫描框，自动识别设备信息</Text>
@@ -82,6 +84,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     backgroundColor: '#111',
+    zIndex: 10,
   },
   backButton: {
     padding: 8,
@@ -98,14 +101,16 @@ const styles = StyleSheet.create({
   },
   cameraContainer: {
     flex: 1,
-    justifyContent: 'center',
+    backgroundColor: '#000',
+    overflow: 'hidden',
   },
   camera: {
     flex: 1,
   },
   hintContainer: {
-    paddingBottom: 40,
+    paddingVertical: 20,
     alignItems: 'center',
+    backgroundColor: '#000',
   },
   hintText: {
     color: '#A5B4FC',
