@@ -11,6 +11,8 @@ export default function AssetsPage() {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('All');
 
   const fetchAssets = async () => {
     try {
@@ -36,6 +38,19 @@ export default function AssetsPage() {
     fetchAssets();
   };
 
+  // Derived state for filtering
+  const categories = ['All', ...Array.from(new Set(assets.map(a => (a as any).categories?.name).filter(Boolean)))];
+  
+  const filteredAssets = assets.filter(asset => {
+    const matchesSearch = asset.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          (asset.serial_number && asset.serial_number.toLowerCase().includes(searchQuery.toLowerCase()));
+    
+    const assetCategoryName = (asset as any).categories?.name;
+    const matchesCategory = selectedCategory === 'All' || assetCategoryName === selectedCategory;
+    
+    return matchesSearch && matchesCategory;
+  });
+
   return (
     <div className="flex flex-col flex-1 h-full w-full bg-gray-50 dark:bg-black overflow-y-auto">
       <Header />
@@ -43,7 +58,7 @@ export default function AssetsPage() {
       <main className="flex-1 p-6 sm:p-8">
         {!showForm ? (
           <>
-            <div className="sm:flex sm:items-center mb-8">
+            <div className="sm:flex sm:items-center mb-6">
               <div className="sm:flex-auto">
                 <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Assets Dashboard</h1>
                 <p className="mt-2 text-sm text-gray-700 dark:text-gray-300">
@@ -61,6 +76,44 @@ export default function AssetsPage() {
               </div>
             </div>
 
+            {/* --- Search and Filter Section --- */}
+            <div className="mb-6 flex flex-col sm:flex-row gap-4 items-center justify-between bg-white dark:bg-gray-900 p-4 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800">
+              <div className="w-full sm:max-w-md">
+                <label htmlFor="search" className="sr-only">Search</label>
+                <div className="relative">
+                  <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                    <svg className="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <input
+                    type="text"
+                    name="search"
+                    id="search"
+                    className="block w-full rounded-md border-0 py-2 pl-10 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 dark:bg-gray-800 dark:text-white dark:ring-gray-700 dark:placeholder-gray-500"
+                    placeholder="Search by name or serial number..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="w-full sm:max-w-xs flex items-center gap-2">
+                 <span className="text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">Filter:</span>
+                 <select
+                  id="category"
+                  name="category"
+                  className="block w-full rounded-md border-0 py-2 pl-3 pr-10 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-indigo-600 sm:text-sm sm:leading-6 dark:bg-gray-800 dark:text-white dark:ring-gray-700 dark:focus:ring-indigo-500"
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                >
+                  {categories.map((cat: any) => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
             <div className="flow-root">
               <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
                 <div className="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
@@ -70,9 +123,10 @@ export default function AssetsPage() {
                         <tr>
                           <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 dark:text-white sm:pl-6">Name</th>
                           <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">Serial Number</th>
-                          <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">设备标识 (QR)</th>
+                          <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">QR Code</th>
                           <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">Price</th>
                           <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">Location</th>
+                          <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">Category</th>
                           <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">Condition</th>
                           <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">Status</th>
                           <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-6">
@@ -83,19 +137,21 @@ export default function AssetsPage() {
                       <tbody className="divide-y divide-gray-200 dark:divide-gray-800 bg-white dark:bg-gray-900">
                         {isLoading ? (
                            <tr>
-                             <td colSpan={7} className="text-center py-10 text-gray-500">Loading assets...</td>
+                             <td colSpan={9} className="text-center py-10 text-gray-500">Loading assets...</td>
                            </tr>
-                        ) : assets.length === 0 ? (
+                        ) : filteredAssets.length === 0 ? (
                            <tr>
-                             <td colSpan={8} className="text-center py-10 text-gray-500">No assets found. Click "Add new asset" to track your first item.</td>
+                             <td colSpan={9} className="text-center py-10 text-gray-500">
+                               {assets.length === 0 ? 'No assets found. Click "Add new asset" to track your first item.' : 'No assets match your search/filter.'}
+                             </td>
                            </tr>
                         ) : (
-                          assets.map((asset) => (
+                          filteredAssets.map((asset) => (
                           <tr key={asset.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
                             <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 dark:text-white sm:pl-6">
                               {asset.name}
                             </td>
-                            <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">{asset.serial_number || 'N/A'}</td>
+                            <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400 font-mono text-xs uppercase">{asset.serial_number || 'N/A'}</td>
                             <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">
                               {asset.qr_code ? (
                                 <div className="group relative w-10 h-10">
@@ -107,8 +163,9 @@ export default function AssetsPage() {
                                 </div>
                               ) : 'N/A'}
                             </td>
-                            <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">${asset.purchase_price}</td>
-                            <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">{asset.location}</td>
+                            <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">${asset.purchase_price ?? '0.00'}</td>
+                            <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">{asset.location || '-'}</td>
+                            <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">{(asset as any).categories?.name || '-'}</td>
                             <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400 capitalize">{asset.condition}</td>
                             <td className="whitespace-nowrap px-3 py-4 text-sm">
                               <span
@@ -141,10 +198,12 @@ export default function AssetsPage() {
         ) : (
           <div className="max-w-4xl mx-auto">
              <div className="mb-6">
-                <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Add New Asset</h1>
-                <p className="mt-2 text-sm text-gray-700 dark:text-gray-300">
-                  Fill in the details below to catalog a new asset into the system.
-                </p>
+                <button 
+                  onClick={() => setShowForm(false)}
+                  className="text-sm text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300 mb-4 flex items-center gap-2"
+                >
+                  &larr; Back to Assets
+                </button>
              </div>
              <AssetForm 
                onCancel={() => setShowForm(false)} 

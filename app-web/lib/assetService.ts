@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase';
-import { Asset, CreateAssetPayload } from '@/types/database';
+import { Asset } from '@/types/database';
 
 export async function getAssets() {
   const { data, error } = await supabase
@@ -27,15 +27,13 @@ export async function createAsset(data: any): Promise<Asset> {
     if (categories && categories.length > 0) {
       finalCategoryId = categories[0].id;
     } else {
-      // In case no categories exist, we should ideally create a default one 
-      // or throw an error. For safety, we throw an error requiring DB setup.
       throw new Error("No categories found in database. Please seed categories first.");
     }
   }
 
-  // 2. Map form fields to DB schema requirements
-  const purchase_price = data.price ? Number(data.price) : 0;
-  const serial_number = data.serial || null;
+  // 2. Map form fields to DB schema requirements map explicitly to purchase_price and serial_number
+  const purchase_price = data.purchase_price ? Number(data.purchase_price) : 0;
+  const serial_number = data.serial_number || null;
   const name = data.name;
   const location = data.location || null;
   const description = data.description || null;
@@ -73,8 +71,6 @@ export async function createAsset(data: any): Promise<Asset> {
 }
 
 export async function updateAsset(id: string, data: any): Promise<Asset | null> {
-  // Placeholder for Day X: Update Asset Logic
-  // Returning mock data for now as requested
   console.log(`Mock updating asset ${id} with data:`, data);
   return {
     id,
