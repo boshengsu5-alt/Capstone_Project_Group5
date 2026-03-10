@@ -43,6 +43,8 @@ export async function createAsset(data: any): Promise<Asset> {
   const condition = 'new';
   const qr_code = crypto.randomUUID();
 
+  const images = data.images || [];
+
   // 4. Insert into database
   const insertPayload = {
     category_id: finalCategoryId,
@@ -53,7 +55,8 @@ export async function createAsset(data: any): Promise<Asset> {
     condition,
     status,
     location,
-    purchase_price
+    purchase_price,
+    images
   } as any;
 
   const { data: insertedAsset, error } = await (supabase as any)

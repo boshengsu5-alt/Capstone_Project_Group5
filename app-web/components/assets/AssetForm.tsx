@@ -1,7 +1,7 @@
-'use client';
-
-import React, { useState } from 'react';
-import { Package, Tag, Hash, DollarSign, MapPin, AlignLeft, ShieldCheck, Asterisk } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { Package, Tag, Hash, DollarSign, MapPin, AlignLeft, ShieldCheck, Asterisk, Upload, X, Image as ImageIcon, Loader2 } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
+import { cn } from '@/lib/utils';
 
 interface AssetFormProps {
   onCancel: () => void;
@@ -10,7 +10,11 @@ interface AssetFormProps {
 
 export default function AssetForm({ onCancel, onSuccess }: AssetFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [images, setImages] = useState<string[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const [formData, setFormData] = useState({
     name: '',
     category_id: '',
@@ -23,6 +27,51 @@ export default function AssetForm({ onCancel, onSuccess }: AssetFormProps) {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    
+    await uploadImages(Array.from(files));
+  };
+
+  const uploadImages = async (files: File[]) => {
+    try {
+      setIsUploading(true);
+      setError(null);
+
+      const uploadPromises = files.map(async (file) => {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
+        const filePath = `assets/${fileName}`;
+
+        const { error: uploadError, data } = await supabase.storage
+          .from('asset-images')
+          .upload(filePath, file);
+
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('asset-images')
+          .getPublicUrl(filePath);
+
+        return publicUrl;
+      });
+
+      const urls = await Promise.all(uploadPromises);
+      setImages((prev) => [...prev, ...urls]);
+    } catch (err: any) {
+      console.error('Upload error:', err);
+      setError('Failed to upload images. Please check if bucket "asset-images" is exists and public.');
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const removeImage = (index: number) => {
+    setImages((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -39,7 +88,10 @@ export default function AssetForm({ onCancel, onSuccess }: AssetFormProps) {
       const res = await fetch('/api/assets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          images
+        }),
       });
 
       if (!res.ok) {
@@ -91,6 +143,56 @@ export default function AssetForm({ onCancel, onSuccess }: AssetFormProps) {
                   placeholder="e.g. Dell XPS 15 9530"
                 />
               </div>
+            </div>
+
+            {/* Image Upload Area */}
+            <div className="sm:col-span-6">
+              <label className="block text-sm font-semibold leading-6 text-gray-900 dark:text-gray-100 mb-2.5">
+                Asset Images
+              </label>
+              
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
+                {images.map((url, idx) => (
+                  <div key={idx} className="relative group aspect-square rounded-xl overflow-hidden border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900">
+                    <img src={url} alt="asset preview" className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => removeImage(idx)}
+                      className="absolute top-1.5 right-1.5 p-1 bg-rose-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+                
+                {isUploading && (
+                  <div className="aspect-square rounded-xl border border-dashed border-indigo-400 flex flex-col items-center justify-center bg-indigo-50/10 dark:bg-indigo-900/10">
+                    <Loader2 className="w-6 h-6 text-indigo-500 animate-spin" />
+                    <span className="text-xs text-indigo-500 mt-2 font-medium">Uploading...</span>
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="aspect-square rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-700 hover:border-indigo-500 dark:hover:border-indigo-400 hover:bg-indigo-50/50 dark:hover:bg-indigo-900/20 transition-all flex flex-col items-center justify-center group"
+                >
+                  <Upload className="w-6 h-6 text-gray-400 group-hover:text-indigo-500 transition-colors" />
+                  <span className="text-xs text-gray-500 group-hover:text-indigo-500 mt-2 font-medium">Add Photo</span>
+                </button>
+              </div>
+
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                accept="image/*"
+                multiple
+                className="hidden"
+              />
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Upload up to 4 clear photos of the asset. JPG, PNG are supported.
+              </p>
             </div>
 
             {/* Category ID */}
@@ -216,22 +318,19 @@ export default function AssetForm({ onCancel, onSuccess }: AssetFormProps) {
           <button
             type="button"
             onClick={onCancel}
-            disabled={isSubmitting}
+            disabled={isSubmitting || isUploading}
             className="text-sm font-semibold leading-6 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white disabled:opacity-50 px-5 py-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-all focus:outline-none focus:ring-2 focus:ring-gray-200 dark:focus:ring-gray-700"
           >
             Cancel
           </button>
           <button
             type="submit"
-            disabled={isSubmitting}
+            disabled={isSubmitting || isUploading}
             className="rounded-xl bg-indigo-600 px-8 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-500/30 hover:bg-indigo-500 hover:shadow-indigo-500/40 hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-indigo-500/30 transition-all duration-200 ease-out flex items-center"
           >
             {isSubmitting ? (
               <>
-                <svg className="animate-spin -ml-1 mr-3 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
+                <Loader2 className="animate-spin -ml-1 mr-3 h-4 w-4 text-white" />
                 Processing...
               </>
             ) : 'Save Asset Record'}
