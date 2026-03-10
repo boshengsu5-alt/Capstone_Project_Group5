@@ -53,6 +53,7 @@ export default function AssetsPage() {
     
     // selectedCategory stores category_id now
     const matchesCategory = selectedCategory === 'All' || asset.category_id === selectedCategory;
+
     
     return matchesSearch && matchesCategory;
   });
