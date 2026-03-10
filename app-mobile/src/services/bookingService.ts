@@ -118,3 +118,45 @@ export async function getBookingsForAsset(assetId: string) {
   if (error) throw error;
   return data;
 }
+
+/**
+ * 查询是否有已批准的取货预订
+ */
+export async function getApprovedBookingForPickup(assetId: string) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('用户未登录');
+
+  const { data, error } = await db
+    .from('bookings')
+    .select('*')
+    .eq('asset_id', assetId)
+    .eq('borrower_id', user.id)
+    .eq('status', 'approved')
+    .order('start_date', { ascending: true }) // 找最近的一个
+    .limit(1)
+    .single();
+
+  if (error) {
+    if (error.code === 'PGRST116') return null; // 未找到对应记录
+    throw error;
+  }
+  return data;
+}
+
+/**
+ * 激活预订（扫码取货）
+ */
+export async function activateBooking(bookingId: string) {
+  const { data, error } = await db
+    .from('bookings')
+    .update({
+      status: 'active',
+      pickup_time: new Date().toISOString()
+    })
+    .eq('id', bookingId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}

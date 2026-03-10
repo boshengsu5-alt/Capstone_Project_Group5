@@ -1,7 +1,9 @@
 import React, { useEffect } from 'react';
-import { StyleSheet, Text, View, SafeAreaView, TouchableOpacity } from 'react-native';
+import { StyleSheet, Text, View, SafeAreaView, TouchableOpacity, Vibration, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import { getAssetByQRCode } from '../../services/assetService';
+import { getApprovedBookingForPickup, activateBooking } from '../../services/bookingService';
 
 interface ScanScreenProps {
   onBack?: () => void;
@@ -10,14 +12,66 @@ interface ScanScreenProps {
 export default function ScanScreen({ onBack }: ScanScreenProps) {
   const navigation = useNavigation<any>();
   const [permission, requestPermission] = useCameraPermissions();
+  const [isProcessing, setIsProcessing] = React.useState(false);
 
-  const handleScan = (data: string) => {
-    // 扫到的 qr_code 值就是 assetId
-    // 跳转到 Home Tab 的 AssetDetailScreen 查看详情
-    navigation.navigate('HomeTab', {
-      screen: 'AssetDetailScreen',
-      params: { id: data },
-    });
+  const handleScan = async (data: string) => {
+    if (isProcessing) return;
+    setIsProcessing(true);
+
+    Vibration.vibrate();
+    console.log("Scanned QR Code:", data);
+
+    try {
+      const asset = await getAssetByQRCode(data);
+      if (!asset) {
+        Alert.alert("错误", "未找到该二维码对应的设备", [
+          { text: "确定", onPress: () => setIsProcessing(false) }
+        ]);
+        return;
+      }
+
+      const booking = await getApprovedBookingForPickup(asset.id);
+
+      if (booking) {
+        Alert.alert(
+          "确认取货？",
+          `是否确认提取该设备？`,
+          [
+            {
+              text: "取消",
+              style: "cancel",
+              onPress: () => setIsProcessing(false)
+            },
+            {
+              text: "确认",
+              onPress: async () => {
+                try {
+                  await activateBooking(booking.id);
+                  Alert.alert("系统提示", "取货成功，请妥善使用设备！", [
+                    {
+                      text: "确定", onPress: () => {
+                        setIsProcessing(false);
+                        navigation.goBack();
+                      }
+                    }
+                  ]);
+                } catch (err: any) {
+                  Alert.alert("取货失败", err.message, [{ text: "确定", onPress: () => setIsProcessing(false) }]);
+                }
+              }
+            }
+          ]
+        );
+      } else {
+        setIsProcessing(false);
+        navigation.navigate('HomeTab', {
+          screen: 'AssetDetailScreen',
+          params: { id: asset.id },
+        });
+      }
+    } catch (err: any) {
+      Alert.alert("提示", err.message, [{ text: "确定", onPress: () => setIsProcessing(false) }]);
+    }
   };
 
   useEffect(() => {
