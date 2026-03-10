@@ -7,7 +7,7 @@ import BookingFormScreen from '../screens/booking/BookingFormScreen';
 
 export type HomeStackParamList = {
   HomeScreen: { categoryId?: string } | undefined;
-  CategoryScreen: undefined;
+  CategoryScreen: { categoryId?: string } | undefined;
   AssetDetailScreen: { id: string };
   BookingFormScreen: { assetId: string };
 };

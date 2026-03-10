@@ -1,44 +1,83 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, SafeAreaView, Dimensions } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, SafeAreaView, Dimensions, ActivityIndicator } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { HomeStackParamList } from '../../navigation/HomeStackNavigator';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../theme';
+import CalendarView from '../../components/CalendarView';
+import { supabase } from '../../services/supabase';
+import type { Asset } from '../../../../database/types/supabase';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'AssetDetailScreen'>;
 
 const { width } = Dimensions.get('window');
 
-// Mock data fetch based on ID
-const getAssetDetails = (id: string) => ({
-  id,
-  name: id === '1' ? '特级咖啡豆' : '索尼 Alpha 7 IV 全画幅微单相机',
-  description: '这是一款高性能的设备，适合各种专业场景。提供卓越的画质和稳定的性能表现。',
-  location: '主校区 图书馆 3F-A区 储物柜05',
-  warranty_status: '保修期内 (至 2027年5月)',
-  imageUrl: 'https://via.placeholder.com/400x300.png?text=Product+Image',
-  price: '¥299/天'
-});
+const conditionMap: Record<string, string> = {
+  new: '全新',
+  good: '良好',
+  fair: '一般',
+  poor: '较差',
+  damaged: '损坏'
+};
 
 export default function AssetDetailScreen({ route, navigation }: Props) {
-  const asset = getAssetDetails(route.params?.id || 'default');
+  const [asset, setAsset] = useState<Asset | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchAsset = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('assets')
+          .select('*')
+          .eq('id', route.params.id)
+          .single();
+        if (error) throw error;
+        setAsset(data);
+      } catch (err) {
+        console.error('Error fetching asset details:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchAsset();
+  }, [route.params.id]);
+
+  if (loading) {
+    return (
+      <SafeAreaView style={[styles.safeArea, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+      </SafeAreaView>
+    );
+  }
+
+  if (!asset) {
+    return (
+      <SafeAreaView style={[styles.safeArea, { justifyContent: 'center', alignItems: 'center' }]}>
+        <Text>未找到商品信息</Text>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         {/* Placeholder for Product Image */}
         <View style={styles.imageContainer}>
-          <Image source={{ uri: asset.imageUrl }} style={styles.image} resizeMode="cover" />
-          <View style={styles.placeholderIcon}>
-             <Ionicons name="camera-outline" size={60} color="#ccc" />
-          </View>
+          {asset.images && asset.images.length > 0 ? (
+            <Image source={{ uri: asset.images[0] }} style={styles.image} resizeMode="cover" />
+          ) : (
+            <View style={styles.placeholderIcon}>
+               <Ionicons name="camera-outline" size={60} color="#ccc" />
+            </View>
+          )}
         </View>
 
         <View style={styles.contentContainer}>
           {/* Header Info */}
           <View style={styles.header}>
             <Text style={styles.title}>{asset.name}</Text>
-            <Text style={styles.price}>{asset.price}</Text>
+            <Text style={styles.price}>{asset.status === 'available' ? '现存可借' : asset.status}</Text>
           </View>
 
           {/* Description */}
@@ -55,7 +94,15 @@ export default function AssetDetailScreen({ route, navigation }: Props) {
                <Ionicons name="location-outline" size={20} color={theme.colors.gray} style={styles.infoIcon} />
                <View>
                  <Text style={styles.infoLabel}>存放位置</Text>
-                 <Text style={styles.infoValue}>{asset.location}</Text>
+                 <Text style={styles.infoValue}>{asset.location || '暂无位置信息'}</Text>
+               </View>
+             </View>
+
+             <View style={styles.infoRow}>
+               <Ionicons name="hardware-chip-outline" size={20} color={theme.colors.gray} style={styles.infoIcon} />
+               <View>
+                 <Text style={styles.infoLabel}>物理状况</Text>
+                 <Text style={styles.infoValue}>{conditionMap[asset.condition] || asset.condition}</Text>
                </View>
              </View>
 
@@ -63,18 +110,22 @@ export default function AssetDetailScreen({ route, navigation }: Props) {
                <Ionicons name="shield-checkmark-outline" size={20} color={theme.colors.gray} style={styles.infoIcon} />
                <View>
                  <Text style={styles.infoLabel}>保修状态</Text>
-                 <Text style={styles.infoValue}>{asset.warranty_status}</Text>
+                 <Text style={styles.infoValue}>{asset.warranty_status === 'active' ? '保修期内' : asset.warranty_status === 'expired' ? '已过期' : '无保修'}</Text>
                </View>
              </View>
           </View>
 
-          {/* Calendar Placeholder */}
+          {/* Calendar Section */}
           <View style={styles.calendarSection}>
-            <View style={styles.calendarPlaceholder}>
-              <Ionicons name="calendar-outline" size={32} color={theme.colors.primary} />
-              <Text style={styles.calendarText}>日历组件（待接入）</Text>
-              <Text style={styles.calendarSubText}>选择您需要借用的日期</Text>
-            </View>
+            <Text style={styles.sectionTitle}>借用日历</Text>
+            <CalendarView 
+              markedDates={{
+                '2026-03-12': { color: '#EF4444', textColor: 'white', disabled: true, startingDay: true, endingDay: true },
+                '2026-03-13': { color: '#EF4444', textColor: 'white', disabled: true, startingDay: true, endingDay: true },
+                '2026-03-15': { color: '#10B981', textColor: 'white', startingDay: true, endingDay: true }
+              }}
+              onDayPress={(day: any) => console.log('Selected day', day)}
+            />
           </View>
 
         </View>
