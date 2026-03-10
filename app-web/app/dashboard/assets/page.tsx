@@ -39,14 +39,20 @@ export default function AssetsPage() {
   };
 
   // Derived state for filtering
-  const categories = ['All', ...Array.from(new Set(assets.map(a => (a as any).categories?.name).filter(Boolean)))];
+  const categoriesMap = assets.reduce((acc, asset: any) => {
+    if (asset.categories) {
+      acc[asset.categories.id] = asset.categories.name;
+    }
+    return acc;
+  }, {} as Record<string, string>);
+  const categories = Object.entries(categoriesMap).map(([id, name]) => ({ id, name }));
   
   const filteredAssets = assets.filter(asset => {
     const matchesSearch = asset.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           (asset.serial_number && asset.serial_number.toLowerCase().includes(searchQuery.toLowerCase()));
     
-    const assetCategoryName = (asset as any).categories?.name;
-    const matchesCategory = selectedCategory === 'All' || assetCategoryName === selectedCategory;
+    // selectedCategory stores category_id now
+    const matchesCategory = selectedCategory === 'All' || asset.category_id === selectedCategory;
     
     return matchesSearch && matchesCategory;
   });
@@ -107,8 +113,9 @@ export default function AssetsPage() {
                   value={selectedCategory}
                   onChange={(e) => setSelectedCategory(e.target.value)}
                 >
+                  <option value="All">全部分类</option>
                   {categories.map((cat: any) => (
-                    <option key={cat} value={cat}>{cat}</option>
+                    <option key={cat.id} value={cat.id}>{cat.name}</option>
                   ))}
                 </select>
               </div>
@@ -142,7 +149,7 @@ export default function AssetsPage() {
                         ) : filteredAssets.length === 0 ? (
                            <tr>
                              <td colSpan={9} className="text-center py-10 text-gray-500">
-                               {assets.length === 0 ? 'No assets found. Click "Add new asset" to track your first item.' : 'No assets match your search/filter.'}
+                               {assets.length === 0 ? 'No assets found. Click "Add new asset" to track your first item.' : '未找到匹配资产'}
                              </td>
                            </tr>
                         ) : (
