@@ -25,6 +25,7 @@ dist-ssr
 
 # AI agent rules (本地私有，不上传)
 .agents/
+.claude/
 
 # Dependencies (依赖目录)
 node_modules/

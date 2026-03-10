@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 'use client';
 
 import React from 'react';
@@ -94,3 +95,16 @@ export default function BookingTable({ bookings, onReview }: BookingTableProps) 
         </div>
     );
 }
+=======
+import { BookingWithDetails } from '@/lib/bookingService';
+
+export default function BookingTable({
+    bookings,
+    onReview
+}: {
+    bookings: BookingWithDetails[];
+    onReview: (booking: BookingWithDetails) => void;
+}) {
+    return <div>Booking Table Placeholder</div>;
+}
+>>>>>>> origin/main
