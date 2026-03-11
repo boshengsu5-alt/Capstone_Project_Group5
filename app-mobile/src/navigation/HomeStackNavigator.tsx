@@ -9,7 +9,11 @@ export type HomeStackParamList = {
   HomeScreen: { categoryId?: string } | undefined;
   CategoryScreen: undefined;
   AssetDetailScreen: { id: string };
-  BookingFormScreen: { assetId: string };
+  BookingFormScreen: {
+    assetId: string;
+    startDate: string;
+    endDate: string;
+  };
 };
 
 const Stack = createNativeStackNavigator<HomeStackParamList>();
