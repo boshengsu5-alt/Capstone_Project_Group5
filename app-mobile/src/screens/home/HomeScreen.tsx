@@ -19,6 +19,7 @@ import { theme } from '../../theme';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { HomeStackParamList } from '../../navigation/HomeStackNavigator';
 import { getAssets, getCategories } from '../../services/assetService';
+import { checkOverdueBookings } from '../../services/bookingService';
 import type { Asset, Category } from '../../../../database/types/supabase';
 
 type HomeScreenNavigationProp = NativeStackNavigationProp<HomeStackParamList, 'HomeScreen'>;
@@ -46,7 +47,9 @@ export default function HomeScreen({ navigation }: Props) {
         // 通过 service 层获取数据，不直接调用 supabase
         const [assetsData, categoriesData] = await Promise.all([
           getAssets(),
-          getCategories()
+          getCategories(),
+          // 兜底逾期检测：pg_cron 免费版不可用，每次进入首页时触发一次
+          checkOverdueBookings().catch(() => {}),
         ]);
         setAssets(assetsData as unknown as Asset[]);
         setCategories(categoriesData);

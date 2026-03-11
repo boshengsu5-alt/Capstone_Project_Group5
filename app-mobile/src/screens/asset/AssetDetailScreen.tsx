@@ -125,7 +125,7 @@ const styles = StyleSheet.create({
   imageContainer: {
     width: width,
     height: 300,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: theme.colors.inputBackground,
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative'
@@ -172,14 +172,14 @@ const styles = StyleSheet.create({
   },
   descriptionText: {
     fontSize: 15,
-    color: '#4B5563',
+    color: theme.colors.text,
     lineHeight: 24,
   },
   infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: theme.spacing.md,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: theme.colors.inputBackground,
     padding: theme.spacing.md,
     borderRadius: 8,
   },
@@ -199,37 +199,16 @@ const styles = StyleSheet.create({
   calendarSection: {
     marginTop: theme.spacing.sm,
   },
-  calendarPlaceholder: {
-    height: 180,
-    borderWidth: 2,
-    borderColor: '#E5E7EB',
-    borderStyle: 'dashed',
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#F9FAFB',
-  },
-  calendarText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: theme.colors.text,
-    marginTop: 12,
-    marginBottom: 4,
-  },
-  calendarSubText: {
-    fontSize: 14,
-    color: theme.colors.gray,
-  },
   bottomBar: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.background,
     padding: theme.spacing.md,
     paddingBottom: theme.spacing.lg,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    borderTopColor: theme.colors.inputBackground,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -3 },
     shadowOpacity: 0.05,
@@ -247,7 +226,7 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   bookButtonText: {
-    color: '#fff',
+    color: theme.colors.background,
     fontSize: 18,
     fontWeight: 'bold',
   }

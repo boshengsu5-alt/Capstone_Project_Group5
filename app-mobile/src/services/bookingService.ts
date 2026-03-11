@@ -12,8 +12,39 @@ const db = supabase as any;
 // ============================================================
 
 /**
+ * Check if the requested date range conflicts with existing bookings for an asset.
+ * 检查请求的日期范围是否与该资产的现有预订冲突
+ *
+ * @param assetId - Asset to check. 要检查的资产 ID
+ * @param startDate - Requested start date ISO string. 请求的开始日期
+ * @param endDate - Requested end date ISO string. 请求的结束日期
+ * @throws Error if date range overlaps with an active booking. 日期冲突时抛出错误
+ */
+async function checkBookingConflict(
+  assetId: string,
+  startDate: string,
+  endDate: string
+) {
+  // 查询该资产所有有效预订（pending/approved/active），检测日期重叠
+  // 重叠条件：existing.start < newEnd AND existing.end > newStart
+  const { data, error } = await db
+    .from('bookings')
+    .select('id, start_date, end_date, status')
+    .eq('asset_id', assetId)
+    .in('status', ['pending', 'approved', 'active'])
+    .lt('start_date', endDate)
+    .gt('end_date', startDate);
+
+  if (error) throw error;
+
+  if (data && data.length > 0) {
+    throw new Error('时间冲突：该设备在所选日期段内已被预订，请选择其他时间');
+  }
+}
+
+/**
  * Create a new booking request (student submits reservation).
- * 创建借用请求（学生提交预约），状态初始为 pending
+ * 创建借用请求（学生提交预约），状态初始为 pending。提交前自动检测时间冲突。
  *
  * @param assetId - Asset to book. 要借用的资产 ID
  * @param startDate - Booking start date ISO string. 借用开始日期
@@ -28,6 +59,9 @@ export async function createBooking(
   notes?: string
 ) {
   const user = await getCurrentUser();
+
+  // 先校验时间冲突，冲突时直接抛出错误拦截提交
+  await checkBookingConflict(assetId, startDate, endDate);
 
   const { data, error } = await db
     .from('bookings')
@@ -226,4 +260,13 @@ export async function findApprovedBookingForAsset(assetId: string) {
 
   if (error) throw error;
   return data;
+}
+
+/**
+ * Trigger overdue booking detection via RPC (fallback for pg_cron).
+ * 触发逾期检测 RPC 函数（pg_cron 免费版不可用时的兜底方案）
+ */
+export async function checkOverdueBookings() {
+  const { error } = await db.rpc('check_overdue_bookings');
+  if (error) throw error;
 }

@@ -5,10 +5,15 @@ import { QRCodeSVG } from 'qrcode.react';
 import Header from '@/components/layout/Header';
 import AssetForm from '@/components/assets/AssetForm';
 import { cn } from '@/lib/utils';
-import { Asset } from '@/types/database';
+import { Asset, Category } from '@/types/database';
+
+/** Asset row with joined category info from API response. API 响应中带分类信息的资产行 */
+type AssetWithCategory = Asset & {
+  categories?: Pick<Category, 'id' | 'name'> | null;
+};
 
 export default function AssetsPage() {
-  const [assets, setAssets] = useState<Asset[]>([]);
+  const [assets, setAssets] = useState<AssetWithCategory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -39,12 +44,12 @@ export default function AssetsPage() {
   };
 
   // Derived state for filtering
-  const categoriesMap = assets.reduce((acc, asset: any) => {
+  const categoriesMap = assets.reduce((acc: Record<string, string>, asset) => {
     if (asset.categories) {
       acc[asset.categories.id] = asset.categories.name;
     }
     return acc;
-  }, {} as Record<string, string>);
+  }, {});
   const categories = Object.entries(categoriesMap).map(([id, name]) => ({ id, name }));
   
   const filteredAssets = assets.filter(asset => {
@@ -115,7 +120,7 @@ export default function AssetsPage() {
                   onChange={(e) => setSelectedCategory(e.target.value)}
                 >
                   <option value="All">全部分类</option>
-                  {categories.map((cat: any) => (
+                  {categories.map((cat) => (
                     <option key={cat.id} value={cat.id}>{cat.name}</option>
                   ))}
                 </select>
@@ -173,7 +178,7 @@ export default function AssetsPage() {
                             </td>
                             <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">${asset.purchase_price ?? '0.00'}</td>
                             <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">{asset.location || '-'}</td>
-                            <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">{(asset as any).categories?.name || '-'}</td>
+                            <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">{asset.categories?.name || '-'}</td>
                             <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400 capitalize">{asset.condition}</td>
                             <td className="whitespace-nowrap px-3 py-4 text-sm">
                               <span

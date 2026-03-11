@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Alert, Activity
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { HomeStackParamList } from '../../navigation/HomeStackNavigator';
 import { theme } from '../../theme';
-import { supabase } from '../../services/supabase';
+import { createBooking } from '../../services/bookingService';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'BookingFormScreen'>;
 
@@ -14,48 +14,22 @@ export default function BookingFormScreen({ route, navigation }: Props) {
   const handleSubmit = async () => {
     try {
       setIsSubmitting(true);
+      await createBooking(assetId, startDate, endDate);
 
-      // 1. Get current logged-in user
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-      if (authError || !user) {
-        Alert.alert('错误', '请先登录后再进行预约');
-        return;
-      }
-
-      // 2. Insert record into bookings table
-      const { error: insertError } = await (supabase
-        .from('bookings')
-        .insert([
-          {
-            asset_id: assetId,
-            borrower_id: user.id,
-            start_date: startDate,
-            end_date: endDate,
-            status: 'pending',
-            notes: '',
-          }
-        ] as any));
-
-      if (insertError) {
-        throw insertError;
-      }
-
-      // 3. Success Feedback
       Alert.alert(
         '成功',
         '预约申请已提交！',
         [
           {
             text: '确定',
-            onPress: () => navigation.popToTop() // Return to HomeScreen
+            onPress: () => navigation.popToTop()
           }
         ]
       );
-
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[BookingFormScreen] Submission error:', error);
-      Alert.alert('提交失败', error.message || '请稍后再试');
+      const message = error instanceof Error ? error.message : '请稍后再试';
+      Alert.alert('提交失败', message);
     } finally {
       setIsSubmitting(false);
     }
@@ -84,7 +58,7 @@ export default function BookingFormScreen({ route, navigation }: Props) {
           disabled={isSubmitting}
         >
           {isSubmitting ? (
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color={theme.colors.background} />
           ) : (
             <Text style={styles.submitButtonText}>确认并提交</Text>
           )}
@@ -107,7 +81,7 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     color: theme.colors.text,
-    marginBottom: 8,
+    marginBottom: theme.spacing.sm,
   },
   subtitle: {
     fontSize: 16,
@@ -115,7 +89,7 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.xl,
   },
   card: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: theme.colors.inputBackground,
     borderRadius: 12,
     padding: theme.spacing.xl,
     borderWidth: 1,
@@ -148,7 +122,7 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   submitButtonText: {
-    color: '#fff',
+    color: theme.colors.background,
     fontSize: 18,
     fontWeight: 'bold',
   }

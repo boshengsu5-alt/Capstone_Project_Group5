@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase';
-import type { Database } from '../../database/types/supabase';
+import type { Database, DamageReport, DamageReportStatus } from '../../database/types/supabase';
 
 // ============================================================
 // Booking Service (Web Admin). Web 管理端借用服务
@@ -8,6 +8,12 @@ import type { Database } from '../../database/types/supabase';
 /** Booking with joined asset and borrower details. 包含资产和借用者详情的借用记录 */
 export type BookingWithDetails = Database['public']['Tables']['bookings']['Row'] & {
     assets: Pick<Database['public']['Tables']['assets']['Row'], 'name' | 'qr_code'> | null;
+    profiles: Pick<Database['public']['Tables']['profiles']['Row'], 'full_name' | 'student_id'> | null;
+};
+
+/** Damage report with joined asset and reporter details. 包含资产和报告者详情的损坏报告 */
+export type DamageReportWithDetails = DamageReport & {
+    assets: Pick<Database['public']['Tables']['assets']['Row'], 'name'> | null;
     profiles: Pick<Database['public']['Tables']['profiles']['Row'], 'full_name' | 'student_id'> | null;
 };
 
@@ -110,6 +116,53 @@ export const bookingService = {
                 message: `Your booking has been rejected. Reason: ${reason}`,
                 metadata: { booking_id: id }
             });
+        }
+
+        return true;
+    },
+
+    // ============================================================
+    // Damage Report Methods. 损坏报告方法
+    // ============================================================
+
+    /**
+     * Fetch all damage reports with asset and reporter details.
+     * 获取所有损坏报告，包含资产和报告者详情
+     */
+    async getDamageReports(): Promise<DamageReportWithDetails[]> {
+        const { data, error } = await supabase
+            .from('damage_reports')
+            .select(`
+                *,
+                assets ( name ),
+                profiles!reporter_id ( full_name, student_id )
+            `)
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error('Error fetching damage reports:', error.message);
+            return [];
+        }
+
+        return (data as unknown) as DamageReportWithDetails[];
+    },
+
+    /**
+     * Update damage report status with resolution notes.
+     * 更新损坏报告状态和处理备注
+     */
+    async updateDamageReportStatus(id: string, status: string, notes: string): Promise<boolean> {
+        const { error } = await (supabase as any)
+            .from('damage_reports')
+            .update({
+                status: status as DamageReportStatus,
+                resolution_notes: notes,
+            })
+            .eq('id', id);
+
+        if (error) {
+            console.error('Error updating damage report:', error);
+            return false;
         }
 
         return true;

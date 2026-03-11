@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ActivityIndicator, Text } from 'react-native';
-import { Calendar, LocaleConfig } from 'react-native-calendars';
-import { supabase } from '../services/supabase';
-import { format, addDays, isBefore, isAfter, parseISO, isEqual } from 'date-fns';
+import { Calendar, LocaleConfig, DateData } from 'react-native-calendars';
+import { format, addDays, isBefore, isEqual, parseISO } from 'date-fns';
+import { getBookingsForAsset } from '../services/bookingService';
+import { theme } from '../theme';
 
-// Configure calendar locale
+// 配置日历中文本地化
 LocaleConfig.locales['zh'] = {
     monthNames: ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月'],
     monthNamesShort: ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'],
@@ -33,6 +34,10 @@ interface MarkedDates {
     };
 }
 
+/**
+ * Calendar component showing asset availability with date range selection.
+ * 日历组件，展示资产可用性并支持日期范围选择
+ */
 const CalendarView: React.FC<CalendarViewProps> = ({ assetId, onDateChange }) => {
     const [loading, setLoading] = useState(true);
     const [bookedDates, setBookedDates] = useState<MarkedDates>({});
@@ -48,16 +53,10 @@ const CalendarView: React.FC<CalendarViewProps> = ({ assetId, onDateChange }) =>
     const fetchBookings = async () => {
         try {
             setLoading(true);
-            const { data, error } = await supabase
-                .from('bookings')
-                .select('start_date, end_date, status')
-                .eq('asset_id', assetId)
-                .in('status', ['approved', 'active', 'pending', 'returned']);
-
-            if (error) throw error;
+            const bookings = await getBookingsForAsset(assetId);
 
             const marked: MarkedDates = {};
-            data.forEach((booking: any) => {
+            bookings.forEach((booking: { start_date: string; end_date: string }) => {
                 let current = parseISO(booking.start_date);
                 const end = parseISO(booking.end_date);
 
@@ -66,8 +65,8 @@ const CalendarView: React.FC<CalendarViewProps> = ({ assetId, onDateChange }) =>
                     marked[dateString] = {
                         disabled: true,
                         disableTouchEvent: true,
-                        color: '#EF4444',
-                        textColor: 'white',
+                        color: theme.colors.danger,
+                        textColor: theme.colors.background,
                         selected: true,
                     };
                     current = addDays(current, 1);
@@ -82,26 +81,26 @@ const CalendarView: React.FC<CalendarViewProps> = ({ assetId, onDateChange }) =>
         }
     };
 
-    const handleDayPress = (day: any) => {
+    const handleDayPress = (day: DateData) => {
         const dateString = day.dateString;
 
-        // Don't allow selecting booked dates
+        // 已被预订的日期不可选
         if (bookedDates[dateString]?.disabled) return;
 
         if (!selectionStart || (selectionStart && selectionEnd)) {
-            // Start new selection
+            // 开始新选择
             setSelectionStart(dateString);
             setSelectionEnd(null);
         } else {
-            // Complete range selection
+            // 完成范围选择
             const start = parseISO(selectionStart);
             const end = parseISO(dateString);
 
             if (isBefore(end, start)) {
-                // If end is before start, make it the new start
+                // 结束日期在开始之前，重新设为起点
                 setSelectionStart(dateString);
             } else {
-                // Check if any booked dates are in between
+                // 检查范围内是否有冲突
                 let hasConflict = false;
                 let current = start;
                 while (isBefore(current, end) || isEqual(current, end)) {
@@ -113,7 +112,6 @@ const CalendarView: React.FC<CalendarViewProps> = ({ assetId, onDateChange }) =>
                 }
 
                 if (hasConflict) {
-                    // Reset if there's a conflict
                     setSelectionStart(dateString);
                 } else {
                     setSelectionEnd(dateString);
@@ -133,8 +131,8 @@ const CalendarView: React.FC<CalendarViewProps> = ({ assetId, onDateChange }) =>
                 ...marked[selectionStart],
                 selected: true,
                 startingDay: true,
-                color: '#6366F1',
-                textColor: 'white',
+                color: theme.colors.authPrimary,
+                textColor: theme.colors.background,
             };
 
             if (selectionEnd) {
@@ -142,11 +140,11 @@ const CalendarView: React.FC<CalendarViewProps> = ({ assetId, onDateChange }) =>
                     ...marked[selectionEnd],
                     selected: true,
                     endingDay: true,
-                    color: '#6366F1',
-                    textColor: 'white',
+                    color: theme.colors.authPrimary,
+                    textColor: theme.colors.background,
                 };
 
-                // Mark dates in between
+                // 标记中间日期
                 let current = addDays(parseISO(selectionStart), 1);
                 const end = parseISO(selectionEnd);
                 while (isBefore(current, end)) {
@@ -154,8 +152,8 @@ const CalendarView: React.FC<CalendarViewProps> = ({ assetId, onDateChange }) =>
                     marked[ds] = {
                         ...marked[ds],
                         selected: true,
-                        color: '#A5B4FC', // Lighter purple for middle
-                        textColor: 'white',
+                        color: theme.colors.authLight,
+                        textColor: theme.colors.background,
                     };
                     current = addDays(current, 1);
                 }
@@ -168,7 +166,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ assetId, onDateChange }) =>
     if (loading) {
         return (
             <View style={styles.centerContainer}>
-                <ActivityIndicator size="large" color="#6366F1" />
+                <ActivityIndicator size="large" color={theme.colors.authPrimary} />
                 <Text style={styles.loadingText}>加载预订信息...</Text>
             </View>
         );
@@ -181,10 +179,10 @@ const CalendarView: React.FC<CalendarViewProps> = ({ assetId, onDateChange }) =>
                 markedDates={getMarkedDates()}
                 onDayPress={handleDayPress}
                 theme={{
-                    selectedDayBackgroundColor: '#6366F1',
-                    todayTextColor: '#6366F1',
-                    arrowColor: '#6366F1',
-                    monthTextColor: '#1E1B4B',
+                    selectedDayBackgroundColor: theme.colors.authPrimary,
+                    todayTextColor: theme.colors.authPrimary,
+                    arrowColor: theme.colors.authPrimary,
+                    monthTextColor: theme.colors.authBackground,
                     textMonthFontWeight: 'bold',
                 }}
             />
@@ -194,8 +192,8 @@ const CalendarView: React.FC<CalendarViewProps> = ({ assetId, onDateChange }) =>
 
 const styles = StyleSheet.create({
     container: {
-        padding: 8,
-        backgroundColor: '#fff',
+        padding: theme.spacing.sm,
+        backgroundColor: theme.colors.background,
         borderRadius: 12,
         marginVertical: 10,
         shadowColor: '#000',
@@ -211,7 +209,7 @@ const styles = StyleSheet.create({
     },
     loadingText: {
         marginTop: 10,
-        color: '#6366F1',
+        color: theme.colors.authPrimary,
         fontSize: 14,
     }
 });

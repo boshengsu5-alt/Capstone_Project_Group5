@@ -103,3 +103,21 @@ export async function searchAssets(keyword: string): Promise<(Asset & { categori
   if (error) throw error;
   return (data ?? []) as unknown as (Asset & { categories: Category })[];
 }
+
+/**
+ * Get all active bookings for an asset (for calendar red-marking).
+ * 查询某资产的所有有效预订，供日历组件标红已占用日期
+ *
+ * @param assetId - Asset UUID to query. 要查询预订的资产 ID
+ * @returns Bookings with date range and status. 包含日期范围和状态的预订列表
+ */
+export async function getBookingsForAsset(assetId: string) {
+  const { data, error } = await db
+    .from('bookings')
+    .select('id, start_date, end_date, status')
+    .eq('asset_id', assetId)
+    .in('status', ['pending', 'approved', 'active']);
+
+  if (error) throw error;
+  return data ?? [];
+}
