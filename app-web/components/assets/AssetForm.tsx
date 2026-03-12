@@ -1,7 +1,6 @@
 import React, { useState, useRef } from 'react';
-import { Package, Tag, Hash, DollarSign, MapPin, AlignLeft, ShieldCheck, Asterisk, Upload, X, Image as ImageIcon, Loader2 } from 'lucide-react';
+import { Package, Tag, Hash, DollarSign, MapPin, AlignLeft, ShieldCheck, Asterisk, Upload, X, Loader2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { cn } from '@/lib/utils';
 
 interface AssetFormProps {
   onCancel: () => void;
@@ -46,7 +45,7 @@ export default function AssetForm({ onCancel, onSuccess }: AssetFormProps) {
         const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
         const filePath = `assets/${fileName}`;
 
-        const { error: uploadError, data } = await supabase.storage
+        const { error: uploadError } = await supabase.storage
           .from('asset-images')
           .upload(filePath, file);
 

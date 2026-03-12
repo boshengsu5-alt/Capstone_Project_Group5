@@ -148,6 +148,67 @@ export const bookingService = {
     },
 
     /**
+     * Process a return verification (admin confirms return is complete).
+     * 处理归还验证（管理员确认归还完成）
+     */
+    async processReturn(bookingId: string, status: string): Promise<boolean> {
+        const { error } = await (supabase as any)
+            .from('bookings')
+            .update({ status })
+            .eq('id', bookingId);
+
+        if (error) {
+            console.error('Error processing return:', error);
+            return false;
+        }
+        return true;
+    },
+
+    /**
+     * Create a damage report from return verification (admin-initiated).
+     * 管理员在归还验证时创建损坏报告
+     */
+    async createDamageReport(bookingId: string, description: string, severity: string): Promise<boolean> {
+        // 先获取 booking 详情以拿到 asset_id 和当前管理员 ID
+        const { data: booking } = await supabase
+            .from('bookings')
+            .select('asset_id, borrower_id')
+            .eq('id', bookingId)
+            .single();
+
+        if (!booking) {
+            console.error('Booking not found for damage report');
+            return false;
+        }
+
+        const { data: { user } } = await supabase.auth.getUser();
+
+        const { error } = await (supabase as any)
+            .from('damage_reports')
+            .insert({
+                booking_id: bookingId,
+                asset_id: (booking as any).asset_id,
+                reporter_id: user?.id ?? (booking as any).borrower_id,
+                description,
+                severity,
+                photo_urls: [],
+            });
+
+        if (error) {
+            console.error('Error creating damage report:', error);
+            return false;
+        }
+
+        // 同时更新 booking 状态为 returned
+        await (supabase as any)
+            .from('bookings')
+            .update({ status: 'returned' })
+            .eq('id', bookingId);
+
+        return true;
+    },
+
+    /**
      * Update damage report status with resolution notes.
      * 更新损坏报告状态和处理备注
      */

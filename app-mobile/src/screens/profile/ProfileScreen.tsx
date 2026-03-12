@@ -11,26 +11,44 @@ import {
   StatusBar,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { ProfileStackParamList } from '../../navigation/ProfileStackNavigator';
 import { theme } from '../../theme';
-import { signOut, getCurrentUser } from '../../services/authService';
+import { signOut, getMyProfile } from '../../services/authService';
+import { supabase } from '../../services/supabase';
+import type { Profile } from '../../../../database/types/supabase';
 
-export default function ProfileScreen() {
-  const [email, setEmail] = useState<string>('');
-  const [fullName, setFullName] = useState<string>('');
+type Props = {
+  navigation: NativeStackNavigationProp<ProfileStackParamList, 'ProfileMain'>;
+};
+
+export default function ProfileScreen({ navigation }: Props) {
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [loggingOut, setLoggingOut] = useState(false);
 
   useEffect(() => {
-    getCurrentUser()
-      .then((user) => {
-        setEmail(user.email ?? '');
-        setFullName(user.user_metadata?.full_name ?? '用户');
-      })
-      .catch(() => {
-        setEmail('');
-        setFullName('用户');
-      })
-      .finally(() => setLoading(false));
+    const fetchData = async () => {
+      try {
+        const profileData = await getMyProfile() as unknown as Profile;
+        setProfile(profileData);
+
+        // 查询未读通知数量
+        const { count } = await (supabase as any)
+          .from('notifications')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', profileData.id)
+          .eq('is_read', false);
+
+        setUnreadCount(count ?? 0);
+      } catch (err) {
+        console.error('[ProfileScreen] Failed to fetch profile:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
   }, []);
 
   const handleSignOut = () => {
@@ -69,14 +87,42 @@ export default function ProfileScreen() {
         <View style={styles.avatar}>
           <Ionicons name="person" size={40} color="#fff" />
         </View>
-        <Text style={styles.name}>{fullName}</Text>
-        <Text style={styles.email}>{email}</Text>
+        <Text style={styles.name}>{profile?.full_name ?? '用户'}</Text>
+        <Text style={styles.email}>{profile?.email ?? ''}</Text>
+      </View>
+
+      {/* 信用分 / 学号 / 学院 信息卡片 */}
+      <View style={styles.infoCard}>
+        <View style={styles.infoItem}>
+          <Text style={styles.infoValue}>{profile?.credit_score ?? 100}</Text>
+          <Text style={styles.infoLabel}>信用分</Text>
+        </View>
+        <View style={styles.infoDivider} />
+        <View style={styles.infoItem}>
+          <Text style={styles.infoValue}>{profile?.student_id ?? '—'}</Text>
+          <Text style={styles.infoLabel}>学号</Text>
+        </View>
+        <View style={styles.infoDivider} />
+        <View style={styles.infoItem}>
+          <Text style={[styles.infoValue, { fontSize: 14 }]}>{profile?.department || '未设置'}</Text>
+          <Text style={styles.infoLabel}>学院</Text>
+        </View>
       </View>
 
       {/* 菜单区域 */}
       <View style={styles.menuSection}>
-        <TouchableOpacity style={styles.menuItem}>
-          <Ionicons name="notifications-outline" size={22} color={theme.colors.text} />
+        <TouchableOpacity
+          style={styles.menuItem}
+          onPress={() => navigation.navigate('Notifications')}
+        >
+          <View style={{ position: 'relative' }}>
+            <Ionicons name="notifications-outline" size={22} color={theme.colors.text} />
+            {unreadCount > 0 && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
+              </View>
+            )}
+          </View>
           <Text style={styles.menuText}>消息通知</Text>
           <Ionicons name="chevron-forward" size={20} color={theme.colors.gray} />
         </TouchableOpacity>
@@ -143,6 +189,38 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: 'rgba(255,255,255,0.8)',
   },
+  infoCard: {
+    flexDirection: 'row',
+    backgroundColor: '#fff',
+    marginHorizontal: theme.spacing.md,
+    marginTop: -20,
+    borderRadius: 12,
+    paddingVertical: theme.spacing.md,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  infoItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  infoValue: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: theme.colors.text,
+    marginBottom: 4,
+  },
+  infoLabel: {
+    fontSize: 12,
+    color: theme.colors.gray,
+  },
+  infoDivider: {
+    width: StyleSheet.hairlineWidth,
+    backgroundColor: '#E5E7EB',
+    marginVertical: 4,
+  },
   menuSection: {
     marginTop: theme.spacing.lg,
     backgroundColor: '#fff',
@@ -163,6 +241,23 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: theme.colors.text,
     marginLeft: theme.spacing.sm,
+  },
+  badge: {
+    position: 'absolute',
+    top: -6,
+    right: -10,
+    backgroundColor: theme.colors.danger,
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  badgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: 'bold',
   },
   logoutSection: {
     marginTop: 'auto',

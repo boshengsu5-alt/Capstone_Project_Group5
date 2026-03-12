@@ -1,65 +1,80 @@
 import { supabase } from '@/lib/supabase';
-import { Asset } from '@/types/database';
+import type { Asset, AssetUpdate } from '@/types/database';
 
-export async function getAssets() {
-  const { data, error } = await supabase
+// Supabase 泛型 Database 接口的 Relationships 定义不完整，导致 .from() 推断为 never
+// 需要在查询处使用 eslint-disable 绕过，函数签名仍保持完整类型安全
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const db = supabase as any;
+
+// ============================================================
+// Asset Query. 资产查询
+// ============================================================
+
+/** Fetch all assets with joined category info, ordered by newest first. 获取所有资产（含分类信息），按创建时间倒序 */
+export async function getAssets(): Promise<Asset[]> {
+  const { data, error } = await db
     .from('assets')
     .select('*, categories(*)')
     .order('created_at', { ascending: false });
-    
+
   if (error) {
     console.error('Error fetching assets:', error);
     return [];
   }
-  return data;
+  return data ?? [];
 }
 
-export async function createAsset(data: any): Promise<Asset> {
-  // 1. Resolve Category ID (Fallback to first available category if missing)
-  let finalCategoryId = data.category_id;
-  
+// ============================================================
+// Asset Creation. 资产创建
+// ============================================================
+
+/** Form payload accepted by createAsset. 创建资产的表单载荷 */
+interface CreateAssetFormData {
+  name: string;
+  category_id?: string;
+  serial_number?: string;
+  purchase_price?: string | number;
+  location?: string;
+  description?: string;
+  images?: string[];
+}
+
+/**
+ * Create a new asset record. Auto-resolves category if omitted.
+ * 创建新资产记录。未提供分类时自动回退到第一个可用分类。
+ */
+export async function createAsset(formData: CreateAssetFormData): Promise<Asset> {
+  // 如果未传 category_id，回退到数据库中第一个分类
+  let finalCategoryId = formData.category_id;
+
   if (!finalCategoryId) {
-    const { data: categories, error: catError } = await (supabase as any)
+    const { data: categories } = await db
       .from('categories')
       .select('id')
       .limit(1);
-      
+
     if (categories && categories.length > 0) {
       finalCategoryId = categories[0].id;
     } else {
-      throw new Error("No categories found in database. Please seed categories first.");
+      throw new Error('No categories found in database. Please seed categories first.');
     }
   }
 
-  // 2. Map form fields to DB schema requirements map explicitly to purchase_price and serial_number
-  const purchase_price = data.purchase_price ? Number(data.purchase_price) : 0;
-  const serial_number = data.serial_number || null;
-  const name = data.name;
-  const location = data.location || null;
-  const description = data.description || null;
-  
-  // 3. Auto-generated required enum/fields
-  const status = 'available';
-  const condition = 'new';
-  const qr_code = crypto.randomUUID();
-
-  const images = data.images || [];
-
-  // 4. Insert into database
   const insertPayload = {
     category_id: finalCategoryId,
-    name,
-    description,
-    serial_number,
-    qr_code,
-    condition,
-    status,
-    location,
-    purchase_price,
-    images
-  } as any;
+    name: formData.name,
+    description: formData.description || '',
+    serial_number: formData.serial_number || null,
+    qr_code: crypto.randomUUID(),
+    condition: 'new' as const,
+    status: 'available' as const,
+    location: formData.location || '',
+    purchase_price: formData.purchase_price ? Number(formData.purchase_price) : 0,
+    warranty_status: 'none' as const,
+    images: formData.images ?? [],
+  };
 
-  const { data: insertedAsset, error } = await (supabase as any)
+  const { data: insertedAsset, error } = await db
     .from('assets')
     .insert([insertPayload])
     .select()
@@ -70,14 +85,29 @@ export async function createAsset(data: any): Promise<Asset> {
     throw new Error(error.message);
   }
 
-  return insertedAsset as unknown as Asset;
+  return insertedAsset as Asset;
 }
 
-export async function updateAsset(id: string, data: any): Promise<Asset | null> {
-  console.log(`Mock updating asset ${id} with data:`, data);
-  return {
-    id,
-    ...data,
-    updated_at: new Date().toISOString()
-  } as Asset;
+// ============================================================
+// Asset Update. 资产更新
+// ============================================================
+
+/**
+ * Update an existing asset by ID.
+ * 根据 ID 更新资产信息。
+ */
+export async function updateAsset(id: string, updates: AssetUpdate): Promise<Asset> {
+  const { data: updatedAsset, error } = await db
+    .from('assets')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating asset:', error);
+    throw new Error(error.message);
+  }
+
+  return updatedAsset as Asset;
 }

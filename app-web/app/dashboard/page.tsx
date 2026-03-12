@@ -14,36 +14,42 @@ import {
 import { QRCodeSVG } from 'qrcode.react';
 import Header from '@/components/layout/Header';
 import { cn } from '@/lib/utils';
-import { Asset } from '@/types/database';
+import { Asset, Booking } from '@/types/database';
 import { getAssets } from '@/lib/assetService';
+import { bookingService } from '@/lib/bookingService';
 
 export default function DashboardPage() {
   const [assets, setAssets] = useState<Asset[]>([]);
+  const [bookings, setBookings] = useState<Booking[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
 
-  const fetchAssetsData = async () => {
+  const fetchData = async () => {
     try {
       setIsLoading(true);
-      const data = await getAssets();
-      setAssets(data);
+      const [assetsData, bookingsData] = await Promise.all([
+        getAssets(),
+        bookingService.getBookings(),
+      ]);
+      setAssets(assetsData);
+      setBookings(bookingsData as unknown as Booking[]);
     } catch (error) {
-      console.error('Failed to fetch assets', error);
+      console.error('Failed to fetch dashboard data', error);
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchAssetsData();
+    fetchData();
   }, []);
 
-  // Statistics calculation
+  // 统计计算：资产总数从 assets 表，借出/待审批/逾期从 bookings 表
   const totalAssets = assets.length;
-  const loanedAssets = assets.filter(a => a.status === 'borrowed' || (a.status as string) === 'loaned').length;
-  const pendingAssets = assets.filter(a => (a.status as string) === 'pending_approval').length;
-  const overdueAssets = assets.filter(a => a.warranty_status === 'expired').length;
+  const loanedAssets = assets.filter(a => a.status === 'borrowed').length;
+  const pendingBookings = bookings.filter(b => b.status === 'pending').length;
+  const overdueBookings = bookings.filter(b => b.status === 'overdue').length;
 
   const categoriesMap = assets.reduce((acc, asset: any) => {
     if (asset.categories) {
@@ -97,17 +103,17 @@ export default function DashboardPage() {
                 />
              </div>
              <div className="p-6 grid grid-cols-1 gap-6">
-                <StatCard 
-                  icon={Clock} 
-                  label="Pending" 
-                  value={pendingAssets} 
-                  colorClass="text-blue-400" 
+                <StatCard
+                  icon={Clock}
+                  label="Pending"
+                  value={pendingBookings}
+                  colorClass="text-blue-400"
                 />
-                <StatCard 
-                  icon={AlertTriangle} 
-                  label="Overdue" 
-                  value={overdueAssets} 
-                  colorClass="text-rose-400" 
+                <StatCard
+                  icon={AlertTriangle}
+                  label="Overdue"
+                  value={overdueBookings}
+                  colorClass="text-rose-400"
                 />
              </div>
           </div>
