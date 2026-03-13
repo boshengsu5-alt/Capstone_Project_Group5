@@ -104,7 +104,7 @@ export default function AssetDetailScreen({ route, navigation }: Props) {
                 <Text style={styles.categoryText}>{asset.categories?.name_zh || asset.categories?.name || '未分类'}</Text>
               </View>
             </View>
-            <Text style={styles.price}>¥{asset.purchase_price ? '?' : '0'}/天</Text>
+            <Text style={styles.price}>¥{asset.purchase_price ?? '面议'}/天</Text>
           </View>
 
           {/* Description */}

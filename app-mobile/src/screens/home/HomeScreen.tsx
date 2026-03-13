@@ -38,7 +38,7 @@ const AD_DATA = [
 ];
 
 export default function HomeScreen({ navigation }: Props) {
-  const [assets, setAssets] = useState<Asset[]>([]);
+  const [assets, setAssets] = useState<(Asset & { categories: Category })[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<boolean>(false);
@@ -54,7 +54,7 @@ export default function HomeScreen({ navigation }: Props) {
         // 兜底逾期检测：pg_cron 免费版不可用，每次进入首页时触发一次
         checkOverdueBookings().catch(() => {}),
       ]);
-      setAssets(assetsData as unknown as Asset[]);
+      setAssets(assetsData);
       setCategories(categoriesData);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -71,7 +71,6 @@ export default function HomeScreen({ navigation }: Props) {
   const renderCategory = ({ item }: { item: Category }) => (
     <TouchableOpacity 
       style={styles.categoryHomeItem} 
-      // @ts-ignore - CategoryScreen param will be updated later
       onPress={() => navigation.navigate('CategoryScreen', { categoryId: item.id })}
     >
       <View style={styles.categoryHomeIcon}>
@@ -81,7 +80,7 @@ export default function HomeScreen({ navigation }: Props) {
     </TouchableOpacity>
   );
 
-  const renderProduct = ({ item }: { item: Asset }) => (
+  const renderProduct = ({ item }: { item: Asset & { categories: Category } }) => (
     <TouchableOpacity 
       style={styles.productCard} 
       onPress={() => navigation.navigate('AssetDetailScreen', { id: item.id })}

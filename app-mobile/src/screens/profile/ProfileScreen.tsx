@@ -15,7 +15,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ProfileStackParamList } from '../../navigation/ProfileStackNavigator';
 import { theme } from '../../theme';
 import { signOut, getMyProfile } from '../../services/authService';
-import { supabase } from '../../services/supabase';
+import { getUnreadCount } from '../../services/notificationService';
 import type { Profile } from '../../../../database/types/supabase';
 
 type Props = {
@@ -34,14 +34,9 @@ export default function ProfileScreen({ navigation }: Props) {
         const profileData = await getMyProfile() as unknown as Profile;
         setProfile(profileData);
 
-        // 查询未读通知数量
-        const { count } = await (supabase as any)
-          .from('notifications')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', profileData.id)
-          .eq('is_read', false);
-
-        setUnreadCount(count ?? 0);
+        // 通过 service 层查询未读通知数量，不直接调用 supabase
+        const count = await getUnreadCount();
+        setUnreadCount(count);
       } catch (err) {
         console.error('[ProfileScreen] Failed to fetch profile:', err);
       } finally {

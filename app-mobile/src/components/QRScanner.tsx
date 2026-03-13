@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, StyleSheet, Text, TouchableOpacity, Dimensions, Animated } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
+import { theme } from '../theme';
 
 const { width } = Dimensions.get('window');
 const SCAN_BOX_SIZE = width * 0.7;
@@ -47,7 +48,7 @@ export default function QRScanner({ onScan, isScanning }: QRScannerProps) {
   if (!permission.granted) {
     return (
       <View style={styles.centerContainer}>
-        <Ionicons name="camera-outline" size={64} color="#6366f1" />
+        <Ionicons name="camera-outline" size={64} color={theme.colors.primary} />
         <Text style={styles.permissionText}>需要相机权限才能扫描二维码</Text>
         <TouchableOpacity style={styles.authButton} onPress={requestPermission}>
           <Text style={styles.authButtonText}>立即授权</Text>
@@ -75,32 +76,32 @@ export default function QRScanner({ onScan, isScanning }: QRScannerProps) {
         <View style={styles.overlay}>
           {/* Top dark area */}
           <View style={[styles.unfocusedArea, styles.topArea]} />
-          
+
           <View style={styles.middleRow}>
             {/* Left dark area */}
             <View style={styles.unfocusedArea} />
-            
+
             {/* Clear scanning box */}
             <View style={styles.scannerBox}>
               <View style={[styles.corner, styles.topLeft]} />
               <View style={[styles.corner, styles.topRight]} />
               <View style={[styles.corner, styles.bottomLeft]} />
               <View style={[styles.corner, styles.bottomRight]} />
-              
+
               {isScanning && (
-                <Animated.View 
+                <Animated.View
                   style={[
                     styles.scanLine,
                     { transform: [{ translateY: scanLineAnim }] }
-                  ]} 
+                  ]}
                 />
               )}
             </View>
-            
+
             {/* Right dark area */}
             <View style={styles.unfocusedArea} />
           </View>
-          
+
           {/* Bottom dark area */}
           <View style={[styles.unfocusedArea, styles.bottomArea]}>
             <Text style={styles.scanText}>
@@ -122,8 +123,8 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
-    backgroundColor: '#f8fafc',
+    padding: theme.spacing.lg,
+    backgroundColor: theme.colors.background,
   },
   overlay: {
     flex: 1,
@@ -154,9 +155,9 @@ const styles = StyleSheet.create({
   scanLine: {
     height: 2,
     width: '100%',
-    backgroundColor: '#6366f1',
+    backgroundColor: theme.colors.primary,
     position: 'absolute',
-    shadowColor: "#6366f1",
+    shadowColor: theme.colors.primary,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.8,
     shadowRadius: 10,
@@ -166,7 +167,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: 25,
     height: 25,
-    borderColor: '#6366f1',
+    borderColor: theme.colors.primary,
   },
   topLeft: {
     top: 0,
@@ -197,7 +198,7 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 12,
   },
   scanText: {
-    color: '#fff',
+    color: theme.colors.background,
     fontSize: 15,
     fontWeight: '500',
     textAlign: 'center',
@@ -206,23 +207,23 @@ const styles = StyleSheet.create({
   },
   infoText: {
     fontSize: 16,
-    color: '#64748b',
+    color: theme.colors.gray,
   },
   permissionText: {
     fontSize: 16,
-    color: '#334155',
-    marginTop: 16,
-    marginBottom: 24,
+    color: theme.colors.text,
+    marginTop: theme.spacing.md,
+    marginBottom: theme.spacing.lg,
     textAlign: 'center',
   },
   authButton: {
-    backgroundColor: '#6366f1',
+    backgroundColor: theme.colors.primary,
     paddingVertical: 12,
-    paddingHorizontal: 32,
+    paddingHorizontal: theme.spacing.xl,
     borderRadius: 99,
   },
   authButtonText: {
-    color: '#fff',
+    color: theme.colors.background,
     fontSize: 16,
     fontWeight: 'bold',
   },

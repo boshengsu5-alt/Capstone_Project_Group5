@@ -13,9 +13,10 @@ import {
 import { useNavigation, useRoute } from '@react-navigation/native';
 import PhotoCapture from '../../components/PhotoCapture';
 import { uploadReturnPhoto, returnAsset } from '../../services/bookingService';
+import { theme } from '../../theme';
 
 // ─────────────────────────────────────────────────
-// Step indicator helpers
+// Step indicator helpers. 步骤指示器
 // ─────────────────────────────────────────────────
 type Step = 1 | 2 | 3;
 
@@ -24,6 +25,10 @@ const STEPS = [
   { num: 2, label: '上传至云端' },
   { num: 3, label: '确认归还' },
 ] as const;
+
+// 归还流程中的"成功"语义色（绿色）
+const SUCCESS = '#00897B';
+const SUCCESS_LIGHT = '#E0F2F1';
 
 function StepIndicator({ current }: { current: Step }) {
   return (
@@ -70,7 +75,7 @@ function StepIndicator({ current }: { current: Step }) {
 }
 
 // ─────────────────────────────────────────────────
-// URL display card
+// URL display card. 上传链接展示卡片
 // ─────────────────────────────────────────────────
 function UploadedUrlCard({ url }: { url: string }) {
   return (
@@ -91,15 +96,13 @@ function UploadedUrlCard({ url }: { url: string }) {
 }
 
 // ─────────────────────────────────────────────────
-// Main Screen
+// Main Screen. 归还主屏幕
 // ─────────────────────────────────────────────────
 export default function ReturnScreen() {
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
 
-  // Step 1 = camera not taken yet
-  // Step 2 = uploading
-  // Step 3 = success, ready to confirm
+  // Step 1 = 未拍照, Step 2 = 上传中, Step 3 = 上传成功，待确认
   const [step, setStep] = useState<Step>(1);
   const [isUploading, setIsUploading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -111,23 +114,21 @@ export default function ReturnScreen() {
     assetName: 'Sony A7M4 相机',
   };
 
-  // ── Step 1 → 2: photo captured, auto-upload ──
+  // Step 1 → 2: 照片拍摄完成，自动上传
   const handlePhotoCaptured = async (uri: string) => {
-    console.log('[ReturnScreen] 照片已拍摄，URI:', uri);
     setPhotoUri(uri);
     setStep(2);
     setIsUploading(true);
 
     try {
       const url = await uploadReturnPhoto(uri, bookingId);
-      console.log('[ReturnScreen] 上传成功，公开链接:', url);
       setUploadedUrl(url);
       setStep(3);
-    } catch (error: any) {
-      console.error('[ReturnScreen] 上传失败:', error);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : '照片上传至云端时出错，请重拍后重试。';
       Alert.alert(
         '上传失败',
-        error.message ?? '照片上传至云端时出错，请重拍后重试。',
+        message,
         [{ text: '重拍', onPress: () => { setPhotoUri(null); setStep(1); } }]
       );
     } finally {
@@ -135,7 +136,7 @@ export default function ReturnScreen() {
     }
   };
 
-  // ── Step 3: confirm return ──
+  // Step 3: 确认归还
   const handleConfirmReturn = async () => {
     if (!uploadedUrl || !bookingId) return;
 
@@ -143,32 +144,28 @@ export default function ReturnScreen() {
       setIsSubmitting(true);
       await returnAsset(bookingId, uploadedUrl);
       Alert.alert(
-        '归还成功 🎉',
+        '归还成功',
         `设备「${assetName}」已成功归还！\n\n归还照片已存档至工单，感谢您的使用。`,
         [{ text: '完成', onPress: () => navigation.goBack() }]
       );
-    } catch (error: any) {
-      Alert.alert('归还失败', error.message ?? '请联系管理员或稍后重试。');
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : '请联系管理员或稍后重试。';
+      Alert.alert('归还失败', message);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // ── Allow user to retake photo ──
   const handleRetake = () => {
     setPhotoUri(null);
     setUploadedUrl(null);
     setStep(1);
   };
 
-  // ─────────────────────────────────────────────
-  // Render
-  // ─────────────────────────────────────────────
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-
-        {/* ── Header ── */}
+        {/* 头部 */}
         <View style={styles.header}>
           <Text style={styles.title}>📦 归还设备</Text>
           <View style={styles.assetCard}>
@@ -177,10 +174,10 @@ export default function ReturnScreen() {
           </View>
         </View>
 
-        {/* ── Step Indicator ── */}
+        {/* 步骤指示器 */}
         <StepIndicator current={step} />
 
-        {/* ── Step 1 Banner ── */}
+        {/* Step 1 提示 */}
         {step === 1 && (
           <View style={styles.infoBanner}>
             <Text style={styles.bannerIcon}>📸</Text>
@@ -193,7 +190,7 @@ export default function ReturnScreen() {
           </View>
         )}
 
-        {/* ── Camera / Preview ── */}
+        {/* 相机 / 预览 */}
         {!photoUri ? (
           <View style={styles.cameraWrapper}>
             <PhotoCapture onPhotoCaptured={handlePhotoCaptured} />
@@ -201,14 +198,12 @@ export default function ReturnScreen() {
         ) : (
           <View style={styles.previewWrapper}>
             <Image source={{ uri: photoUri }} style={styles.previewImage} />
-            {/* Uploading overlay */}
             {isUploading && (
               <View style={styles.uploadOverlay}>
-                <ActivityIndicator size="large" color="#ffffff" />
+                <ActivityIndicator size="large" color={theme.colors.background} />
                 <Text style={styles.uploadingText}>正在上传至 Supabase Storage…</Text>
               </View>
             )}
-            {/* Retake button (only after upload completes) */}
             {!isUploading && (
               <TouchableOpacity style={styles.retakeBtn} onPress={handleRetake}>
                 <Text style={styles.retakeBtnText}>🔄 重拍</Text>
@@ -217,10 +212,10 @@ export default function ReturnScreen() {
           </View>
         )}
 
-        {/* ── Uploaded URL Card (Step 3) ── */}
+        {/* 上传成功 URL 展示 */}
         {uploadedUrl && <UploadedUrlCard url={uploadedUrl} />}
 
-        {/* ── Confirm Button ── */}
+        {/* 确认归还按钮 */}
         {step === 3 && uploadedUrl && (
           <TouchableOpacity
             style={[styles.confirmBtn, isSubmitting && styles.confirmBtnDisabled]}
@@ -229,7 +224,7 @@ export default function ReturnScreen() {
             activeOpacity={0.85}
           >
             {isSubmitting ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={theme.colors.background} />
             ) : (
               <>
                 <Text style={styles.confirmBtnIcon}>✅</Text>
@@ -239,7 +234,7 @@ export default function ReturnScreen() {
           </TouchableOpacity>
         )}
 
-        {/* ── Locked hint (no photo yet) ── */}
+        {/* 锁定提示 */}
         {step === 1 && (
           <View style={styles.lockedHint}>
             <Text style={styles.lockedIcon}>🔒</Text>
@@ -254,40 +249,35 @@ export default function ReturnScreen() {
 }
 
 // ─────────────────────────────────────────────────
-// Styles
+// Styles. 样式
 // ─────────────────────────────────────────────────
-const PURPLE = '#6200EE';
-const PURPLE_LIGHT = '#EDE7F6';
-const SUCCESS = '#00897B';
-const SUCCESS_LIGHT = '#E0F2F1';
-
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F4F4FB' },
-  scroll: { padding: 20 },
+  container: { flex: 1, backgroundColor: theme.colors.inputBackground },
+  scroll: { padding: theme.spacing.lg },
 
   // Header
-  header: { marginBottom: 24 },
-  title: { fontSize: 26, fontWeight: '800', color: '#1a1a2e', marginBottom: 12 },
+  header: { marginBottom: theme.spacing.lg },
+  title: { fontSize: 26, fontWeight: '800', color: theme.colors.text, marginBottom: 12 },
   assetCard: {
-    backgroundColor: '#ffffff',
+    backgroundColor: theme.colors.background,
     borderRadius: 14,
-    padding: 16,
+    padding: theme.spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: '#6200EE',
+    shadowColor: theme.colors.primary,
     shadowOpacity: 0.08,
     shadowOffset: { width: 0, height: 4 },
     shadowRadius: 12,
     elevation: 3,
   },
-  assetLabel: { fontSize: 14, color: '#888', marginRight: 8 },
-  assetName: { fontSize: 17, fontWeight: '700', color: '#222', flex: 1 },
+  assetLabel: { fontSize: 14, color: theme.colors.gray, marginRight: theme.spacing.sm },
+  assetName: { fontSize: 17, fontWeight: '700', color: theme.colors.text, flex: 1 },
 
   // Step Indicator
   stepRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: theme.spacing.lg,
     paddingHorizontal: 4,
   },
   stepItem: { alignItems: 'center', flex: 0 },
@@ -300,13 +290,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 6,
   },
-  stepActive: { backgroundColor: PURPLE },
+  stepActive: { backgroundColor: theme.colors.primary },
   stepDone: { backgroundColor: SUCCESS },
-  stepNum: { fontSize: 14, fontWeight: '700', color: '#999' },
-  stepNumActive: { color: '#fff' },
-  stepCheckmark: { fontSize: 16, color: '#fff', fontWeight: '800' },
-  stepLabel: { fontSize: 11, color: '#aaa', textAlign: 'center', maxWidth: 70 },
-  stepLabelActive: { color: PURPLE, fontWeight: '700' },
+  stepNum: { fontSize: 14, fontWeight: '700', color: theme.colors.gray },
+  stepNumActive: { color: theme.colors.background },
+  stepCheckmark: { fontSize: 16, color: theme.colors.background, fontWeight: '800' },
+  stepLabel: { fontSize: 11, color: theme.colors.gray, textAlign: 'center', maxWidth: 70 },
+  stepLabelActive: { color: theme.colors.primary, fontWeight: '700' },
   stepLabelDone: { color: SUCCESS },
   stepLine: { flex: 1, height: 3, backgroundColor: '#E0E0E0', marginBottom: 20, marginHorizontal: 4, borderRadius: 2 },
   stepLineDone: { backgroundColor: SUCCESS },
@@ -314,24 +304,24 @@ const styles = StyleSheet.create({
   // Info Banner
   infoBanner: {
     flexDirection: 'row',
-    backgroundColor: PURPLE_LIGHT,
+    backgroundColor: '#F3E8FF',
     borderRadius: 12,
-    padding: 16,
-    marginBottom: 18,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.md,
     alignItems: 'flex-start',
     gap: 12,
   },
   bannerIcon: { fontSize: 24, marginRight: 4 },
-  bannerTitle: { fontSize: 15, fontWeight: '700', color: PURPLE, marginBottom: 4 },
-  bannerText: { fontSize: 13, color: '#555', lineHeight: 20 },
+  bannerTitle: { fontSize: 15, fontWeight: '700', color: theme.colors.primary, marginBottom: 4 },
+  bannerText: { fontSize: 13, color: theme.colors.text, lineHeight: 20 },
 
   // Camera & Preview
-  cameraWrapper: { marginBottom: 20, borderRadius: 16, overflow: 'hidden' },
+  cameraWrapper: { marginBottom: theme.spacing.lg, borderRadius: 16, overflow: 'hidden' },
   previewWrapper: {
     height: 320,
     borderRadius: 16,
     overflow: 'hidden',
-    marginBottom: 20,
+    marginBottom: theme.spacing.lg,
     backgroundColor: '#000',
   },
   previewImage: { width: '100%', height: '100%', resizeMode: 'cover' },
@@ -342,7 +332,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 14,
   },
-  uploadingText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  uploadingText: { color: theme.colors.background, fontSize: 16, fontWeight: '600' },
   retakeBtn: {
     position: 'absolute',
     top: 14,
@@ -352,23 +342,23 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 10,
   },
-  retakeBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+  retakeBtnText: { color: theme.colors.background, fontWeight: '700', fontSize: 14 },
 
   // URL Card
   urlCard: {
     backgroundColor: SUCCESS_LIGHT,
     borderRadius: 14,
     padding: 18,
-    marginBottom: 24,
+    marginBottom: theme.spacing.lg,
     borderWidth: 1.5,
     borderColor: '#B2DFDB',
   },
   urlHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 10, gap: 8 },
   urlIcon: { fontSize: 20 },
   urlTitle: { fontSize: 16, fontWeight: '700', color: SUCCESS },
-  urlLabel: { fontSize: 13, color: '#555', marginBottom: 8, fontWeight: '600' },
+  urlLabel: { fontSize: 13, color: theme.colors.text, marginBottom: 8, fontWeight: '600' },
   urlBox: {
-    backgroundColor: '#ffffff',
+    backgroundColor: theme.colors.background,
     borderRadius: 8,
     padding: 12,
     borderWidth: 1,
@@ -380,22 +370,22 @@ const styles = StyleSheet.create({
 
   // Confirm Button
   confirmBtn: {
-    backgroundColor: PURPLE,
+    backgroundColor: theme.colors.primary,
     borderRadius: 14,
     padding: 18,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     gap: 10,
-    shadowColor: PURPLE,
+    shadowColor: theme.colors.primary,
     shadowOpacity: 0.4,
     shadowOffset: { width: 0, height: 6 },
     shadowRadius: 12,
     elevation: 6,
   },
-  confirmBtnDisabled: { backgroundColor: '#BDBDBD', shadowOpacity: 0 },
+  confirmBtnDisabled: { backgroundColor: theme.colors.gray, shadowOpacity: 0 },
   confirmBtnIcon: { fontSize: 20 },
-  confirmBtnText: { color: '#fff', fontSize: 18, fontWeight: '800', letterSpacing: 0.5 },
+  confirmBtnText: { color: theme.colors.background, fontSize: 18, fontWeight: '800', letterSpacing: 0.5 },
 
   // Locked hint
   lockedHint: {
@@ -403,9 +393,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     gap: 8,
-    marginTop: 8,
+    marginTop: theme.spacing.sm,
     opacity: 0.6,
   },
   lockedIcon: { fontSize: 16 },
-  lockedText: { fontSize: 14, color: '#888' },
+  lockedText: { fontSize: 14, color: theme.colors.gray },
 });

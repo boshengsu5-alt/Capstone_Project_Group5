@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import { View, StyleSheet, Text, TouchableOpacity, Image } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImageManipulator from 'expo-image-manipulator';
+import { theme } from '../theme';
 
 interface PhotoCaptureProps {
   onPhotoCaptured: (photoUri: string) => void;
@@ -31,8 +32,8 @@ export default function PhotoCapture({ onPhotoCaptured }: PhotoCaptureProps) {
     if (cameraRef.current) {
       try {
         const photo = await cameraRef.current.takePictureAsync({ quality: 0.8 });
-        
-        // 按照Day 5需求：使用 expo-image-manipulator 降低画质/压缩尺寸
+
+        // 使用 expo-image-manipulator 降低画质/压缩尺寸
         const manipResult = await ImageManipulator.manipulateAsync(
           photo.uri,
           [{ resize: { width: 800 } }],
@@ -75,42 +76,42 @@ export default function PhotoCapture({ onPhotoCaptured }: PhotoCaptureProps) {
 }
 
 const styles = StyleSheet.create({
-  container: { 
-    height: 350, 
-    width: '100%', 
-    backgroundColor: '#000', 
+  container: {
+    height: 350,
+    width: '100%',
+    backgroundColor: '#000',
     borderRadius: 12,
     overflow: 'hidden',
     marginVertical: 10,
     justifyContent: 'center',
-    alignItems: 'center'
+    alignItems: 'center',
   },
-  text: { fontSize: 16, color: '#ffffff', marginBottom: 20 },
-  actionButton: { backgroundColor: '#6200ee', padding: 12, borderRadius: 8 },
-  actionText: { color: '#fff', fontWeight: 'bold' },
+  text: { fontSize: 16, color: theme.colors.background, marginBottom: 20 },
+  actionButton: { backgroundColor: theme.colors.primary, padding: 12, borderRadius: 8 },
+  actionText: { color: theme.colors.background, fontWeight: 'bold' },
   cameraContainer: { flex: 1, width: '100%' },
   camera: { flex: 1 },
   overlay: {
     position: 'absolute',
     bottom: 20,
     width: '100%',
-    alignItems: 'center'
+    alignItems: 'center',
   },
-  captureButton: { 
-    width: 70, 
-    height: 70, 
-    borderRadius: 35, 
-    backgroundColor: '#ffffff', 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    borderWidth: 3, 
-    borderColor: '#aaaaaa' 
+  captureButton: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: theme.colors.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: theme.colors.gray,
   },
-  innerButton: { 
-    width: 50, 
-    height: 50, 
-    borderRadius: 25, 
-    backgroundColor: '#FF3B30' 
+  innerButton: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: theme.colors.danger,
   },
   previewContainer: { flex: 1, width: '100%', alignItems: 'center', justifyContent: 'center' },
   previewImage: { width: '100%', height: '100%', resizeMode: 'cover' },
@@ -120,7 +121,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.6)',
     paddingHorizontal: 20,
     paddingVertical: 10,
-    borderRadius: 8
+    borderRadius: 8,
   },
-  retakeText: { color: '#fff', fontSize: 16, fontWeight: 'bold' }
+  retakeText: { color: theme.colors.background, fontSize: 16, fontWeight: 'bold' },
 });

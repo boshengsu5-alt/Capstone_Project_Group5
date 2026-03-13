@@ -14,11 +14,12 @@ import {
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import type { BookingsStackParamList } from '../../navigation/BookingsStackNavigator';
 import { submitDamageReport } from '../../services/bookingService';
-import { supabase } from '../../services/supabase';
+import { getCurrentUser } from '../../services/authService';
+import { uploadFile } from '../../services/storageService';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import type { DamageSeverity } from '../../../../database/types/supabase';
-import { uploadFile } from '../../services/storageService';
+import { theme } from '../../theme';
 
 type DamageReportRouteProp = RouteProp<BookingsStackParamList, 'DamageReport'>;
 
@@ -26,7 +27,7 @@ type DamageReportRouteProp = RouteProp<BookingsStackParamList, 'DamageReport'>;
 const SEVERITY_OPTIONS: { value: DamageSeverity; label: string; emoji: string; color: string }[] = [
   { value: 'minor',    label: '轻微损坏', emoji: '🟡', color: '#F59E0B' },
   { value: 'moderate', label: '中度损坏', emoji: '🟠', color: '#F97316' },
-  { value: 'severe',   label: '严重损坏', emoji: '🔴', color: '#EF4444' },
+  { value: 'severe',   label: '严重损坏', emoji: '🔴', color: theme.colors.danger },
 ];
 
 export default function DamageReportScreen() {
@@ -51,7 +52,7 @@ export default function DamageReportScreen() {
             return;
           }
           const result = await ImagePicker.launchCameraAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            mediaTypes: ['images'],
             allowsEditing: false,
             quality: 0.8,
           });
@@ -69,14 +70,14 @@ export default function DamageReportScreen() {
             return;
           }
           const result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            mediaTypes: ['images'],
             allowsMultipleSelection: true,
             selectionLimit: 5,
             quality: 0.8,
           });
           if (!result.canceled) {
-            for (const asset of result.assets) {
-              await addCompressedPhoto(asset.uri);
+            for (const item of result.assets) {
+              await addCompressedPhoto(item.uri);
             }
           }
         },
@@ -110,11 +111,10 @@ export default function DamageReportScreen() {
 
     setSubmitting(true);
     try {
-      // 1. 获取当前用户 ID（用于 Storage 路径）
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('用户未登录');
+      // 通过 service 层获取当前用户，不直接调用 supabase
+      const user = await getCurrentUser();
 
-      // 2. 上传所有照片
+      // 上传所有照片
       const uploadedUrls: string[] = [];
       for (const uri of photoUris) {
         const fileExt = uri.split('.').pop() || 'jpg';
@@ -123,16 +123,17 @@ export default function DamageReportScreen() {
         uploadedUrls.push(url);
       }
 
-      // 3. 调用 Bosheng 在 Day 6 写好的 submitDamageReport()
+      // 提交损坏报告
       await submitDamageReport(assetId, bookingId, description.trim(), severity, uploadedUrls);
 
       Alert.alert(
-        '报修单已提交 ✅',
+        '报修单已提交',
         '感谢您的反馈！老师将在 1-2 个工作日内核验，信用分结果届时通知。',
         [{ text: '好的', onPress: () => navigation.goBack() }]
       );
-    } catch (error: any) {
-      Alert.alert('提交失败', error?.message ?? '网络错误，请稍后重试');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : '网络错误，请稍后重试';
+      Alert.alert('提交失败', message);
     } finally {
       setSubmitting(false);
     }
@@ -142,7 +143,7 @@ export default function DamageReportScreen() {
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
 
-        {/* ── 报修设备信息卡 ── */}
+        {/* 报修设备信息卡 */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>📋 报修信息</Text>
           <View style={styles.infoCard}>
@@ -157,7 +158,7 @@ export default function DamageReportScreen() {
           </View>
         </View>
 
-        {/* ── 严重程度选择 ── */}
+        {/* 严重程度选择 */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>⚠️ 损坏程度</Text>
           <View style={styles.severityRow}>
@@ -180,7 +181,7 @@ export default function DamageReportScreen() {
           </View>
         </View>
 
-        {/* ── 文字描述 ── */}
+        {/* 文字描述 */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>📝 情况描述（至少 10 字）</Text>
           <TextInput
@@ -188,7 +189,7 @@ export default function DamageReportScreen() {
             multiline
             numberOfLines={6}
             placeholder="请详细描述设备损坏情况，例如：镜头前镜片碎裂，缝隙处有明显玻璃碎片，无法正常对焦……"
-            placeholderTextColor="#BDBDBD"
+            placeholderTextColor={theme.colors.gray}
             value={description}
             onChangeText={setDescription}
             textAlignVertical="top"
@@ -198,7 +199,7 @@ export default function DamageReportScreen() {
           </Text>
         </View>
 
-        {/* ── 损坏照片 ── */}
+        {/* 损坏照片 */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>📸 损坏区域照片（必填）</Text>
 
@@ -221,7 +222,7 @@ export default function DamageReportScreen() {
           <Text style={styles.photoHint}>最多 5 张 · 照片将上传至学校证据库</Text>
         </View>
 
-        {/* ── 提交按钮 ── */}
+        {/* 提交按钮 */}
         <TouchableOpacity
           style={[styles.submitButton, submitting && styles.submitButtonDisabled]}
           onPress={handleSubmit}
@@ -229,7 +230,7 @@ export default function DamageReportScreen() {
           activeOpacity={0.8}
         >
           {submitting ? (
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color={theme.colors.background} />
           ) : (
             <Text style={styles.submitText}>提交客诉单</Text>
           )}
@@ -244,23 +245,21 @@ export default function DamageReportScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F7F7FD' },
-  scroll: { padding: 20, paddingBottom: 40 },
+  container: { flex: 1, backgroundColor: theme.colors.background },
+  scroll: { padding: theme.spacing.lg, paddingBottom: 40 },
 
-  section: { marginBottom: 24 },
-  sectionTitle: { fontSize: 15, fontWeight: '700', color: '#333', marginBottom: 12 },
+  section: { marginBottom: theme.spacing.lg },
+  sectionTitle: { fontSize: 15, fontWeight: '700', color: theme.colors.text, marginBottom: 12 },
 
   infoCard: {
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.inputBackground,
     borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#EDEDF0',
+    padding: theme.spacing.md,
     gap: 8,
   },
   infoRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  infoLabel: { fontSize: 13, color: '#888' },
-  infoValue: { fontSize: 13, color: '#333', fontWeight: '600', maxWidth: '70%' },
+  infoLabel: { fontSize: 13, color: theme.colors.gray },
+  infoValue: { fontSize: 13, color: theme.colors.text, fontWeight: '600', maxWidth: '70%' },
 
   severityRow: { flexDirection: 'row', gap: 10 },
   severityChip: {
@@ -269,21 +268,19 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: '#E0E0E0',
-    backgroundColor: '#fff',
+    borderColor: theme.colors.inputBackground,
+    backgroundColor: theme.colors.background,
   },
   severityEmoji: { fontSize: 22, marginBottom: 4 },
-  severityLabel: { fontSize: 12, fontWeight: '600', color: '#666' },
-  severityLabelActive: { color: '#fff' },
+  severityLabel: { fontSize: 12, fontWeight: '600', color: theme.colors.gray },
+  severityLabelActive: { color: theme.colors.background },
 
   textInput: {
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.inputBackground,
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
     padding: 14,
     fontSize: 15,
-    color: '#333',
+    color: theme.colors.text,
     minHeight: 130,
     lineHeight: 22,
   },
@@ -304,7 +301,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  removeBtnText: { color: '#fff', fontSize: 11, fontWeight: 'bold' },
+  removeBtnText: { color: theme.colors.background, fontSize: 11, fontWeight: 'bold' },
   addPhotoBtn: {
     width: 90,
     height: 90,
@@ -312,28 +309,28 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#C7BFF0',
     borderStyle: 'dashed',
-    backgroundColor: '#F3F0FF',
+    backgroundColor: '#F3E8FF',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  addPhotoBtnIcon: { fontSize: 24, color: '#6200ee', lineHeight: 28 },
-  addPhotoBtnText: { fontSize: 11, color: '#6200ee', fontWeight: '600', marginTop: 2 },
-  photoHint: { marginTop: 8, fontSize: 12, color: '#999' },
+  addPhotoBtnIcon: { fontSize: 24, color: theme.colors.primary, lineHeight: 28 },
+  addPhotoBtnText: { fontSize: 11, color: theme.colors.primary, fontWeight: '600', marginTop: 2 },
+  photoHint: { marginTop: 8, fontSize: 12, color: theme.colors.gray },
 
   submitButton: {
-    backgroundColor: '#EF4444',
+    backgroundColor: theme.colors.danger,
     paddingVertical: 16,
     borderRadius: 14,
     alignItems: 'center',
     marginBottom: 12,
-    shadowColor: '#EF4444',
+    shadowColor: theme.colors.danger,
     shadowOpacity: 0.3,
     shadowOffset: { width: 0, height: 4 },
     shadowRadius: 8,
     elevation: 4,
   },
-  submitButtonDisabled: { backgroundColor: '#F9A8A8', shadowOpacity: 0 },
-  submitText: { color: '#fff', fontSize: 17, fontWeight: '700' },
+  submitButtonDisabled: { opacity: 0.5 },
+  submitText: { color: theme.colors.background, fontSize: 17, fontWeight: '700' },
 
-  disclaimer: { textAlign: 'center', fontSize: 12, color: '#BDBDBD', lineHeight: 18 },
+  disclaimer: { textAlign: 'center', fontSize: 12, color: theme.colors.gray, lineHeight: 18 },
 });

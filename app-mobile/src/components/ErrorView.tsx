@@ -8,13 +8,13 @@ interface ErrorViewProps {
   onRetry: () => void;
 }
 
-export default function ErrorView({ message = '加载失败，请检检查网络连接', onRetry }: ErrorViewProps) {
+export default function ErrorView({ message = '加载失败，请检查网络连接', onRetry }: ErrorViewProps) {
   return (
     <View style={styles.container}>
       <Ionicons name="cloud-offline-outline" size={64} color={theme.colors.gray} />
       <Text style={styles.errorText}>{message}</Text>
       <TouchableOpacity style={styles.retryButton} onPress={onRetry}>
-        <Ionicons name="refresh" size={20} color="#fff" style={styles.retryIcon} />
+        <Ionicons name="refresh" size={20} color={theme.colors.background} style={styles.retryIcon} />
         <Text style={styles.retryButtonText}>点击重试</Text>
       </TouchableOpacity>
     </View>
@@ -45,7 +45,7 @@ const styles = StyleSheet.create({
     borderRadius: 99,
     alignItems: 'center',
     elevation: 2,
-    shadowColor: '#000',
+    shadowColor: theme.colors.text,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -54,7 +54,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   retryButtonText: {
-    color: '#fff',
+    color: theme.colors.background,
     fontSize: 16,
     fontWeight: 'bold',
   },

@@ -1,35 +1,34 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   SafeAreaView,
   FlatList,
-  TouchableOpacity,
   ActivityIndicator,
+  TouchableOpacity,
   RefreshControl,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
+import { theme } from '../../theme';
 import NotificationItem from '../../components/NotificationItem';
-import {
-  getMyNotifications,
-  markNotificationAsRead,
-  markAllNotificationsAsRead,
-} from '../../services/notificationService';
+import { getMyNotifications, markAsRead, markAllAsRead } from '../../services/notificationService';
 import type { Notification } from '../../../../database/types/supabase';
 
 // 将 ISO 时间字符串转成易读格式
-function formatTime(isoString: string): string {
-  const date = new Date(isoString);
+function formatTime(dateStr: string): string {
+  const date = new Date(dateStr);
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMins / 60);
-  const diffDays = Math.floor(diffHours / 24);
+  const diffMin = Math.floor(diffMs / 60000);
+  const diffHour = Math.floor(diffMs / 3600000);
+  const diffDay = Math.floor(diffMs / 86400000);
 
-  if (diffMins < 1) return '刚刚';
-  if (diffMins < 60) return `${diffMins} 分钟前`;
-  if (diffHours < 24) return `${diffHours} 小时前`;
-  if (diffDays < 7) return `${diffDays} 天前`;
+  if (diffMin < 1) return '刚刚';
+  if (diffMin < 60) return `${diffMin}分钟前`;
+  if (diffHour < 24) return `${diffHour}小时前`;
+  if (diffDay < 7) return `${diffDay}天前`;
   return date.toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' });
 }
 
@@ -37,122 +36,97 @@ export default function NotificationScreen() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  const fetchNotifications = useCallback(async (isRefresh = false) => {
-    if (isRefresh) setRefreshing(true);
-    else setLoading(true);
-    setError(null);
+  const fetchNotifications = useCallback(async () => {
     try {
       const data = await getMyNotifications();
       setNotifications(data);
-    } catch (err: any) {
-      setError(err?.message ?? '加载失败，请稍后重试');
+    } catch (err) {
+      console.error('[NotificationScreen] 获取通知失败:', err);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   }, []);
 
-  useEffect(() => {
+  // 每次页面获得焦点时刷新
+  useFocusEffect(
+    useCallback(() => {
+      fetchNotifications();
+    }, [fetchNotifications])
+  );
+
+  const handleRefresh = () => {
+    setRefreshing(true);
     fetchNotifications();
-  }, [fetchNotifications]);
+  };
 
-  // 点击单条 → 标记已读
-  const handlePress = async (item: Notification) => {
-    if (item.is_read) return;
-    try {
-      await markNotificationAsRead(item.id);
-      setNotifications(prev =>
-        prev.map(n => (n.id === item.id ? { ...n, is_read: true } : n))
-      );
-    } catch {
-      // 静默失败，不影响 UI
+  const handlePressItem = async (item: Notification) => {
+    if (!item.is_read) {
+      try {
+        await markAsRead(item.id);
+        setNotifications((prev) =>
+          prev.map((n) => (n.id === item.id ? { ...n, is_read: true } : n))
+        );
+      } catch (err) {
+        console.error('[NotificationScreen] 标记已读失败:', err);
+      }
     }
   };
 
-  // 全部标为已读
-  const handleMarkAll = async () => {
+  const handleMarkAllRead = async () => {
     try {
-      await markAllNotificationsAsRead();
-      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
-    } catch {
-      // 静默失败
+      await markAllAsRead();
+      setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+    } catch (err) {
+      console.error('[NotificationScreen] 全部标记已读失败:', err);
     }
   };
 
-  const unreadCount = notifications.filter(n => !n.is_read).length;
+  const hasUnread = notifications.some((n) => !n.is_read);
 
-  // ── 渲染列表项 ──
-  const renderItem = ({ item }: { item: Notification }) => (
-    <TouchableOpacity onPress={() => handlePress(item)} activeOpacity={0.75}>
-      <NotificationItem
-        title={item.title}
-        message={item.message}
-        time={formatTime(item.created_at)}
-        isRead={item.is_read}
-      />
-    </TouchableOpacity>
-  );
-
-  // ── 空状态 ──
-  const EmptyState = () => (
-    <View style={styles.emptyState}>
-      <Text style={styles.emptyIcon}>🔔</Text>
-      <Text style={styles.emptyTitle}>暂无通知</Text>
-      <Text style={styles.emptySubtitle}>预约审核、归还提醒等通知会显示在这里</Text>
-    </View>
-  );
+  if (loading) {
+    return (
+      <SafeAreaView style={[styles.container, styles.center]}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* ── 头部 ── */}
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.title}>消息通知</Text>
-          {unreadCount > 0 && (
-            <Text style={styles.unreadBadge}>{unreadCount} 条未读</Text>
-          )}
-        </View>
-        {unreadCount > 0 && (
-          <TouchableOpacity style={styles.markAllBtn} onPress={handleMarkAll}>
-            <Text style={styles.markAllText}>全部已读</Text>
-          </TouchableOpacity>
-        )}
-      </View>
+      {/* 全部已读按钮 */}
+      {hasUnread && (
+        <TouchableOpacity style={styles.markAllBtn} onPress={handleMarkAllRead}>
+          <Ionicons name="checkmark-done" size={18} color={theme.colors.primary} />
+          <Text style={styles.markAllText}>全部已读</Text>
+        </TouchableOpacity>
+      )}
 
-      {/* ── 内容区域 ── */}
-      {loading ? (
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" color="#6200ee" />
-          <Text style={styles.loadingText}>加载中…</Text>
-        </View>
-      ) : error ? (
-        <View style={styles.centered}>
-          <Text style={styles.errorIcon}>⚠️</Text>
-          <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity style={styles.retryBtn} onPress={() => fetchNotifications()}>
-            <Text style={styles.retryText}>重新加载</Text>
-          </TouchableOpacity>
+      {notifications.length === 0 ? (
+        <View style={styles.emptyState}>
+          <Ionicons name="notifications-off-outline" size={64} color={theme.colors.gray} />
+          <Text style={styles.emptyText}>暂无通知</Text>
+          <Text style={styles.emptySubtext}>预约审核、归还提醒等通知会显示在这里</Text>
         </View>
       ) : (
         <FlatList
           data={notifications}
-          keyExtractor={item => item.id}
-          renderItem={renderItem}
-          contentContainerStyle={[
-            styles.listContent,
-            notifications.length === 0 && styles.listEmpty,
-          ]}
-          ListEmptyComponent={<EmptyState />}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={() => fetchNotifications(true)}
-              tintColor="#6200ee"
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => (
+            <NotificationItem
+              title={item.title}
+              message={item.message}
+              time={formatTime(item.created_at)}
+              type={item.type}
+              isRead={item.is_read}
+              onPress={() => handlePressItem(item)}
             />
+          )}
+          contentContainerStyle={styles.list}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={theme.colors.primary} />
           }
-          showsVerticalScrollIndicator={false}
         />
       )}
     </SafeAreaView>
@@ -160,45 +134,45 @@ export default function NotificationScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F5F5F5' },
-
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 12,
-    backgroundColor: '#F5F5F5',
+  container: {
+    flex: 1,
+    backgroundColor: theme.colors.inputBackground,
   },
-  title: { fontSize: 28, fontWeight: 'bold', color: '#333333' },
-  unreadBadge: { fontSize: 13, color: '#6200ee', fontWeight: '600', marginTop: 2 },
-
+  center: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   markAllBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    backgroundColor: '#EDE7F6',
-    borderRadius: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-end',
+    padding: theme.spacing.md,
+    gap: 4,
   },
-  markAllText: { fontSize: 13, color: '#6200ee', fontWeight: '600' },
-
-  listContent: { paddingHorizontal: 16, paddingBottom: 24 },
-  listEmpty: { flexGrow: 1 },
-
-  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
-  loadingText: { marginTop: 12, fontSize: 14, color: '#999' },
-  errorIcon: { fontSize: 40, marginBottom: 12 },
-  errorText: { fontSize: 15, color: '#666', textAlign: 'center', marginBottom: 20 },
-  retryBtn: {
-    backgroundColor: '#6200ee',
-    paddingHorizontal: 24,
-    paddingVertical: 10,
-    borderRadius: 20,
+  markAllText: {
+    fontSize: 14,
+    color: theme.colors.primary,
+    fontWeight: '600',
   },
-  retryText: { color: '#fff', fontWeight: '600', fontSize: 14 },
-
-  emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 80 },
-  emptyIcon: { fontSize: 56, marginBottom: 16 },
-  emptyTitle: { fontSize: 18, fontWeight: 'bold', color: '#444', marginBottom: 8 },
-  emptySubtitle: { fontSize: 14, color: '#999', textAlign: 'center', lineHeight: 22 },
+  list: {
+    padding: theme.spacing.md,
+  },
+  emptyState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: theme.colors.text,
+    marginTop: theme.spacing.md,
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: theme.colors.gray,
+    marginTop: theme.spacing.sm,
+    textAlign: 'center',
+    lineHeight: 22,
+  },
 });
