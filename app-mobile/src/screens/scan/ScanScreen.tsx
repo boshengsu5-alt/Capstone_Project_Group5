@@ -1,18 +1,28 @@
-import React from 'react';
-import { StyleSheet, Text, View, SafeAreaView } from 'react-native';
+import { Alert, StyleSheet, Text, View, SafeAreaView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import QRScanner from '../../components/QRScanner';
+import { getAssetById } from '../../services/assetService';
 
 export default function ScanScreen() {
   const navigation = useNavigation<any>();
 
-  const handleScan = (data: string) => {
-    // 扫到的 qr_code 值就是 assetId
-    // 跳转到 Home Tab 的 AssetDetailScreen 查看详情
-    navigation.navigate('HomeTab', {
-      screen: 'AssetDetailScreen',
-      params: { id: data },
-    });
+  const handleScan = async (data: string) => {
+    try {
+      // Data scanned is treated as assetId per current logic
+      const asset = await getAssetById(data);
+      if (!asset) {
+        Alert.alert('扫描失败', '未找到对应的设备信息，请检查二维码是否有效。');
+        return;
+      }
+
+      // 跳转到 Home Tab 的 AssetDetailScreen 查看详情
+      navigation.navigate('HomeTab', {
+        screen: 'AssetDetailScreen',
+        params: { id: data },
+      });
+    } catch (error) {
+      Alert.alert('扫描错误', '获取设备信息时出错，请稍后重试。');
+    }
   };
 
   return (

@@ -1,39 +1,243 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TextInput, TouchableOpacity, ScrollView } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  SafeAreaView,
+  TextInput,
+  TouchableOpacity,
+  ScrollView,
+  Alert,
+  ActivityIndicator,
+  Image,
+} from 'react-native';
+import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
+import type { BookingsStackParamList } from '../../navigation/BookingsStackNavigator';
+import { submitDamageReport } from '../../services/bookingService';
+import { supabase } from '../../services/supabase';
+import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
+import type { DamageSeverity } from '../../../../database/types/supabase';
+import { uploadFile } from '../../services/storageService';
+
+type DamageReportRouteProp = RouteProp<BookingsStackParamList, 'DamageReport'>;
+
+// 严重程度配置
+const SEVERITY_OPTIONS: { value: DamageSeverity; label: string; emoji: string; color: string }[] = [
+  { value: 'minor',    label: '轻微损坏', emoji: '🟡', color: '#F59E0B' },
+  { value: 'moderate', label: '中度损坏', emoji: '🟠', color: '#F97316' },
+  { value: 'severe',   label: '严重损坏', emoji: '🔴', color: '#EF4444' },
+];
 
 export default function DamageReportScreen() {
+  const route = useRoute<DamageReportRouteProp>();
+  const navigation = useNavigation();
+  const { assetId, bookingId } = route.params;
+
   const [description, setDescription] = useState('');
+  const [severity, setSeverity] = useState<DamageSeverity>('minor');
+  const [photoUris, setPhotoUris] = useState<string[]>([]);
+  const [submitting, setSubmitting] = useState(false);
+
+  // 选择照片（相册 or 相机）
+  const handleAddPhoto = () => {
+    Alert.alert('添加损坏照片', '请选择来源', [
+      {
+        text: '拍摄照片',
+        onPress: async () => {
+          const { status } = await ImagePicker.requestCameraPermissionsAsync();
+          if (status !== 'granted') {
+            Alert.alert('权限不足', '需要相机权限才能拍照');
+            return;
+          }
+          const result = await ImagePicker.launchCameraAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: false,
+            quality: 0.8,
+          });
+          if (!result.canceled && result.assets.length > 0) {
+            await addCompressedPhoto(result.assets[0].uri);
+          }
+        },
+      },
+      {
+        text: '从相册选择',
+        onPress: async () => {
+          const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+          if (status !== 'granted') {
+            Alert.alert('权限不足', '需要相册权限才能选取照片');
+            return;
+          }
+          const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsMultipleSelection: true,
+            selectionLimit: 5,
+            quality: 0.8,
+          });
+          if (!result.canceled) {
+            for (const asset of result.assets) {
+              await addCompressedPhoto(asset.uri);
+            }
+          }
+        },
+      },
+      { text: '取消', style: 'cancel' },
+    ]);
+  };
+
+  const addCompressedPhoto = async (uri: string) => {
+    const manipResult = await ImageManipulator.manipulateAsync(
+      uri,
+      [{ resize: { width: 1024 } }],
+      { compress: 0.75, format: ImageManipulator.SaveFormat.JPEG }
+    );
+    setPhotoUris(prev => [...prev, manipResult.uri]);
+  };
+
+  const removePhoto = (index: number) => {
+    setPhotoUris(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleSubmit = async () => {
+    if (description.trim().length < 10) {
+      Alert.alert('描述太短', '请至少用10个字描述损坏情况');
+      return;
+    }
+    if (photoUris.length === 0) {
+      Alert.alert('缺少照片', '请上传至少一张损坏区域照片');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      // 1. 获取当前用户 ID（用于 Storage 路径）
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('用户未登录');
+
+      // 2. 上传所有照片
+      const uploadedUrls: string[] = [];
+      for (const uri of photoUris) {
+        const fileExt = uri.split('.').pop() || 'jpg';
+        const fileName = `${user.id}/damage_${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+        const url = await uploadFile('damage-photos', uri, fileName);
+        uploadedUrls.push(url);
+      }
+
+      // 3. 调用 Bosheng 在 Day 6 写好的 submitDamageReport()
+      await submitDamageReport(assetId, bookingId, description.trim(), severity, uploadedUrls);
+
+      Alert.alert(
+        '报修单已提交 ✅',
+        '感谢您的反馈！老师将在 1-2 个工作日内核验，信用分结果届时通知。',
+        [{ text: '好的', onPress: () => navigation.goBack() }]
+      );
+    } catch (error: any) {
+      Alert.alert('提交失败', error?.message ?? '网络错误，请稍后重试');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scroll}>
-        <Text style={styles.title}>损坏报修</Text>
-        
-        <Text style={styles.label}>报修设备：</Text>
-        <View style={styles.card}>
-          <Text style={styles.value}>Canon 24-70mm 镜头</Text>
-          <Text style={styles.sn}>SN: 20045</Text>
+      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+
+        {/* ── 报修设备信息卡 ── */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>📋 报修信息</Text>
+          <View style={styles.infoCard}>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>借用单号</Text>
+              <Text style={styles.infoValue} numberOfLines={1}>{bookingId.slice(0, 8)}…</Text>
+            </View>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>设备 ID</Text>
+              <Text style={styles.infoValue} numberOfLines={1}>{assetId.slice(0, 8)}…</Text>
+            </View>
+          </View>
         </View>
 
-        <Text style={styles.label}>损坏情况描述：</Text>
-        <TextInput
-          style={styles.input}
-          multiline
-          numberOfLines={6}
-          placeholder="请详细描述设备损坏情况，至少10个字。提交后将由老师人工核验是否扣除信用分..."
-          value={description}
-          onChangeText={setDescription}
-          textAlignVertical="top"
-        />
+        {/* ── 严重程度选择 ── */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>⚠️ 损坏程度</Text>
+          <View style={styles.severityRow}>
+            {SEVERITY_OPTIONS.map(opt => (
+              <TouchableOpacity
+                key={opt.value}
+                style={[
+                  styles.severityChip,
+                  severity === opt.value && { backgroundColor: opt.color, borderColor: opt.color },
+                ]}
+                onPress={() => setSeverity(opt.value)}
+                activeOpacity={0.75}
+              >
+                <Text style={styles.severityEmoji}>{opt.emoji}</Text>
+                <Text style={[styles.severityLabel, severity === opt.value && styles.severityLabelActive]}>
+                  {opt.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
 
-        <Text style={styles.label}>上传损坏区域照片：</Text>
-        <TouchableOpacity style={styles.uploadBox}>
-          <Text style={styles.uploadText}>+ 拍摄或选择照片</Text>
+        {/* ── 文字描述 ── */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>📝 情况描述（至少 10 字）</Text>
+          <TextInput
+            style={styles.textInput}
+            multiline
+            numberOfLines={6}
+            placeholder="请详细描述设备损坏情况，例如：镜头前镜片碎裂，缝隙处有明显玻璃碎片，无法正常对焦……"
+            placeholderTextColor="#BDBDBD"
+            value={description}
+            onChangeText={setDescription}
+            textAlignVertical="top"
+          />
+          <Text style={[styles.charCount, description.length < 10 && styles.charCountWarn]}>
+            {description.length} / 10 字最低要求
+          </Text>
+        </View>
+
+        {/* ── 损坏照片 ── */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>📸 损坏区域照片（必填）</Text>
+
+          <View style={styles.photoGrid}>
+            {photoUris.map((uri, index) => (
+              <View key={index} style={styles.photoWrapper}>
+                <Image source={{ uri }} style={styles.photoThumb} />
+                <TouchableOpacity style={styles.removeBtn} onPress={() => removePhoto(index)}>
+                  <Text style={styles.removeBtnText}>✕</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+            {photoUris.length < 5 && (
+              <TouchableOpacity style={styles.addPhotoBtn} onPress={handleAddPhoto} activeOpacity={0.7}>
+                <Text style={styles.addPhotoBtnIcon}>＋</Text>
+                <Text style={styles.addPhotoBtnText}>添加照片</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+          <Text style={styles.photoHint}>最多 5 张 · 照片将上传至学校证据库</Text>
+        </View>
+
+        {/* ── 提交按钮 ── */}
+        <TouchableOpacity
+          style={[styles.submitButton, submitting && styles.submitButtonDisabled]}
+          onPress={handleSubmit}
+          disabled={submitting}
+          activeOpacity={0.8}
+        >
+          {submitting ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.submitText}>提交客诉单</Text>
+          )}
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.submitButton}>
-          <Text style={styles.submitText}>提交客诉单</Text>
-        </TouchableOpacity>
+        <Text style={styles.disclaimer}>
+          提交后将由老师人工核验，可能影响信用分。确认属实再提交。
+        </Text>
       </ScrollView>
     </SafeAreaView>
   );
@@ -41,15 +245,95 @@ export default function DamageReportScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F7F7FD' },
-  scroll: { padding: 20 },
-  title: { fontSize: 24, fontWeight: 'bold', marginBottom: 20, color: '#FF3B30' },
-  label: { fontSize: 16, fontWeight: '600', color: '#333', marginBottom: 8, marginTop: 16 },
-  card: { backgroundColor: '#fff', padding: 16, borderRadius: 8, marginBottom: 8, borderWidth: 1, borderColor: '#e0e0e0' },
-  value: { fontSize: 16, color: '#333', fontWeight: 'bold' },
-  sn: { fontSize: 12, color: '#999', marginTop: 4 },
-  input: { backgroundColor: '#fff', borderRadius: 8, padding: 16, fontSize: 16, borderWidth: 1, borderColor: '#e0e0e0', height: 120 },
-  uploadBox: { height: 100, backgroundColor: '#fff', borderRadius: 8, borderWidth: 2, borderColor: '#e0e0e0', borderStyle: 'dashed', justifyContent: 'center', alignItems: 'center', marginBottom: 30 },
-  uploadText: { color: '#6200ee', fontSize: 16, fontWeight: 'bold' },
-  submitButton: { backgroundColor: '#FF3B30', padding: 16, borderRadius: 8, alignItems: 'center' },
-  submitText: { color: '#fff', fontSize: 16, fontWeight: 'bold' }
+  scroll: { padding: 20, paddingBottom: 40 },
+
+  section: { marginBottom: 24 },
+  sectionTitle: { fontSize: 15, fontWeight: '700', color: '#333', marginBottom: 12 },
+
+  infoCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#EDEDF0',
+    gap: 8,
+  },
+  infoRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  infoLabel: { fontSize: 13, color: '#888' },
+  infoValue: { fontSize: 13, color: '#333', fontWeight: '600', maxWidth: '70%' },
+
+  severityRow: { flexDirection: 'row', gap: 10 },
+  severityChip: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#E0E0E0',
+    backgroundColor: '#fff',
+  },
+  severityEmoji: { fontSize: 22, marginBottom: 4 },
+  severityLabel: { fontSize: 12, fontWeight: '600', color: '#666' },
+  severityLabelActive: { color: '#fff' },
+
+  textInput: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    padding: 14,
+    fontSize: 15,
+    color: '#333',
+    minHeight: 130,
+    lineHeight: 22,
+  },
+  charCount: { marginTop: 6, fontSize: 12, color: '#4CAF50', textAlign: 'right' },
+  charCountWarn: { color: '#F59E0B' },
+
+  photoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  photoWrapper: { width: 90, height: 90, borderRadius: 10, overflow: 'hidden', position: 'relative' },
+  photoThumb: { width: '100%', height: '100%', resizeMode: 'cover' },
+  removeBtn: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    borderRadius: 10,
+    width: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  removeBtnText: { color: '#fff', fontSize: 11, fontWeight: 'bold' },
+  addPhotoBtn: {
+    width: 90,
+    height: 90,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: '#C7BFF0',
+    borderStyle: 'dashed',
+    backgroundColor: '#F3F0FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addPhotoBtnIcon: { fontSize: 24, color: '#6200ee', lineHeight: 28 },
+  addPhotoBtnText: { fontSize: 11, color: '#6200ee', fontWeight: '600', marginTop: 2 },
+  photoHint: { marginTop: 8, fontSize: 12, color: '#999' },
+
+  submitButton: {
+    backgroundColor: '#EF4444',
+    paddingVertical: 16,
+    borderRadius: 14,
+    alignItems: 'center',
+    marginBottom: 12,
+    shadowColor: '#EF4444',
+    shadowOpacity: 0.3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  submitButtonDisabled: { backgroundColor: '#F9A8A8', shadowOpacity: 0 },
+  submitText: { color: '#fff', fontSize: 17, fontWeight: '700' },
+
+  disclaimer: { textAlign: 'center', fontSize: 12, color: '#BDBDBD', lineHeight: 18 },
 });
