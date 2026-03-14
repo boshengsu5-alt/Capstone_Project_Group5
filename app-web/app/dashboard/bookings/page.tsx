@@ -37,23 +37,30 @@ export default function BookingsPage() {
     };
 
     const handleApprove = async (id: string) => {
-        // In a real app, you would pass the current admin's user ID here
-        const success = await bookingService.approveBooking(id);
-        if (success) {
-            // Refresh list to show updated status
-            await loadBookings();
-        } else {
+        try {
+            // 获取当前管理员 ID，确保审批通知能正确发送给学生
+            const { data: { user } } = await (await import('@/lib/supabase')).supabase.auth.getUser();
+            const success = await bookingService.approveBooking(id, user?.id);
+            if (success) {
+                await loadBookings();
+            } else {
+                alert('Failed to approve booking. Please try again.');
+            }
+        } catch (error) {
             alert('Failed to approve booking. Please try again.');
         }
     };
 
     const handleReject = async (id: string, reason: string) => {
-        // In a real app, you would pass the current admin's user ID here
-        const success = await bookingService.rejectBooking(id, reason);
-        if (success) {
-            // Refresh list to show updated status
-            await loadBookings();
-        } else {
+        try {
+            const { data: { user } } = await (await import('@/lib/supabase')).supabase.auth.getUser();
+            const success = await bookingService.rejectBooking(id, reason, user?.id);
+            if (success) {
+                await loadBookings();
+            } else {
+                alert('Failed to reject booking. Please try again.');
+            }
+        } catch (error) {
             alert('Failed to reject booking. Please try again.');
         }
     };

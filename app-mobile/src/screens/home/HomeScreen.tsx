@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../theme';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { HomeStackParamList } from '../../navigation/HomeStackNavigator';
 import { getAssets, getCategories } from '../../services/assetService';
 import { checkOverdueBookings } from '../../services/bookingService';
@@ -24,11 +24,7 @@ import type { Asset, Category } from '../../../../database/types/supabase';
 import ErrorView from '../../components/ErrorView';
 import SafeImage from '../../components/SafeImage';
 
-type HomeScreenNavigationProp = NativeStackNavigationProp<HomeStackParamList, 'HomeScreen'>;
-
-interface Props {
-  navigation: HomeScreenNavigationProp;
-}
+type Props = NativeStackScreenProps<HomeStackParamList, 'HomeScreen'>;
 
 const { width } = Dimensions.get('window');
 
@@ -38,11 +34,14 @@ const AD_DATA = [
   { id: '3', color: '#A78BFA', text: '优质精选，猜你喜欢' },
 ];
 
-export default function HomeScreen({ navigation }: Props) {
+export default function HomeScreen({ navigation, route }: Props) {
   const [assets, setAssets] = useState<(Asset & { categories: Category })[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<boolean>(false);
+
+  // 从 CategoryScreen 传入的分类筛选 ID
+  const categoryId = route.params?.categoryId;
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -50,7 +49,7 @@ export default function HomeScreen({ navigation }: Props) {
     try {
       // 通过 service 层获取数据，不直接调用 supabase
       const [assetsData, categoriesData] = await Promise.all([
-        getAssets(),
+        getAssets(categoryId),
         getCategories(),
         // 兜底逾期检测：pg_cron 免费版不可用，每次进入首页时触发一次
         checkOverdueBookings().catch(() => {}),
@@ -63,7 +62,7 @@ export default function HomeScreen({ navigation }: Props) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [categoryId]);
 
   React.useEffect(() => {
     fetchData();

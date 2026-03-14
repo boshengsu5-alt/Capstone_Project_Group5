@@ -14,13 +14,13 @@ import {
 import { QRCodeSVG } from 'qrcode.react';
 import Header from '@/components/layout/Header';
 import { cn } from '@/lib/utils';
-import { Asset, Booking } from '@/types/database';
+import { Asset } from '@/types/database';
 import { getAssets } from '@/lib/assetService';
-import { bookingService } from '@/lib/bookingService';
+import { bookingService, BookingWithDetails } from '@/lib/bookingService';
 
 export default function DashboardPage() {
   const [assets, setAssets] = useState<Asset[]>([]);
-  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [bookings, setBookings] = useState<BookingWithDetails[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
@@ -33,7 +33,7 @@ export default function DashboardPage() {
         bookingService.getBookings(),
       ]);
       setAssets(assetsData);
-      setBookings(bookingsData as unknown as Booking[]);
+      setBookings(bookingsData);
     } catch (error) {
       console.error('Failed to fetch dashboard data', error);
     } finally {
@@ -51,9 +51,10 @@ export default function DashboardPage() {
   const pendingBookings = bookings.filter(b => b.status === 'pending').length;
   const overdueBookings = bookings.filter(b => b.status === 'overdue').length;
 
-  const categoriesMap = assets.reduce((acc, asset: any) => {
-    if (asset.categories) {
-      acc[asset.categories.id] = asset.categories.name;
+  const categoriesMap = assets.reduce((acc, asset) => {
+    const cat = (asset as any).categories;
+    if (cat) {
+      acc[cat.id] = cat.name;
     }
     return acc;
   }, {} as Record<string, string>);
@@ -170,7 +171,7 @@ export default function DashboardPage() {
                   onChange={(e) => setSelectedCategory(e.target.value)}
                 >
                   <option value="All" className="bg-gray-900">All Categories</option>
-                  {categories.map((cat: any) => (
+                  {categories.map((cat) => (
                     <option key={cat.id} value={cat.id} className="bg-gray-900">{cat.name}</option>
                   ))}
                 </select>

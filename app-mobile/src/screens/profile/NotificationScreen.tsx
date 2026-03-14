@@ -42,7 +42,7 @@ export default function NotificationScreen() {
       const data = await getMyNotifications();
       setNotifications(data);
     } catch (err) {
-      console.error('[NotificationScreen] 获取通知失败:', err);
+      // console.error('[NotificationScreen] 获取通知失败:', err);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -69,7 +69,7 @@ export default function NotificationScreen() {
           prev.map((n) => (n.id === item.id ? { ...n, is_read: true } : n))
         );
       } catch (err) {
-        console.error('[NotificationScreen] 标记已读失败:', err);
+        // console.error('[NotificationScreen] 标记已读失败:', err);
       }
     }
   };
@@ -79,7 +79,7 @@ export default function NotificationScreen() {
       await markAllAsRead();
       setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
     } catch (err) {
-      console.error('[NotificationScreen] 全部标记已读失败:', err);
+      // console.error('[NotificationScreen] 全部标记已读失败:', err);
     }
   };
 

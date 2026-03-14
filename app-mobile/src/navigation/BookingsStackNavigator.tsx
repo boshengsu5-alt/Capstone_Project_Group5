@@ -6,7 +6,7 @@ import DamageReportScreen from '../screens/damage/DamageReportScreen';
 
 export type BookingsStackParamList = {
   BookingHistory: undefined;
-  ReturnScreen: { bookingId: string };
+  ReturnScreen: { bookingId: string; assetName?: string };
   DamageReport: { assetId: string; bookingId: string };
 };
 

@@ -110,10 +110,7 @@ export default function ReturnScreen() {
 
   const navigation = useNavigation();
   const route = useRoute<any>();
-  const { bookingId, assetName } = route.params ?? {
-    bookingId: 'test_booking_001',
-    assetName: 'Sony A7M4 相机',
-  };
+  const { bookingId, assetName = '未知设备' } = route.params ?? {};
 
   // Step 1 → 2: 照片拍摄完成，自动上传
   const handlePhotoCaptured = async (uri: string) => {

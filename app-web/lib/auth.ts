@@ -36,8 +36,9 @@ export const getCurrentUser = async () => {
  */
 export const checkAdminRole = async (userId: string) => {
   try {
-    const { data, error } = await supabase
-      .from('profiles') // 假设组长已经在数据库建了 profiles 表
+    // Supabase 泛型类型可能不完整，用 as any 绕过推断
+    const { data, error } = await (supabase as any)
+      .from('profiles')
       .select('role')
       .eq('id', userId)
       .single();
