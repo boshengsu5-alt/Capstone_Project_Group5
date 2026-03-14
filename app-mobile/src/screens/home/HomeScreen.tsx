@@ -22,6 +22,7 @@ import { getAssets, getCategories } from '../../services/assetService';
 import { checkOverdueBookings } from '../../services/bookingService';
 import type { Asset, Category } from '../../../../database/types/supabase';
 import ErrorView from '../../components/ErrorView';
+import SafeImage from '../../components/SafeImage';
 
 type HomeScreenNavigationProp = NativeStackNavigationProp<HomeStackParamList, 'HomeScreen'>;
 
@@ -57,7 +58,7 @@ export default function HomeScreen({ navigation }: Props) {
       setAssets(assetsData);
       setCategories(categoriesData);
     } catch (error) {
-      console.error('Error fetching data:', error);
+      // console.error('Error fetching data:', error);
       setError(true);
     } finally {
       setLoading(false);
@@ -85,13 +86,11 @@ export default function HomeScreen({ navigation }: Props) {
       style={styles.productCard} 
       onPress={() => navigation.navigate('AssetDetailScreen', { id: item.id })}
     >
-      {item.images && item.images.length > 0 ? (
-        <Image source={{ uri: item.images[0] }} style={styles.productImagePlaceholder} />
-      ) : (
-        <View style={styles.productImagePlaceholder}>
-          <Ionicons name="image-outline" size={40} color={theme.colors.gray} />
-        </View>
-      )}
+      <SafeImage 
+        uri={item.images?.[0]} 
+        style={styles.productImagePlaceholder} 
+        placeholderSize={40} 
+      />
       <Text style={styles.productTitle} numberOfLines={1}>{item.name}</Text>
       <Text style={[styles.productPrice, { fontSize: 13, color: theme.colors.gray, fontWeight: 'normal' }]}>状态: {item.status === 'available' ? '现存' : item.status}</Text>
     </TouchableOpacity>
@@ -285,16 +284,16 @@ const styles = StyleSheet.create({
   productCard: {
     width: '48%',
     backgroundColor: '#fff',
-    borderRadius: 8,
-    marginBottom: theme.spacing.md,
-    padding: theme.spacing.sm,
+    borderRadius: 12,
+    marginBottom: theme.spacing.lg,
+    padding: theme.spacing.md,
     borderWidth: 1,
     borderColor: '#F3F4F6',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 2,
+    shadowColor: theme.colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
   },
   productImagePlaceholder: {
     width: '100%',

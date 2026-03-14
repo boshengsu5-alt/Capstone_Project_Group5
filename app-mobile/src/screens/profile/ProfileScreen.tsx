@@ -16,6 +16,7 @@ import { ProfileStackParamList } from '../../navigation/ProfileStackNavigator';
 import { theme } from '../../theme';
 import { signOut, getMyProfile } from '../../services/authService';
 import { getUnreadCount } from '../../services/notificationService';
+import { handleApiError } from '../../utils/errorHandler';
 import type { Profile } from '../../../../database/types/supabase';
 
 type Props = {
@@ -38,7 +39,7 @@ export default function ProfileScreen({ navigation }: Props) {
         const count = await getUnreadCount();
         setUnreadCount(count);
       } catch (err) {
-        console.error('[ProfileScreen] Failed to fetch profile:', err);
+        // console.error('[ProfileScreen] Failed to fetch profile:', err);
       } finally {
         setLoading(false);
       }
@@ -58,8 +59,7 @@ export default function ProfileScreen({ navigation }: Props) {
             await signOut();
             // RootNavigator 会自动检测 session 变为 null，跳转到登录页
           } catch (err: unknown) {
-            const message = err instanceof Error ? err.message : '退出失败';
-            Alert.alert('错误', message);
+            handleApiError(err, '退出失败');
             setLoggingOut(false);
           }
         },

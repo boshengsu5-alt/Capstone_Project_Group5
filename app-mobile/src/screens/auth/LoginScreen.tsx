@@ -15,6 +15,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { theme } from '../../theme';
 import { signIn } from '../../services/authService';
 import { AuthStackParamList } from '../../navigation/AuthStackNavigator';
+import { handleApiError } from '../../utils/errorHandler';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Login'>;
 
@@ -34,7 +35,7 @@ export default function LoginScreen({ navigation }: Props) {
       await signIn(email.trim(), password);
       // 登录成功后 RootNavigator 会自动监听 auth 状态变化并跳转到主页
     } catch (error: any) {
-      Alert.alert('登录失败', error.message || '请检查邮箱和密码');
+      handleApiError(error, '登录失败');
     } finally {
       setLoading(false);
     }

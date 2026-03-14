@@ -16,6 +16,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { theme } from '../../theme';
 import { signUp } from '../../services/authService';
 import { AuthStackParamList } from '../../navigation/AuthStackNavigator';
+import { handleApiError } from '../../utils/errorHandler';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Register'>;
 
@@ -49,7 +50,7 @@ export default function RegisterScreen({ navigation }: Props) {
         { text: '去登录', onPress: () => navigation.navigate('Login') },
       ]);
     } catch (error: any) {
-      Alert.alert('注册失败', error.message || '请稍后重试');
+      handleApiError(error, '注册失败');
     } finally {
       setLoading(false);
     }

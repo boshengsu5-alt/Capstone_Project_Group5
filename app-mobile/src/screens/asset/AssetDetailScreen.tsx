@@ -8,6 +8,7 @@ import { getAssetById } from '../../services/assetService';
 import type { Asset, Category } from '../../../../database/types/supabase';
 import CalendarView from '../../components/CalendarView';
 import ErrorView from '../../components/ErrorView';
+import SafeImage from '../../components/SafeImage';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'AssetDetailScreen'>;
 type FullAsset = Asset & { categories: Category };
@@ -38,6 +39,7 @@ export default function AssetDetailScreen({ route, navigation }: Props) {
         setError('找不到该设备');
       }
     } catch (err: any) {
+      // console.error('Error fetching asset details:', err);
       setError(err.message || '获取设备详情失败');
     } finally {
       setLoading(false);
@@ -86,13 +88,12 @@ export default function AssetDetailScreen({ route, navigation }: Props) {
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         {/* Product Image */}
         <View style={styles.imageContainer}>
-          {asset.images && asset.images.length > 0 ? (
-            <Image source={{ uri: asset.images[0] }} style={styles.image} resizeMode="cover" />
-          ) : (
-            <View style={styles.placeholderIcon}>
-              <Ionicons name="camera-outline" size={60} color="#ccc" />
-            </View>
-          )}
+          <SafeImage 
+            uri={asset.images?.[0]} 
+            style={styles.image} 
+            resizeMode="cover" 
+            placeholderSize={60} 
+          />
         </View>
 
         <View style={styles.contentContainer}>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Alert, StyleSheet, Text, View, SafeAreaView, StatusBar } from 'react-native';
+import { Alert, StyleSheet, Text, View, SafeAreaView, StatusBar, TouchableOpacity } from 'react-native';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import QRScanner from '../../components/QRScanner';
 import { getAssetById } from '../../services/assetService';
@@ -9,10 +9,13 @@ export default function ScanScreen() {
   const isFocused = useIsFocused();
   const [isScanning, setIsScanning] = useState(true);
 
+  const [hasError, setHasError] = useState(false);
+
   // 每次页面重新获得焦点时，确保可以扫描
   useEffect(() => {
     if (isFocused) {
       setIsScanning(true);
+      setHasError(false);
     }
   }, [isFocused]);
 
@@ -21,27 +24,31 @@ export default function ScanScreen() {
     
     setIsScanning(false); // 立刻阻止重复扫码
     
+    // 如果扫到的二维码数据无效（这里简单判断是否为空或长度不足）
+    if (!data || data.trim().length < 5) {
+      setHasError(true);
+      return;
+    }
+
     try {
       // Data scanned is treated as assetId per current logic
       const asset = await getAssetById(data);
       if (!asset) {
-        Alert.alert('扫描失败', '未找到对应的设备信息，请检查二维码是否有效。', [
-          { text: '好的', onPress: () => setIsScanning(true) }
-        ]);
+        setHasError(true);
         return;
       }
 
-      // 跳转到 Home Tab 的 AssetDetailScreen 查看详情
-      navigation.navigate('HomeTab', {
-        screen: 'AssetDetailScreen',
-        params: { id: data },
-      });
+      // 跳转到 AssetDetailScreen 查看详情
+      navigation.navigate('AssetDetailScreen', { id: data });
     } catch (error) {
-      Alert.alert('扫描错误', '获取设备信息时出错，请稍后重试。', [
-        { text: '好的', onPress: () => setIsScanning(true) }
-      ]);
+      setHasError(true);
     }
   }, [isScanning, navigation]);
+
+  const handleRetry = () => {
+    setHasError(false);
+    setIsScanning(true);
+  };
 
   return (
     <View style={styles.container}>
@@ -52,7 +59,16 @@ export default function ScanScreen() {
       </View>
       
       <View style={styles.scannerWrapper}>
-        <QRScanner onScan={handleScan} isScanning={isScanning && isFocused} />
+        <QRScanner onScan={handleScan} isScanning={isScanning && isFocused && !hasError} />
+        
+        {hasError && (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>无法识别该二维码，或设备不存在</Text>
+            <TouchableOpacity style={styles.retryButton} onPress={handleRetry}>
+              <Text style={styles.retryText}>重新扫描</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
     </View>
   );
@@ -85,5 +101,31 @@ const styles = StyleSheet.create({
   },
   scannerWrapper: {
     flex: 1,
+    position: 'relative',
+  },
+  errorContainer: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+    zIndex: 20,
+  },
+  errorText: {
+    color: '#fff',
+    fontSize: 16,
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  retryButton: {
+    backgroundColor: '#6D28D9', // theme.colors.primary (hardcoded for brevity, though ideally imported from theme)
+    paddingVertical: 12,
+    paddingHorizontal: 32,
+    borderRadius: 8,
+  },
+  retryText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });

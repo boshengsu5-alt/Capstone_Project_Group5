@@ -4,6 +4,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { HomeStackParamList } from '../../navigation/HomeStackNavigator';
 import { theme } from '../../theme';
 import { createBooking } from '../../services/bookingService';
+import { handleApiError } from '../../utils/errorHandler';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'BookingFormScreen'>;
 
@@ -27,9 +28,7 @@ export default function BookingFormScreen({ route, navigation }: Props) {
         ]
       );
     } catch (error: unknown) {
-      console.error('[BookingFormScreen] Submission error:', error);
-      const message = error instanceof Error ? error.message : '请稍后再试';
-      Alert.alert('提交失败', message);
+      handleApiError(error, '提交失败');
     } finally {
       setIsSubmitting(false);
     }

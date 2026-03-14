@@ -13,6 +13,8 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { supabase } from '../../services/supabase';
 import type { Booking, Asset, BookingStatus } from '../../../../database/types/supabase';
+import SafeImage from '../../components/SafeImage';
+import { theme } from '../../theme';
 
 // Define the joined data type
 type BookingWithAsset = Booking & {
@@ -64,7 +66,7 @@ export default function BookingHistoryScreen() {
       if (error) throw error;
       setBookings(data as BookingWithAsset[]);
     } catch (error) {
-      console.error('Error fetching bookings:', error);
+      // console.error('Error fetching bookings:', error);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -88,13 +90,11 @@ export default function BookingHistoryScreen() {
     return (
       <View style={styles.card}>
         <View style={styles.cardContent}>
-          {imageUrl ? (
-            <Image source={{ uri: imageUrl }} style={styles.assetImage} />
-          ) : (
-            <View style={[styles.assetImage, styles.placeholderImage]}>
-              <Text style={styles.placeholderText}>No Image</Text>
-            </View>
-          )}
+          <SafeImage 
+            uri={imageUrl} 
+            style={styles.assetImage} 
+            placeholderSize={30} 
+          />
           <View style={styles.infoContainer}>
             <View style={styles.cardHeader}>
               <Text style={styles.itemName} numberOfLines={1}>{asset?.name || '未知设备'}</Text>
@@ -118,7 +118,7 @@ export default function BookingHistoryScreen() {
   if (loading && !refreshing) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#6366F1" />
+        <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
     );
   }
@@ -135,7 +135,7 @@ export default function BookingHistoryScreen() {
         renderItem={renderItem}
         contentContainerStyle={styles.list}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#6366F1']} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[theme.colors.primary]} />
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
@@ -187,13 +187,13 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: '#ffffff',
     borderRadius: 16,
-    marginBottom: 16,
-    padding: 12,
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 12,
-    elevation: 2,
+    marginBottom: 20,
+    padding: 16,
+    shadowColor: theme.colors.primary,
+    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: 6 },
+    shadowRadius: 16,
+    elevation: 4,
     borderWidth: 1,
     borderColor: '#F3F4F6',
   },
@@ -280,7 +280,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   goHomeButton: {
-    backgroundColor: '#6366F1',
+    backgroundColor: theme.colors.primary,
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 12,

@@ -75,7 +75,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ assetId, onDateChange }) =>
 
             setBookedDates(marked);
         } catch (error) {
-            console.error('[CalendarView] Error fetching bookings:', error);
+            // console.error('[CalendarView] Error fetching bookings:', error);
         } finally {
             setLoading(false);
         }
@@ -131,7 +131,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ assetId, onDateChange }) =>
                 ...marked[selectionStart],
                 selected: true,
                 startingDay: true,
-                color: theme.colors.authPrimary,
+                color: theme.colors.primary,
                 textColor: theme.colors.background,
             };
 
@@ -140,7 +140,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ assetId, onDateChange }) =>
                     ...marked[selectionEnd],
                     selected: true,
                     endingDay: true,
-                    color: theme.colors.authPrimary,
+                    color: theme.colors.primary,
                     textColor: theme.colors.background,
                 };
 
@@ -152,7 +152,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ assetId, onDateChange }) =>
                     marked[ds] = {
                         ...marked[ds],
                         selected: true,
-                        color: theme.colors.authLight,
+                        color: theme.colors.primaryLight,
                         textColor: theme.colors.background,
                     };
                     current = addDays(current, 1);
@@ -166,7 +166,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ assetId, onDateChange }) =>
     if (loading) {
         return (
             <View style={styles.centerContainer}>
-                <ActivityIndicator size="large" color={theme.colors.authPrimary} />
+                <ActivityIndicator size="large" color={theme.colors.primary} />
                 <Text style={styles.loadingText}>加载预订信息...</Text>
             </View>
         );
@@ -179,10 +179,10 @@ const CalendarView: React.FC<CalendarViewProps> = ({ assetId, onDateChange }) =>
                 markedDates={getMarkedDates()}
                 onDayPress={handleDayPress}
                 theme={{
-                    selectedDayBackgroundColor: theme.colors.authPrimary,
-                    todayTextColor: theme.colors.authPrimary,
-                    arrowColor: theme.colors.authPrimary,
-                    monthTextColor: theme.colors.authBackground,
+                    selectedDayBackgroundColor: theme.colors.primary,
+                    todayTextColor: theme.colors.primary,
+                    arrowColor: theme.colors.primary,
+                    monthTextColor: theme.colors.text,
                     textMonthFontWeight: 'bold',
                 }}
             />
@@ -209,7 +209,7 @@ const styles = StyleSheet.create({
     },
     loadingText: {
         marginTop: 10,
-        color: theme.colors.authPrimary,
+        color: theme.colors.primary,
         fontSize: 14,
     }
 });

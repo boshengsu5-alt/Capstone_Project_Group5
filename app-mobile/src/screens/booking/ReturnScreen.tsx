@@ -14,6 +14,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import PhotoCapture from '../../components/PhotoCapture';
 import { uploadReturnPhoto, returnAsset } from '../../services/bookingService';
 import { theme } from '../../theme';
+import { handleApiError } from '../../utils/errorHandler';
 
 // ─────────────────────────────────────────────────
 // Step indicator helpers. 步骤指示器
@@ -116,19 +117,25 @@ export default function ReturnScreen() {
 
   // Step 1 → 2: 照片拍摄完成，自动上传
   const handlePhotoCaptured = async (uri: string) => {
+    // console.log('[ReturnScreen] 照片已拍摄，URI:', uri);
     setPhotoUri(uri);
     setStep(2);
     setIsUploading(true);
 
     try {
       const url = await uploadReturnPhoto(uri, bookingId);
+      // console.log('[ReturnScreen] 上传成功，公开链接:', url);
       setUploadedUrl(url);
       setStep(3);
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : '照片上传至云端时出错，请重拍后重试。';
+    } catch (error: any) {
+      // console.error('[ReturnScreen] 上传失败:', error);
+      let errMsg = error.message ?? '照片上传至云端时出错，请重拍后重试。';
+      if (errMsg.toLowerCase().includes('fetch') || errMsg.toLowerCase().includes('network')) {
+        errMsg = '网络开小差了，请稍后再试';
+      }
       Alert.alert(
         '上传失败',
-        message,
+        errMsg,
         [{ text: '重拍', onPress: () => { setPhotoUri(null); setStep(1); } }]
       );
     } finally {
@@ -148,9 +155,8 @@ export default function ReturnScreen() {
         `设备「${assetName}」已成功归还！\n\n归还照片已存档至工单，感谢您的使用。`,
         [{ text: '完成', onPress: () => navigation.goBack() }]
       );
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : '请联系管理员或稍后重试。';
-      Alert.alert('归还失败', message);
+    } catch (error: any) {
+      handleApiError(error, '归还失败');
     } finally {
       setIsSubmitting(false);
     }

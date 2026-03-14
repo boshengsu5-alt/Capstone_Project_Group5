@@ -43,7 +43,7 @@ export default function PhotoCapture({ onPhotoCaptured }: PhotoCaptureProps) {
         setPreviewUri(manipResult.uri);
         onPhotoCaptured(manipResult.uri);
       } catch (error) {
-        console.error("拍照失败", error);
+        // console.error("拍照失败", error);
       }
     }
   };

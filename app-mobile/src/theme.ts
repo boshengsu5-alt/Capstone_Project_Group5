@@ -1,6 +1,7 @@
 export const theme = {
   colors: {
     primary: '#6D28D9', // 手册要求的紫色
+    primaryLight: '#C4B5FD', // 浅色，用于日历区间等
     background: '#FFFFFF',
     text: '#1F2937',
     gray: '#9CA3AF',
