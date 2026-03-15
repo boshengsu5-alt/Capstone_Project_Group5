@@ -62,6 +62,12 @@ export async function createBooking(
   const user = await getCurrentUser();
 
   // 先校验时间冲突，冲突时直接抛出错误拦截提交
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  if (new Date(startDate) < now) {
+    throw new Error('不能预订过去的日期');
+  }
+
   await checkBookingConflict(assetId, startDate, endDate);
 
   const { data, error } = await db
@@ -254,4 +260,30 @@ export async function findApprovedBookingForAsset(assetId: string) {
 export async function checkOverdueBookings() {
   const { error } = await db.rpc('check_overdue_bookings');
   if (error) throw error;
+}
+
+/**
+ * Submit a review for a completed booking.
+ * 为已完成的借用提交评价
+ * 
+ * @param bookingId - The booking ID to review.
+ * @param rating - Star rating (1-5).
+ * @param comment - Review text.
+ */
+export async function submitReview(bookingId: string, rating: number, comment: string) {
+  const user = await getCurrentUser();
+
+  const { data, error } = await db
+    .from('reviews')
+    .insert({
+      booking_id: bookingId,
+      reviewer_id: user.id,
+      rating,
+      comment,
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
 }

@@ -14,6 +14,7 @@ import { useNavigation } from '@react-navigation/native';
 import { getMyBookings, cancelBooking } from '../../services/bookingService';
 import type { Booking, Asset, BookingStatus } from '../../../../database/types/supabase';
 import SafeImage from '../../components/SafeImage';
+import ReviewModal from '../../components/ReviewModal';
 import { theme } from '../../theme';
 import { Ionicons } from '@expo/vector-icons';
 import { handleApiError } from '../../utils/errorHandler';
@@ -52,6 +53,10 @@ export default function BookingHistoryScreen() {
   const [bookings, setBookings] = useState<BookingWithAsset[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  // 评价弹窗状态
+  const [reviewModalVisible, setReviewModalVisible] = useState(false);
+  const [selectedBooking, setSelectedBooking] = useState<{id: string, name: string} | null>(null);
 
   const fetchBookings = async (isRefreshing = false) => {
     if (!isRefreshing) setLoading(true);
@@ -104,6 +109,7 @@ export default function BookingHistoryScreen() {
     // 根据状态决定可用操作
     const canReturn = item.status === 'active' || item.status === 'overdue';
     const canCancel = item.status === 'pending' || item.status === 'approved';
+    const canReview = item.status === 'returned';
 
     return (
       <View style={styles.card}>
@@ -166,6 +172,18 @@ export default function BookingHistoryScreen() {
                 <Text style={[styles.actionText, { color: theme.colors.danger }]}>取消借用</Text>
               </TouchableOpacity>
             )}
+            {canReview && (
+              <TouchableOpacity
+                style={[styles.actionBtn, styles.actionBtnReview]}
+                onPress={() => {
+                  setSelectedBooking({ id: item.id, name: assetName });
+                  setReviewModalVisible(true);
+                }}
+              >
+                <Ionicons name="star-outline" size={16} color="#FBBF24" />
+                <Text style={[styles.actionText, { color: '#FBBF24' }]}>评价设备</Text>
+              </TouchableOpacity>
+            )}
           </View>
         )}
       </View>
@@ -208,6 +226,18 @@ export default function BookingHistoryScreen() {
           </View>
         }
       />
+
+      {selectedBooking && (
+        <ReviewModal
+          visible={reviewModalVisible}
+          onClose={() => setReviewModalVisible(false)}
+          bookingId={selectedBooking.id}
+          assetName={selectedBooking.name}
+          onSuccess={() => {
+            fetchBookings();
+          }}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -320,6 +350,9 @@ const styles = StyleSheet.create({
   },
   actionBtnDanger: {
     backgroundColor: theme.colors.danger + '10',
+  },
+  actionBtnReview: {
+    backgroundColor: '#FBBF24' + '15',
   },
   actionText: {
     fontSize: 13,

@@ -189,6 +189,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ assetId, onDateChange }) =>
     return (
         <View style={styles.container}>
             <Calendar
+                minDate={format(new Date(), 'yyyy-MM-dd')}
                 markingType={'period'}
                 markedDates={getMarkedDates()}
                 onDayPress={handleDayPress}
