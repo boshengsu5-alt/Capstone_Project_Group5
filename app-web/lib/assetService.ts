@@ -97,19 +97,26 @@ export async function createAsset(formData: CreateAssetFormData): Promise<Asset>
  * 根据 ID 更新资产信息。
  */
 export async function updateAsset(id: string, updates: AssetUpdate): Promise<Asset> {
-  const { data: updatedAsset, error } = await db
-    .from('assets')
-    .update(updates)
-    .eq('id', id)
-    .select()
-    .single();
+  try {
+    if (!id || !updates) throw new Error('ID and updates are required');
+    
+    const { data: updatedAsset, error } = await db
+      .from('assets')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single();
 
-  if (error) {
-    console.error('Error updating asset:', error);
-    throw new Error(error.message);
+    if (error) {
+      console.error('Error updating asset:', error);
+      throw new Error(error.message);
+    }
+
+    return updatedAsset as Asset;
+  } catch (err: any) {
+    console.error('updateAsset service error:', err);
+    throw err;
   }
-
-  return updatedAsset as Asset;
 }
 
 // ============================================================

@@ -24,3 +24,22 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+@keyframes gold-pulse {
+  0% {
+    background-color: rgba(245, 158, 11, 0.2);
+    box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4);
+  }
+  70% {
+    background-color: rgba(245, 158, 11, 0.05);
+    box-shadow: 0 0 0 10px rgba(245, 158, 11, 0);
+  }
+  100% {
+    background-color: transparent;
+    box-shadow: 0 0 0 0 rgba(245, 158, 11, 0);
+  }
+}
+
+.animate-highlight-gold {
+  animation: gold-pulse 2s cubic-bezier(0.4, 0, 0.6, 1);
+}

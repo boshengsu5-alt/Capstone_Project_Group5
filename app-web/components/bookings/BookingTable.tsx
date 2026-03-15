@@ -2,13 +2,15 @@
 
 import React from 'react';
 import { BookingWithDetails } from '@/lib/bookingService';
+import { cn } from '@/lib/utils';
 
 interface BookingTableProps {
     bookings: BookingWithDetails[];
     onReview: (booking: BookingWithDetails) => void;
+    highlightId?: string | null;
 }
 
-export default function BookingTable({ bookings, onReview }: BookingTableProps) {
+export default function BookingTable({ bookings, onReview, highlightId }: BookingTableProps) {
     const getStatusBadge = (status: string) => {
         switch (status) {
             case 'pending':
@@ -53,7 +55,13 @@ export default function BookingTable({ bookings, onReview }: BookingTableProps) 
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                         {bookings.map((booking) => (
-                            <tr key={booking.id} className="hover:bg-gray-50/50 transition-colors group">
+                            <tr 
+                              key={booking.id} 
+                              className={cn(
+                                "hover:bg-gray-50/50 transition-all border-b border-gray-100 group",
+                                highlightId === booking.id && "animate-highlight-gold ring-1 ring-amber-400/50 z-10"
+                              )}
+                            >
                                 <td className="px-6 py-4">
                                     <div className="font-medium text-gray-900">{booking.assets?.name ?? 'Unknown Asset'}</div>
                                     <div className="text-gray-500 text-xs mt-1 font-mono">{booking.assets?.qr_code ?? 'N/A'}</div>

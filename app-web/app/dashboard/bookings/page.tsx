@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import BookingTable from '@/components/bookings/BookingTable';
 import ApprovalModal from '@/components/bookings/ApprovalModal';
 import { bookingService, BookingWithDetails } from '@/lib/bookingService';
+import { supabase } from '@/lib/supabase';
 
 export default function BookingsPage() {
     const [bookings, setBookings] = useState<BookingWithDetails[]>([]);
@@ -13,14 +14,17 @@ export default function BookingsPage() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedBooking, setSelectedBooking] = useState<BookingWithDetails | null>(null);
 
+    const [newBookingId, setNewBookingId] = useState<string | null>(null);
+
     // Fetch data
     const loadBookings = async () => {
         setIsLoading(true);
         try {
             const data = await bookingService.getBookings();
-            setBookings(data);
+            setBookings(data || []);
         } catch (error) {
             console.error('Failed to load bookings:', error);
+            setBookings([]);
         } finally {
             setIsLoading(false);
         }
@@ -28,6 +32,32 @@ export default function BookingsPage() {
 
     useEffect(() => {
         loadBookings();
+
+        // --- Realtime Subscription ---
+        const channel = (supabase as any)
+          .channel('bookings-page-changes')
+          .on(
+            'postgres_changes',
+            {
+              event: '*',
+              schema: 'public',
+              table: 'bookings'
+            },
+            (payload: any) => {
+              console.log('Realtime update in bookings page:', payload);
+              if (payload.new && payload.new.id) {
+                setNewBookingId(payload.new.id);
+                // Reset highlight after animation duration
+                setTimeout(() => setNewBookingId(null), 2000);
+              }
+              loadBookings();
+            }
+          )
+          .subscribe();
+
+        return () => {
+          supabase.removeChannel(channel);
+        };
     }, []);
 
     // Handlers
@@ -96,7 +126,11 @@ export default function BookingsPage() {
                 </div>
             ) : (
                 <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 relative z-10">
-                    <BookingTable bookings={bookings} onReview={handleReviewClick} />
+                    <BookingTable 
+                      bookings={bookings} 
+                      onReview={handleReviewClick} 
+                      highlightId={newBookingId}
+                    />
                 </div>
             )}
 

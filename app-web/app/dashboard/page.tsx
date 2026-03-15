@@ -16,6 +16,7 @@ import Header from '@/components/layout/Header';
 import { cn } from '@/lib/utils';
 import { Asset } from '@/types/database';
 import { getAssets } from '@/lib/assetService';
+import { supabase } from '@/lib/supabase';
 import { 
   PieChart, 
   Pie, 
@@ -56,6 +57,27 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetchData();
+
+    // --- Realtime Subscription ---
+    const channel = (supabase as any)
+      .channel('dashboard-bookings-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // Listen to all changes (INSERT, UPDATE, DELETE)
+          schema: 'public',
+          table: 'bookings'
+        },
+        () => {
+          console.log('Realtime update detected in bookings. Refreshing dashboard data...');
+          fetchData(); // Partial refresh of data states
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   // --- Data Processing for Charts ---
@@ -76,35 +98,41 @@ export default function DashboardPage() {
 
   // 2. Line/Area Chart Data: Growth Trend
   const processGrowthData = () => {
-    if (assets.length === 0) return [];
+    if (!assets || assets.length === 0) return [];
 
-    // Map assets to months based on purchase_date or created_at
-    const monthData = assets.map(asset => {
-      const dateStr = asset.purchase_date || asset.created_at;
-      const date = new Date(dateStr);
-      // Fallback if date is invalid
-      const yearMonth = isNaN(date.getTime()) 
-        ? new Date().toISOString().slice(0, 7) // Default to current month if invalid
-        : date.toISOString().slice(0, 7); 
-      return yearMonth;
-    }).sort();
+    try {
+      // Map assets to months based on purchase_date or created_at
+      const monthData = assets.map(asset => {
+        const dateStr = asset?.purchase_date || asset?.created_at;
+        if (!dateStr) return new Date().toISOString().slice(0, 7);
+        const date = new Date(dateStr);
+        // Fallback if date is invalid
+        const yearMonth = isNaN(date.getTime()) 
+          ? new Date().toISOString().slice(0, 7) // Default to current month if invalid
+          : date.toISOString().slice(0, 7); 
+        return yearMonth;
+      }).sort();
 
-    // Count per month
-    const counts = monthData.reduce((acc: Record<string, number>, month) => {
-      acc[month] = (acc[month] || 0) + 1;
-      return acc;
-    }, {});
+      // Count per month
+      const counts = monthData.reduce((acc: Record<string, number>, month) => {
+        acc[month] = (acc[month] || 0) + 1;
+        return acc;
+      }, {});
 
-    // Cumulative sum
-    let cumulative = 0;
-    const sortedMonths = Object.keys(counts).sort();
-    return sortedMonths.map(month => {
-      cumulative += counts[month];
-      return {
-        month,
-        total: cumulative
-      };
-    });
+      // Cumulative sum
+      let cumulative = 0;
+      const sortedMonths = Object.keys(counts).sort();
+      return sortedMonths.map(month => {
+        cumulative += counts[month];
+        return {
+          month,
+          total: cumulative
+        };
+      });
+    } catch (err) {
+      console.error('Error processing growth data:', err);
+      return [];
+    }
   };
 
   const growthData = processGrowthData();
@@ -317,7 +345,7 @@ export default function DashboardPage() {
                     </td>
                   </tr>
                 ) : (
-                  filteredAssets.map((asset) => (
+                  filteredAssets && filteredAssets.map((asset) => (
                     <tr key={asset.id} className="hover:bg-white/5 transition-colors group">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">

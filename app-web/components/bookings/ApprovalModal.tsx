@@ -136,9 +136,14 @@ export default function ApprovalModal({ isOpen, booking, onClose, onApprove, onR
                             <button
                                 onClick={handleApprove}
                                 disabled={isSubmitting}
-                                className="px-4 py-2 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors disabled:opacity-50"
+                                className="px-4 py-2 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2"
                             >
-                                {isSubmitting ? 'Approving...' : 'Approve'}
+                                {isSubmitting ? (
+                                    <>
+                                        <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                        Approving...
+                                    </>
+                                ) : 'Approve'}
                             </button>
                         </>
                     )}

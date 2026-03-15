@@ -110,7 +110,8 @@ export default function AssetForm({ onCancel, onSuccess }: AssetFormProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
-          images
+          purchase_price: formData.purchase_price ? parseFloat(formData.purchase_price) : 0,
+          images: images || []
         }),
       });
 
@@ -346,12 +347,12 @@ export default function AssetForm({ onCancel, onSuccess }: AssetFormProps) {
           <button
             type="submit"
             disabled={isSubmitting || isUploading}
-            className="rounded-xl bg-indigo-600 px-8 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-500/30 hover:bg-indigo-500 hover:shadow-indigo-500/40 hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-indigo-500/30 transition-all duration-200 ease-out flex items-center"
+            className="rounded-xl bg-indigo-600 px-8 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-500/30 hover:bg-indigo-500 hover:shadow-indigo-500/40 hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-indigo-500/30 transition-all duration-200 ease-out flex items-center justify-center min-w-[160px]"
           >
             {isSubmitting ? (
               <>
                 <Loader2 className="animate-spin -ml-1 mr-3 h-4 w-4 text-white" />
-                Processing...
+                提交中...
               </>
             ) : 'Save Asset Record'}
           </button>
