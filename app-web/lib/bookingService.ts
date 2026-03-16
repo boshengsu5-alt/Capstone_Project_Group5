@@ -210,9 +210,17 @@ export const bookingService = {
 
     /**
      * Update damage report status with resolution notes.
-     * 更新损坏报告状态和处理备注
+     * 更新损坏报告状态和处理备注。
+     * 当状态变为 resolved 时，根据严重程度扣减学生信用分。
      */
     async updateDamageReportStatus(id: string, status: string, notes: string): Promise<boolean> {
+        // 先获取报告详情，用于信用分扣减
+        const { data: report } = await supabase
+            .from('damage_reports')
+            .select('severity, booking_id')
+            .eq('id', id)
+            .single();
+
         const { error } = await (supabase as any)
             .from('damage_reports')
             .update({
@@ -224,6 +232,46 @@ export const bookingService = {
         if (error) {
             console.error('Error updating damage report:', error);
             return false;
+        }
+
+        // Day 7 要求：管理员确认损坏（resolved）时，扣减信用分
+        // minor: -10, moderate: -20, severe: -50
+        if (status === 'resolved' && report) {
+            const severityMap: Record<string, number> = {
+                minor: -10,
+                moderate: -20,
+                severe: -50,
+            };
+            const delta = severityMap[(report as any).severity] ?? -10;
+
+            // 获取借用者 ID
+            const { data: booking } = await supabase
+                .from('bookings')
+                .select('borrower_id')
+                .eq('id', (report as any).booking_id)
+                .single();
+
+            if (booking) {
+                await (supabase as any).rpc('update_credit_score', {
+                    p_user_id: (booking as any).borrower_id,
+                    p_delta: delta,
+                    p_reason: `damage_${(report as any).severity}`,
+                });
+
+                // 同时将资产状态改为 maintenance
+                const { data: damageReport } = await supabase
+                    .from('damage_reports')
+                    .select('asset_id')
+                    .eq('id', id)
+                    .single();
+
+                if (damageReport) {
+                    await (supabase as any)
+                        .from('assets')
+                        .update({ status: 'maintenance' })
+                        .eq('id', (damageReport as any).asset_id);
+                }
+            }
         }
 
         return true;

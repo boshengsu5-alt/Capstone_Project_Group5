@@ -15,22 +15,14 @@ export default function ReturnsPage() {
     const loadReturns = async () => {
         setIsLoading(true);
         try {
-            // For now, we mock fetching bookings that need to be verified at return
             const allBookings = await bookingService.getBookings();
-
-            // In a real app, this would be a specific query: status='active' AND return_photo_url exists
-            // Since we're using mock data that might not have this exact state, we'll arbitrarily 
-            // pick a few bookings for demonstration purposes if needed, or filter if valid ones exist.
+            // 筛选需要管理员验证的归还记录：
+            // - active 且学生已上传归还照片（准备归还）
+            // - returned 但尚未由管理员确认
             const pendingReturns = allBookings.filter(b =>
-                b.status === 'active' ||
-                (b.status === 'returned' && b.notes?.includes('verification')) ||
-                // Just grab something to show for UI demo if nothing matches perfectly
-                b.id === 'mock-2'
-            ).map(b => ({
-                ...b,
-                // Force state for demo purposes if it's our mock data
-                status: b.status === 'approved' ? 'active' : b.status
-            } as BookingWithDetails));
+                (b.status === 'active' && b.return_photo_url) ||
+                b.status === 'returned'
+            );
 
             setReturns(pendingReturns);
         } catch (error) {
