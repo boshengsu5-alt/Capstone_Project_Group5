@@ -7,6 +7,7 @@ import AssetReviewsModal from '@/components/assets/AssetReviewsModal';
 import { QRCodeSVG } from 'qrcode.react';
 import { cn } from '@/lib/utils';
 import { Asset, Category } from '@/types/database';
+import { useToast } from '@/components/ui/Toast';
 
 /** Asset row with joined category info from API response. API 响应中带分类信息的资产行 */
 type AssetWithCategory = Asset & {
@@ -14,6 +15,7 @@ type AssetWithCategory = Asset & {
 };
 
 export default function AssetsPage() {
+  const { showToast } = useToast();
   const [assets, setAssets] = useState<AssetWithCategory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -28,9 +30,12 @@ export default function AssetsPage() {
       if (res.ok) {
         const data = await res.json();
         setAssets(data);
+      } else {
+        showToast('无法获取资产列表，请检查网络', 'error');
       }
     } catch (error) {
       console.error('Failed to fetch assets', error);
+      showToast('网络连接中断 (Supabase Connection Error)', 'error');
     } finally {
       setIsLoading(false);
     }

@@ -4,8 +4,10 @@ import React, { useEffect, useState } from 'react';
 import { bookingService, BookingWithDetails } from '@/lib/bookingService';
 import ReturnVerify from '@/components/returns/ReturnVerify';
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
+import { useToast } from '@/components/ui/Toast';
 
 export default function ReturnsPage() {
+    const { showToast } = useToast();
     const [returns, setReturns] = useState<BookingWithDetails[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -33,6 +35,7 @@ export default function ReturnsPage() {
             setReturns(pendingReturns);
         } catch (error) {
             console.error('Failed to load returns:', error);
+            showToast('Failed to load returns. Please check your connection.', 'error');
         } finally {
             setIsLoading(false);
         }
@@ -47,10 +50,10 @@ export default function ReturnsPage() {
             if (isDamaged) {
                 // In a real app, this would open a damage report modal or redirect
                 await bookingService.createDamageReport(id, 'Item reported damaged during return verification', 'moderate');
-                alert('Damage report created. Item status updated.');
+                showToast('已创建损坏报告，资产状态已更新', 'info');
             } else {
                 await bookingService.processReturn(id, 'returned');
-                alert('Return verified successfully. Item is back in inventory.');
+                showToast('归还验证通过', 'success');
             }
 
             // Remove from local list to simulate processing
@@ -61,7 +64,7 @@ export default function ReturnsPage() {
             await loadReturns();
         } catch (error) {
             console.error('Verification failed', error);
-            alert('Action failed. Please try again.');
+            showToast('验证操作失败，网络连接异常', 'error');
         }
     };
 

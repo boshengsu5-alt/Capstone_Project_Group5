@@ -3,8 +3,10 @@
 import React, { useEffect, useState } from 'react';
 import { bookingService, DamageReportWithDetails } from '@/lib/bookingService';
 import DamageTable from '@/components/damage/DamageTable';
+import { useToast } from '@/components/ui/Toast';
 
 export default function DamageReportsPage() {
+    const { showToast } = useToast();
     const [reports, setReports] = useState<DamageReportWithDetails[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -15,6 +17,7 @@ export default function DamageReportsPage() {
             setReports(data);
         } catch (error) {
             console.error('Failed to load damage reports:', error);
+            showToast('Failed to load damage reports. Please try again.', 'error');
         } finally {
             setIsLoading(false);
         }
@@ -26,13 +29,17 @@ export default function DamageReportsPage() {
 
     const handleUpdateStatus = async (id: string, status: string, notes: string) => {
         try {
-            await bookingService.updateDamageReportStatus(id, status, notes);
-
-            // Refresh data reflecting new status
-            await loadReports();
+            const success = await bookingService.updateDamageReportStatus(id, status, notes);
+            if (success) {
+                showToast('报告状态已更新', 'success');
+                // Refresh data reflecting new status
+                await loadReports();
+            } else {
+                showToast('状态更新失败', 'error');
+            }
         } catch (error) {
             console.error('Failed to update report status:', error);
-            alert('Failed to update report. Please try again.');
+            showToast('网络错误，请稍后再试', 'error');
         }
     };
 

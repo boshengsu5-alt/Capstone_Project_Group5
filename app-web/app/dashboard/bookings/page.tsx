@@ -5,8 +5,10 @@ import BookingTable from '@/components/bookings/BookingTable';
 import ApprovalModal from '@/components/bookings/ApprovalModal';
 import { bookingService, BookingWithDetails } from '@/lib/bookingService';
 import { supabase } from '@/lib/supabase';
+import { useToast } from '@/components/ui/Toast';
 
 export default function BookingsPage() {
+    const { showToast } = useToast();
     const [bookings, setBookings] = useState<BookingWithDetails[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -24,6 +26,7 @@ export default function BookingsPage() {
             setBookings(data || []);
         } catch (error) {
             console.error('Failed to load bookings:', error);
+            showToast('Failed to load bookings. Please check your connection.', 'error');
             setBookings([]);
         } finally {
             setIsLoading(false);
@@ -72,12 +75,13 @@ export default function BookingsPage() {
             const { data: { user } } = await (await import('@/lib/supabase')).supabase.auth.getUser();
             const success = await bookingService.approveBooking(id, user?.id);
             if (success) {
+                showToast('借用申请已批准', 'success');
                 await loadBookings();
             } else {
-                alert('Failed to approve booking. Please try again.');
+                showToast('批准操作失败，请重试', 'error');
             }
         } catch (error) {
-            alert('Failed to approve booking. Please try again.');
+            showToast('网络异常，无法连接到 Supabase', 'error');
         }
     };
 
@@ -86,12 +90,13 @@ export default function BookingsPage() {
             const { data: { user } } = await (await import('@/lib/supabase')).supabase.auth.getUser();
             const success = await bookingService.rejectBooking(id, reason, user?.id);
             if (success) {
+                showToast('申请已拒绝，通知已发送', 'info');
                 await loadBookings();
             } else {
-                alert('Failed to reject booking. Please try again.');
+                showToast('拒绝操作失败', 'error');
             }
         } catch (error) {
-            alert('Failed to reject booking. Please try again.');
+            showToast('网络异常，操作无法完成', 'error');
         }
     };
 

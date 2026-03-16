@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Package, Tag, Hash, DollarSign, MapPin, AlignLeft, ShieldCheck, Asterisk, Upload, X, Loader2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { useToast } from '@/components/ui/Toast';
 
 interface AssetFormProps {
   onCancel: () => void;
@@ -8,6 +9,7 @@ interface AssetFormProps {
 }
 
 export default function AssetForm({ onCancel, onSuccess }: AssetFormProps) {
+  const { showToast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -62,7 +64,9 @@ export default function AssetForm({ onCancel, onSuccess }: AssetFormProps) {
       setImages((prev) => [...prev, ...urls]);
     } catch (err: any) {
       console.error('Upload error:', err);
-      setError('Failed to upload images. Please check if bucket "asset-images" is exists and public.');
+      const msg = 'Failed to upload images. Please check your network connection.';
+      setError(msg);
+      showToast(msg, 'error');
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -77,28 +81,39 @@ export default function AssetForm({ onCancel, onSuccess }: AssetFormProps) {
     e.preventDefault();
     setError(null);
 
-    // 狂补异常验证（设备长度/必填项/黄色警告框）
+    // 增强表单校验：管理员新建资产时，如果未填写必填项（名称、分类、描述），请阻止提交并弹出醒目的 Toast 黄色警告。
     if (!formData.name.trim()) {
+      showToast('设备名称是必填项，请输入后再提交', 'warning');
       setError('设备名称不能为空 (Asset name is required)');
       return;
     }
     
     if (!formData.category_id.trim()) {
+      showToast('请选择设备分类，以便系统统一管理', 'warning');
       setError('必须选择或填写分类 (Category is required)');
       return;
     }
 
+    if (!formData.description.trim()) {
+      showToast('设备描述不能为空，请补充相关规格信息', 'warning');
+      setError('设备描述不能为空 (Description is required)');
+      return;
+    }
+
     if (!formData.location.trim()) {
+      showToast('请指定存储位置，方便后续资产盘点', 'warning');
       setError('必须填写存放位置 (Storage location is required)');
       return;
     }
 
     if (!formData.serial_number.trim()) {
-      setError('必须填写设备序列号或长度规格 (Serial number/specs required)');
+      showToast('序列号有助于精准追踪，请尽量填写', 'warning');
+      setError('必须填写设备序列号 (Serial number required)');
       return;
     }
 
     if (images.length === 0) {
+      showToast('请至少上传一张设备实拍图片', 'warning');
       setError('请至少上传一张设备图片以供识别 (At least 1 image required)');
       return;
     }
@@ -117,12 +132,15 @@ export default function AssetForm({ onCancel, onSuccess }: AssetFormProps) {
 
       if (!res.ok) {
         const errorData = await res.json();
-        throw new Error(errorData.error || 'Failed to save asset');
+        throw new Error(errorData.error || 'Failed to save asset. Backend error.');
       }
 
+      showToast('资产登记成功！', 'success');
       onSuccess();
     } catch (err: any) {
-      setError(err.message || 'An unexpected error occurred.');
+      const msg = err.message || '网络连接异常，请检查 Supabase 状态或稍后再试。';
+      setError(msg);
+      showToast(msg, 'error');
     } finally {
       setIsSubmitting(false);
     }
