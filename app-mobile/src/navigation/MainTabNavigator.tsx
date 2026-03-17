@@ -6,10 +6,13 @@ import HomeStackNavigator from './HomeStackNavigator';
 import BookingsStackNavigator from './BookingsStackNavigator';
 import ScanScreen from '../screens/scan/ScanScreen';
 import ProfileStackNavigator from './ProfileStackNavigator';
+import { useNotifications } from '../context/NotificationContext';
 
 const Tab = createBottomTabNavigator();
 
 export default function MainTabNavigator() {
+  const { unreadCount } = useNotifications();
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -36,7 +39,21 @@ export default function MainTabNavigator() {
       <Tab.Screen name="HomeTab" component={HomeStackNavigator} options={{ title: '首页' }} />
       <Tab.Screen name="BookingsTab" component={BookingsStackNavigator} options={{ title: '借用记录' }} />
       <Tab.Screen name="ScanTab" component={ScanScreen} options={{ title: '扫码' }} />
-      <Tab.Screen name="ProfileTab" component={ProfileStackNavigator} options={{ title: '我的' }} />
+      <Tab.Screen 
+        name="ProfileTab" 
+        component={ProfileStackNavigator} 
+        options={{ 
+          title: '我的',
+          tabBarBadge: unreadCount > 0 ? '' : undefined,
+          tabBarBadgeStyle: {
+            backgroundColor: '#FF3B30',
+            minWidth: 10,
+            height: 10,
+            borderRadius: 5,
+            marginTop: 4,
+          }
+        }} 
+      />
     </Tab.Navigator>
   );
 }

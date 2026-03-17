@@ -2,6 +2,8 @@ import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Animated, StatusBar } from 'react-native';
 import RootNavigator from './src/navigation/RootNavigator';
+import { ToastProvider } from './src/context/ToastContext';
+import { NotificationProvider } from './src/context/NotificationContext';
 
 export default function App() {
   const [isAppReady, setIsAppReady] = useState(false);
@@ -31,10 +33,12 @@ export default function App() {
   }
 
   return (
-    <>
-      <RootNavigator />
-      <ExpoStatusBar style="auto" />
-    </>
+    <ToastProvider>
+      <NotificationProvider>
+        <RootNavigator />
+        <ExpoStatusBar style="auto" />
+      </NotificationProvider>
+    </ToastProvider>
   );
 }
 
