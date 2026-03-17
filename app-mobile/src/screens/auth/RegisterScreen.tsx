@@ -33,6 +33,13 @@ export default function RegisterScreen({ navigation }: Props) {
       return;
     }
 
+    // Bug #002: 邮箱格式校验
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      Alert.alert('邮箱格式错误', '请输入有效的邮箱地址，例如 name@school.edu');
+      return;
+    }
+
     if (password !== confirmPassword) {
       Alert.alert('提示', '两次输入的密码不一致');
       return;

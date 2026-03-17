@@ -13,6 +13,16 @@ export default function BookingFormScreen({ route, navigation }: Props) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async () => {
+    // 前端日期校验防御：确保日期参数合法
+    if (!startDate || !endDate) {
+      Alert.alert('日期缺失', '请先在日历上选择借用起止日期');
+      return;
+    }
+    if (endDate < startDate) {
+      Alert.alert('日期错误', '结束日期不能早于开始日期');
+      return;
+    }
+
     try {
       setIsSubmitting(true);
       await createBooking(assetId, startDate, endDate);

@@ -30,6 +30,12 @@ export default function LoginScreen({ navigation }: Props) {
       return;
     }
 
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      Alert.alert('邮箱格式错误', '请输入有效的邮箱地址');
+      return;
+    }
+
     setLoading(true);
     try {
       await signIn(email.trim(), password);

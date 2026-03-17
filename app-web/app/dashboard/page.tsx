@@ -182,7 +182,47 @@ export default function DashboardPage() {
       
       <main className="flex-1 p-6 lg:p-10 max-w-[1600px] mx-auto w-full space-y-10">
         
-        {/* --- Top Section: Visual Reports --- */}
+        {/* --- KPI Cards (Day 6): 四个核心计数卡片 --- */}
+        <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-gray-900/40 backdrop-blur-xl border border-white/5 rounded-2xl p-5 flex items-center gap-4">
+            <div className="w-11 h-11 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-400">
+              <Package className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-white">{totalAssets}</p>
+              <p className="text-xs text-gray-500">Total Assets</p>
+            </div>
+          </div>
+          <div className="bg-gray-900/40 backdrop-blur-xl border border-white/5 rounded-2xl p-5 flex items-center gap-4">
+            <div className="w-11 h-11 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-400">
+              <ArrowUpRight className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-white">{loanedAssets}</p>
+              <p className="text-xs text-gray-500">Currently Loaned</p>
+            </div>
+          </div>
+          <div className="bg-gray-900/40 backdrop-blur-xl border border-white/5 rounded-2xl p-5 flex items-center gap-4">
+            <div className="w-11 h-11 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-400">
+              <Clock className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-white">{pendingBookings}</p>
+              <p className="text-xs text-gray-500">Pending Approval</p>
+            </div>
+          </div>
+          <div className="bg-gray-900/40 backdrop-blur-xl border border-white/5 rounded-2xl p-5 flex items-center gap-4">
+            <div className="w-11 h-11 rounded-xl bg-rose-500/10 flex items-center justify-center text-rose-400">
+              <AlertTriangle className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-white">{overdueBookings}</p>
+              <p className="text-xs text-gray-500">Overdue</p>
+            </div>
+          </div>
+        </section>
+
+        {/* --- Charts Section: Visual Reports --- */}
         <section className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           
           {/* Left Block: Pie Chart (Asset Category Distribution) */}
@@ -215,7 +255,7 @@ export default function DashboardPage() {
                     verticalAlign="bottom" 
                     height={36} 
                     iconType="circle"
-                    formatter={(value) => <span className="text-xs text-gray-400 font-medium">{value}</span>}
+                    formatter={(value: string) => <span className="text-xs text-gray-400 font-medium">{value}</span>}
                   />
                 </PieChart>
               </ResponsiveContainer>

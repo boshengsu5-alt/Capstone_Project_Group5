@@ -23,6 +23,10 @@ export default function BookingTable({ bookings, onReview, highlightId }: Bookin
                 return <span className="px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">Active (Borrowed)</span>;
             case 'returned':
                 return <span className="px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">Returned</span>;
+            case 'overdue':
+                return <span className="px-3 py-1 rounded-full text-xs font-medium bg-rose-100 text-rose-800">Overdue</span>;
+            case 'cancelled':
+                return <span className="px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-500">Cancelled</span>;
             default:
                 return <span className="px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">{status}</span>;
         }
