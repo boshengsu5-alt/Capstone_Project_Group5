@@ -79,3 +79,40 @@ export async function markAllAsRead(): Promise<void> {
 
   if (error) throw error;
 }
+
+/**
+ * Subscribe to new notifications for the current user via Supabase Realtime.
+ * Returns an unsubscribe function to be called on component unmount.
+ * 通过 Supabase Realtime 订阅当前用户的新通知 INSERT 事件。
+ * 返回取消订阅函数，在组件卸载时调用。
+ *
+ * @param onNew - Callback fired with the new notification payload. 收到新通知时触发的回调
+ * @returns Unsubscribe function. 取消订阅函数
+ */
+export async function subscribeToNotifications(
+  onNew: (notification: Notification) => void
+): Promise<() => void> {
+  const user = await getCurrentUser();
+
+  // 用 user_id 过滤，只收到属于当前用户的通知推送
+  // Filter by user_id so each client only receives its own notifications
+  const channel = supabase
+    .channel(`notifications:${user.id}`)
+    .on(
+      'postgres_changes' as any,
+      {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'notifications',
+        filter: `user_id=eq.${user.id}`,
+      },
+      (payload: any) => {
+        onNew(payload.new as Notification);
+      }
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}
