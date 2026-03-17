@@ -8,6 +8,8 @@ import { QRCodeSVG } from 'qrcode.react';
 import { cn } from '@/lib/utils';
 import { Asset, Category } from '@/types/database';
 import { useToast } from '@/components/ui/Toast';
+import { exportToExcel } from '@/lib/exportUtils';
+import { Download } from 'lucide-react';
 
 /** Asset row with joined category info from API response. API 响应中带分类信息的资产行 */
 type AssetWithCategory = Asset & {
@@ -50,6 +52,37 @@ export default function AssetsPage() {
     fetchAssets();
   };
 
+  const handleExport = () => {
+    if (filteredAssets.length === 0) {
+      showToast('没有可导出的数据', 'info');
+      return;
+    }
+
+    const statusMap: Record<string, string> = {
+      available: '闲置',
+      borrowed: '借出',
+      maintenance: '维修中',
+      retired: '已报废',
+    };
+
+    const exportData = filteredAssets.map((asset) => ({
+      '资产名称': asset.name,
+      '分类': asset.categories?.name || '未分类',
+      '状态': statusMap[asset.status] || asset.status,
+      '序列号': asset.serial_number || 'N/A',
+      '价格': asset.purchase_price ?? 0,
+      '位置': asset.location || '未记录',
+      '购买日期': asset.created_at ? new Date(asset.created_at).toLocaleDateString() : 'N/A',
+    }));
+
+    try {
+      exportToExcel(exportData, `资产报表_${new Date().toISOString().split('T')[0]}`, '资产列表');
+      showToast('报表导出成功', 'success');
+    } catch (error) {
+      showToast('导出失败，请重试', 'error');
+    }
+  };
+
   // Derived state for filtering
   const categoriesMap = assets.reduce((acc: Record<string, string>, asset) => {
     if (asset.categories) {
@@ -84,7 +117,15 @@ export default function AssetsPage() {
                   A comprehensive list of all IT hardware and assets currently tracked.
                 </p>
               </div>
-              <div className="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
+              <div className="mt-4 sm:ml-16 sm:mt-0 sm:flex-none flex gap-3">
+                <button
+                  type="button"
+                  onClick={handleExport}
+                  className="flex items-center gap-2 rounded-md bg-white px-4 py-2 text-center text-sm font-semibold text-gray-900 border border-gray-300 shadow-sm hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-600 transition-colors dark:bg-gray-800 dark:text-white dark:border-gray-700 dark:hover:bg-gray-700"
+                >
+                  <Download className="h-4 w-4" />
+                  导出资产报表
+                </button>
                 <button
                   type="button"
                   onClick={() => setShowForm(true)}
