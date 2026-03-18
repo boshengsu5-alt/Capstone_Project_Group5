@@ -155,6 +155,20 @@ export interface Review {
     created_at: string;
 }
 
+/** Audit log row. 审计日志行 */
+export interface AuditLog {
+    id: string;
+    created_at: string;
+    operator_id: string | null;
+    operator_name: string | null;
+    operation_type: string;
+    resource_type: string;
+    resource_id: string | null;
+    resource_name: string | null;
+    change_description: string;
+    metadata: Record<string, unknown>;
+}
+
 // ============================================================
 // Insert Types (omit auto-generated fields). 插入类型
 // ============================================================
@@ -166,6 +180,7 @@ export type BookingInsert = Omit<Booking, 'id' | 'created_at' | 'updated_at' | '
 export type DamageReportInsert = Omit<DamageReport, 'id' | 'created_at' | 'updated_at' | 'status' | 'resolution_notes'>;
 export type NotificationInsert = Omit<Notification, 'id' | 'created_at' | 'is_read'>;
 export type ReviewInsert = Omit<Review, 'id' | 'created_at'>;
+export type AuditLogInsert = Omit<AuditLog, 'id' | 'created_at'>;
 
 // ============================================================
 // Update Types (all fields optional). 更新类型
@@ -226,6 +241,12 @@ export interface Database {
                 Row: Review;
                 Insert: ReviewInsert;
                 Update: ReviewUpdate;
+                Relationships: [];
+            };
+            audit_logs: {
+                Row: AuditLog;
+                Insert: AuditLogInsert;
+                Update: never;
                 Relationships: [];
             };
         };

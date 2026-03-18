@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import type { Asset, AssetUpdate } from '@/types/database';
+import { auditService } from './auditService';
 
 // Supabase 泛型 Database 接口的 Relationships 定义不完整，导致 .from() 推断为 never
 // 需要在查询处使用 eslint-disable 绕过，函数签名仍保持完整类型安全
@@ -85,6 +86,15 @@ export async function createAsset(formData: CreateAssetFormData): Promise<Asset>
     throw new Error(error.message);
   }
 
+  // Audit log
+  await auditService.logAction({
+    operation_type: 'CREATE',
+    resource_type: 'asset',
+    resource_id: insertedAsset.id,
+    resource_name: insertedAsset.name,
+    change_description: `Created new asset: ${insertedAsset.name} in ${insertedAsset.location || 'unspecified location'}`
+  });
+
   return insertedAsset as Asset;
 }
 
@@ -112,9 +122,63 @@ export async function updateAsset(id: string, updates: AssetUpdate): Promise<Ass
       throw new Error(error.message);
     }
 
+    // Audit log
+    await auditService.logAction({
+      operation_type: 'UPDATE',
+      resource_type: 'asset',
+      resource_id: id,
+      resource_name: updatedAsset.name,
+      change_description: `Updated asset fields: ${Object.keys(updates).join(', ')}`
+    });
+
     return updatedAsset as Asset;
   } catch (err: any) {
     console.error('updateAsset service error:', err);
+    throw err;
+  }
+}
+
+// ============================================================
+// Asset Deletion. 资产删除
+// ============================================================
+
+/**
+ * Delete an asset by ID.
+ * 根据 ID 删除资产信息。
+ */
+export async function deleteAsset(id: string): Promise<boolean> {
+  try {
+    // Get asset info first for logging
+    const { data: asset } = await db
+      .from('assets')
+      .select('name')
+      .eq('id', id)
+      .single();
+
+    const { error } = await db
+      .from('assets')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error('Error deleting asset:', error);
+      throw new Error(error.message);
+    }
+
+    // Audit log
+    if (asset) {
+      await auditService.logAction({
+        operation_type: 'DELETE',
+        resource_type: 'asset',
+        resource_id: id,
+        resource_name: asset.name,
+        change_description: `Deleted asset: ${asset.name}`
+      });
+    }
+
+    return true;
+  } catch (err: any) {
+    console.error('deleteAsset service error:', err);
     throw err;
   }
 }

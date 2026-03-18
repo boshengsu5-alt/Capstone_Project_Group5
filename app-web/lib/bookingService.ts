@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import type { Database, DamageReport, DamageReportStatus } from '../../database/types/supabase';
+import { auditService } from './auditService';
 
 // ============================================================
 // Booking Service (Web Admin). Web 管理端借用服务
@@ -59,6 +60,21 @@ export const bookingService = {
             return false;
         }
 
+        // Audit log
+        const { data: bookingInfo } = await supabase
+            .from('bookings')
+            .select('assets(name)')
+            .eq('id', id)
+            .single();
+        
+        await auditService.logAction({
+            operation_type: 'APPROVE',
+            resource_type: 'booking',
+            resource_id: id,
+            resource_name: (bookingInfo as any)?.assets?.name,
+            change_description: `Approved booking request for ${(bookingInfo as any)?.assets?.name || 'unknown asset'}`
+        });
+
         // 插入审批通过通知
         if (approverId) {
             const { data: booking } = await supabase
@@ -100,6 +116,21 @@ export const bookingService = {
             console.error('Error rejecting booking:', error);
             return false;
         }
+
+        // Audit log
+        const { data: bookingInfo } = await supabase
+            .from('bookings')
+            .select('assets(name)')
+            .eq('id', id)
+            .single();
+
+        await auditService.logAction({
+            operation_type: 'REJECT',
+            resource_type: 'booking',
+            resource_id: id,
+            resource_name: (bookingInfo as any)?.assets?.name,
+            change_description: `Rejected booking request. Reason: ${reason}`
+        });
 
         // 插入审批拒绝通知
         const { data: booking } = await supabase

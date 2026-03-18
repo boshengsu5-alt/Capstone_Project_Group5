@@ -3,7 +3,7 @@
 import type { FC } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Package, ClipboardList, RotateCcw, AlertTriangle, X } from 'lucide-react';
+import { LayoutDashboard, Package, ClipboardList, RotateCcw, AlertTriangle, ScrollText, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface SidebarProps {
@@ -20,6 +20,7 @@ const Sidebar: FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
     { name: 'Bookings', href: '/dashboard/bookings', icon: ClipboardList },
     { name: 'Returns', href: '/dashboard/returns', icon: RotateCcw },
     { name: 'Damage Reports', href: '/dashboard/damage', icon: AlertTriangle },
+    { name: 'Audit Logs', href: '/dashboard/audit-logs', icon: ScrollText },
   ];
 
   return (
