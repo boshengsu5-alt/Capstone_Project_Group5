@@ -1,12 +1,14 @@
 import * as XLSX from 'xlsx';
 
 /**
- * Exports data to an Excel file.
- * @param data - Array of objects to export
- * @param fileName - Name of the file (without extension)
- * @param sheetName - Name of the worksheet
+ * Exports data to an Excel (.xlsx) file and triggers a browser download.
+ * 将数据导出为 Excel (.xlsx) 文件并触发浏览器下载。
+ *
+ * @param data - Array of row objects to export. 要导出的行数据数组
+ * @param fileName - File name without extension. 文件名（不含扩展名）
+ * @param sheetName - Worksheet tab name. 工作表标签名，默认 'Sheet1'
  */
-export function exportToExcel(data: any[], fileName: string, sheetName: string = 'Sheet1') {
+export function exportToExcel(data: Record<string, unknown>[], fileName: string, sheetName: string = 'Sheet1') {
   try {
     // Create a new workbook and worksheet
     const worksheet = XLSX.utils.json_to_sheet(data);

@@ -72,7 +72,7 @@ export default function AssetsPage() {
       '序列号': asset.serial_number || 'N/A',
       '价格': asset.purchase_price ?? 0,
       '位置': asset.location || '未记录',
-      '购买日期': asset.created_at ? new Date(asset.created_at).toLocaleDateString() : 'N/A',
+      '购买日期': asset.purchase_date ? new Date(asset.purchase_date).toLocaleDateString() : 'N/A',
     }));
 
     try {

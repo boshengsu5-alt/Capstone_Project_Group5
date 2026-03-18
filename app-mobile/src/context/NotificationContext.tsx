@@ -63,10 +63,13 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         (payload) => {
           console.log('[NotificationContext] New notification received:', payload);
           setUnreadCount((prev) => prev + 1);
-          
-          const newNotification = payload.new as any;
+
+          const newNotification = payload.new as Record<string, unknown>;
+          // 根据通知类型显示对应 toast，避免硬编码资产种类
           if (newNotification.type === 'booking_approved') {
-            showToast('您的相机借用已获批！');
+            showToast('您的借用申请已获批！');
+          } else if (newNotification.type === 'booking_rejected') {
+            showToast('您的借用申请已被拒绝，请查看通知了解原因。');
           }
         }
       )

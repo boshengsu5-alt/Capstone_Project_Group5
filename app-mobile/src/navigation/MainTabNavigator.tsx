@@ -39,10 +39,10 @@ export default function MainTabNavigator() {
       <Tab.Screen name="HomeTab" component={HomeStackNavigator} options={{ title: '首页' }} />
       <Tab.Screen name="BookingsTab" component={BookingsStackNavigator} options={{ title: '借用记录' }} />
       <Tab.Screen name="ScanTab" component={ScanScreen} options={{ title: '扫码' }} />
-      <Tab.Screen 
-        name="ProfileTab" 
-        component={ProfileStackNavigator} 
-        options={{ 
+      <Tab.Screen
+        name="ProfileTab"
+        component={ProfileStackNavigator}
+        options={{
           title: '我的',
           tabBarBadge: unreadCount > 0 ? '' : undefined,
           tabBarBadgeStyle: {
@@ -52,7 +52,7 @@ export default function MainTabNavigator() {
             borderRadius: 5,
             marginTop: 4,
           }
-        }} 
+        }}
       />
     </Tab.Navigator>
   );

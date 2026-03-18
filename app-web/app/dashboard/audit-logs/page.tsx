@@ -5,10 +5,11 @@ import AuditLogTable from '@/components/audit/AuditLogTable';
 import { auditService } from '@/lib/auditService';
 import { useToast } from '@/components/ui/Toast';
 import { ScrollText, RefreshCw } from 'lucide-react';
+import type { AuditLog } from '@/types/database';
 
 export default function AuditLogsPage() {
   const { showToast } = useToast();
-  const [logs, setLogs] = useState([]);
+  const [logs, setLogs] = useState<AuditLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const loadLogs = async () => {
