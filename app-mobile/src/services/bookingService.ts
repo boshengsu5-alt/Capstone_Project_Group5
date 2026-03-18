@@ -13,39 +13,12 @@ const db = supabase as any;
 // ============================================================
 
 /**
- * Check if the requested date range conflicts with existing bookings for an asset.
- * 检查请求的日期范围是否与该资产的现有预订冲突
+ * Create a new booking request atomically via RPC (student submits reservation).
+ * 通过 RPC 原子化创建借用请求，从根本上防止"幽灵超卖"并发问题。
  *
- * @param assetId - Asset to check. 要检查的资产 ID
- * @param startDate - Requested start date ISO string. 请求的开始日期
- * @param endDate - Requested end date ISO string. 请求的结束日期
- * @throws Error if date range overlaps with an active booking. 日期冲突时抛出错误
- */
-async function checkBookingConflict(
-  assetId: string,
-  startDate: string,
-  endDate: string
-) {
-  // 查询该资产所有有效预订（pending/approved/active），检测日期重叠
-  // 重叠条件：existing.start < newEnd AND existing.end > newStart
-  const { data, error } = await db
-    .from('bookings')
-    .select('id, start_date, end_date, status')
-    .eq('asset_id', assetId)
-    .in('status', ['pending', 'approved', 'active'])
-    .lt('start_date', endDate)
-    .gt('end_date', startDate);
-
-  if (error) throw error;
-
-  if (data && data.length > 0) {
-    throw new Error('时间冲突：该设备在所选日期段内已被预订，请选择其他时间');
-  }
-}
-
-/**
- * Create a new booking request (student submits reservation).
- * 创建借用请求（学生提交预约），状态初始为 pending。提交前自动检测时间冲突。
+ * 旧方案（已废弃）：客户端 SELECT 查冲突 → INSERT，两步之间存在竞态窗口。
+ * 新方案：调用 create_booking() 数据库函数，内部用 FOR UPDATE 行锁保证
+ * "冲突检查"和"INSERT"是同一事务内的原子操作，彻底消除竞态条件。
  *
  * @param assetId - Asset to book. 要借用的资产 ID
  * @param startDate - Booking start date ISO string. 借用开始日期
@@ -59,34 +32,24 @@ export async function createBooking(
   endDate: string,
   notes?: string
 ) {
-  const user = await getCurrentUser();
+  // 调用 SECURITY DEFINER RPC：内部持有 FOR UPDATE 锁，原子完成冲突检查 + 插入
+  const { data: newBookingId, error } = await db.rpc('create_booking', {
+    p_asset_id:   assetId,
+    p_start_date: startDate,
+    p_end_date:   endDate,
+    p_notes:      notes ?? '',
+  });
 
-  // 先校验时间冲突，冲突时直接抛出错误拦截提交
-  const today = new Date();
-  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-  if (startDate < todayStr) {
-    throw new Error('不能预订过去的日期');
-  }
+  if (error) throw new Error(error.message);
 
-  await checkBookingConflict(assetId, startDate, endDate);
-
-  const { data, error } = await db
+  // 用返回的 ID 拉取完整的借用记录（包含 asset 信息供 UI 使用）
+  const { data, error: fetchError } = await db
     .from('bookings')
-    .insert({
-      asset_id: assetId,
-      borrower_id: user.id,
-      start_date: startDate,
-      end_date: endDate,
-      status: 'pending',
-      notes: notes ?? '',
-      pickup_photo_url: '',
-      return_photo_url: '',
-      rejection_reason: '',
-    })
-    .select()
+    .select('*, assets(name, images)')
+    .eq('id', newBookingId)
     .single();
 
-  if (error) throw error;
+  if (fetchError) throw fetchError;
   return data;
 }
 
