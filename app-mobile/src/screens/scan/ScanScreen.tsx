@@ -4,6 +4,7 @@ import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 import QRScanner from '../../components/QRScanner';
+import ErrorBoundary from '../../components/ErrorBoundary';
 import { getAssetById } from '../../services/assetService';
 import { findApprovedBookingForAsset, activateBooking } from '../../services/bookingService';
 import { theme } from '../../theme';
@@ -18,14 +19,19 @@ export default function ScanScreen() {
   const [manualId, setManualId] = useState('');
   const [showManualInput, setShowManualInput] = useState(false);
 
-  // 每次页面重新获得焦点时，确保可以扫描
+  // 每次页面重新获得焦点时，确保可以扫描并检查权限
   useEffect(() => {
     if (isFocused) {
       setIsScanning(true);
       setHasError(false);
       setIsProcessing(false);
+
+      // 如果权限尚未确定，且页面已聚焦，则自动请求权限
+      if (permission?.status === 'undetermined') {
+        requestPermission();
+      }
     }
-  }, [isFocused]);
+  }, [isFocused, permission, requestPermission]);
 
   const handleScan = useCallback(async (data: string) => {
     if (!isScanning || isProcessing) return;
@@ -114,13 +120,30 @@ export default function ScanScreen() {
     handleScan(manualId.trim());
   };
 
-  // 如果权限被拒绝，或者用户手动切换
-  const isPermissionDenied = permission?.status === 'denied' && !permission.granted;
+  // 极其严密的权限判定：只要 status 为 denied，即视为拒绝
+  const isPermissionDenied = permission?.status === 'denied';
+  const isPermissionPending = !permission || (permission.status === 'undetermined' && !permission.granted);
 
   // 渲染扫码器
   const renderScanner = () => (
     <View style={styles.scannerWrapper}>
-      <QRScanner onScan={handleScan} isScanning={isScanning && isFocused && !hasError && !isProcessing} />
+      <ErrorBoundary
+        onReset={() => {
+          setIsScanning(true);
+          setHasError(false);
+        }}
+        fallback={
+          <View style={styles.errorContainer}>
+            <Ionicons name="alert-circle-outline" size={60} color={theme.colors.danger} />
+            <Text style={styles.errorText}>扫码组件初始化失败</Text>
+            <TouchableOpacity style={styles.retryButton} onPress={() => setShowManualInput(true)}>
+              <Text style={styles.retryText}>切换到手动输入</Text>
+            </TouchableOpacity>
+          </View>
+        }
+      >
+        <QRScanner onScan={handleScan} isScanning={isScanning && isFocused && !hasError && !isProcessing} />
+      </ErrorBoundary>
 
       {/* 处理中遮罩 */}
       {isProcessing && (
@@ -171,8 +194,8 @@ export default function ScanScreen() {
         </Text>
         <Text style={styles.manualSubtitle}>
           {isPermissionDenied
-            ? '由于无法使用相机，请手动输入设备上的编号'
-            : '如果扫码遇到困难，请手动输入设备编号'}
+            ? '由于未获得相机授权，扫描功能不可用。\n请手动输入设备编号以继续。'
+            : '如果扫码遇到困难，请在此手动输入设备编号进行查询。'}
         </Text>
 
         <View style={styles.inputWrapper}>
@@ -228,7 +251,16 @@ export default function ScanScreen() {
         <View style={styles.titleUnderline} />
       </View>
 
-      {(isPermissionDenied || showManualInput) ? renderManualInput() : renderScanner()}
+      {isPermissionPending && !showManualInput ? (
+        <View style={styles.pendingContainer}>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+          <Text style={styles.pendingText}>正在准备相机...</Text>
+        </View>
+      ) : (isPermissionDenied || showManualInput) ? (
+        renderManualInput()
+      ) : (
+        renderScanner()
+      )}
     </View>
   );
 }
@@ -407,5 +439,16 @@ const styles = StyleSheet.create({
   requestAgainText: {
     color: '#fff',
     fontSize: 14,
+  },
+  pendingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#000',
+  },
+  pendingText: {
+    color: '#fff',
+    marginTop: 15,
+    fontSize: 16,
   },
 });

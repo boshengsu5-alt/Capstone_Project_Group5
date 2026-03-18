@@ -37,26 +37,8 @@ export default function QRScanner({ onScan, isScanning }: QRScannerProps) {
     }
   }, [isScanning]);
 
-  if (!permission) {
-    return (
-      <View style={styles.centerContainer}>
-        <Text style={styles.infoText}>正在请求相机权限...</Text>
-      </View>
-    );
-  }
-
-  if (!permission.granted) {
-    return (
-      <View style={styles.centerContainer}>
-        <Ionicons name="camera-outline" size={64} color={theme.colors.primary} />
-        <Text style={styles.permissionText}>需要相机权限才能扫描二维码</Text>
-        <TouchableOpacity style={styles.authButton} onPress={requestPermission}>
-          <Text style={styles.authButtonText}>立即授权</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
+  // 权限现在由父组件 ScanScreen 统一且严密地处理，以避免任何意外崩溃或分歧
+  // 这里的 onBarcodeScanned 仅在 isScanning 为 true 时激活
   const handleBarcodeScanned = ({ data }: { data: string }) => {
     if (isScanning && data) {
       onScan(data);
