@@ -268,6 +268,10 @@ export interface Database {
                 Args: { p_user_id: string; p_delta: number; p_reason: string };
                 Returns: void;
             };
+            create_booking: {
+                Args: { p_asset_id: string; p_start_date: string; p_end_date: string; p_notes: string };
+                Returns: string;
+            };
         };
         Enums: {
             user_role: UserRole;

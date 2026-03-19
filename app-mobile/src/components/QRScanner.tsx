@@ -18,7 +18,7 @@ export default function QRScanner({ onScan, isScanning }: QRScannerProps) {
 
   useEffect(() => {
     if (isScanning) {
-      Animated.loop(
+      const loop = Animated.loop(
         Animated.sequence([
           Animated.timing(scanLineAnim, {
             toValue: SCAN_BOX_SIZE,
@@ -31,7 +31,10 @@ export default function QRScanner({ onScan, isScanning }: QRScannerProps) {
             useNativeDriver: true,
           }),
         ])
-      ).start();
+      );
+      loop.start();
+      // 组件卸载或 isScanning 变化时停止动画，防止内存泄漏
+      return () => loop.stop();
     } else {
       scanLineAnim.stopAnimation();
     }
@@ -100,13 +103,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#000',
-  },
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: theme.spacing.lg,
-    backgroundColor: theme.colors.background,
   },
   overlay: {
     flex: 1,
@@ -186,27 +182,5 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingHorizontal: 30,
     lineHeight: 22,
-  },
-  infoText: {
-    fontSize: 16,
-    color: theme.colors.gray,
-  },
-  permissionText: {
-    fontSize: 16,
-    color: theme.colors.text,
-    marginTop: theme.spacing.md,
-    marginBottom: theme.spacing.lg,
-    textAlign: 'center',
-  },
-  authButton: {
-    backgroundColor: theme.colors.primary,
-    paddingVertical: 12,
-    paddingHorizontal: theme.spacing.xl,
-    borderRadius: 99,
-  },
-  authButtonText: {
-    color: theme.colors.background,
-    fontSize: 16,
-    fontWeight: 'bold',
   },
 });

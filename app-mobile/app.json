@@ -1,15 +1,46 @@
 {
   "expo": {
-    "name": "app-mobile",
-    "slug": "app-mobile",
+    "name": "UniGear",
+    "slug": "unigear-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
+    "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
+    "splash": {
+      "backgroundColor": "#6D28D9",
+      "resizeMode": "contain"
+    },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.unigear.mobile",
+      "infoPlist": {
+        "NSCameraUsageDescription": "UniGear needs camera access to scan QR codes on equipment and take return condition photos.",
+        "NSPhotoLibraryUsageDescription": "UniGear needs photo library access to upload damage report photos."
+      }
     },
     "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#6D28D9"
+      },
+      "package": "com.unigear.mobile",
+      "permissions": [
+        "CAMERA",
+        "VIBRATE"
+      ],
       "predictiveBackGestureEnabled": false
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "UniGear needs camera access to scan QR codes on equipment and take return condition photos."
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": ""
+      }
     }
   }
 }

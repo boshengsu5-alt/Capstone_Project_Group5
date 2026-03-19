@@ -5,7 +5,7 @@ import { useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 import QRScanner from '../../components/QRScanner';
 import ErrorBoundary from '../../components/ErrorBoundary';
-import { getAssetById } from '../../services/assetService';
+import { getAssetByQrCode } from '../../services/assetService';
 import { findApprovedBookingForAsset, activateBooking } from '../../services/bookingService';
 import { theme } from '../../theme';
 
@@ -46,16 +46,16 @@ export default function ScanScreen() {
     setIsProcessing(true);
 
     try {
-      // 验证资产是否存在
-      const asset = await getAssetById(data);
+      // 用 qr_code 字段查找资产，而非直接用 UUID
+      const asset = await getAssetByQrCode(data);
       if (!asset) {
         setHasError(true);
         setIsProcessing(false);
         return;
       }
 
-      // 检查用户是否有该资产的已审批借用
-      const approvedBooking = await findApprovedBookingForAsset(data);
+      // 用真正的 asset.id 查找已审批借用
+      const approvedBooking = await findApprovedBookingForAsset(asset.id);
 
       if (approvedBooking) {
         // 用户有 approved 借用 → 弹窗确认取货激活
@@ -93,11 +93,11 @@ export default function ScanScreen() {
           ]
         );
       } else {
-        // 没有 approved 借用 → 跳转到详情页浏览/预约
+        // 没有 approved 借用 → 用真正的 asset.id 跳转到详情页
         setIsProcessing(false);
         navigation.navigate('HomeTab', {
           screen: 'AssetDetailScreen',
-          params: { id: data },
+          params: { id: asset.id },
         });
       }
     } catch (error) {

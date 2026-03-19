@@ -43,7 +43,7 @@ export default class ErrorBoundary extends Component<Props, State> {
 
       return (
         <View style={styles.container}>
-          <Ionicons name="alert-circle-outline" size={60} color={theme.colors.danger || '#ff4d4f'} />
+          <Ionicons name="alert-circle-outline" size={60} color={theme.colors.danger} />
           <Text style={styles.title}>糟糕，出错了</Text>
           <Text style={styles.message}>
             组件加载过程中遇到了意外错误。
@@ -85,8 +85,8 @@ const styles = StyleSheet.create({
   },
   errorDetail: {
     fontSize: 12,
-    color: '#ff4d4f',
-    backgroundColor: 'rgba(255,77,79,0.1)',
+    color: theme.colors.danger,
+    backgroundColor: 'rgba(239,68,68,0.1)',
     padding: 12,
     borderRadius: 8,
     width: '100%',
