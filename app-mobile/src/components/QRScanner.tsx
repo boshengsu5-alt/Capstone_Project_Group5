@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, StyleSheet, Text, TouchableOpacity, Dimensions, Animated } from 'react-native';
+import { View, StyleSheet, Text, TouchableOpacity, Dimensions, Animated, ActivityIndicator } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../theme';
@@ -40,13 +40,22 @@ export default function QRScanner({ onScan, isScanning }: QRScannerProps) {
     }
   }, [isScanning]);
 
-  // 权限现在由父组件 ScanScreen 统一且严密地处理，以避免任何意外崩溃或分歧
+  // 权限现在由父组件 ScanScreen 统一且严密地处理
   // 这里的 onBarcodeScanned 仅在 isScanning 为 true 时激活
   const handleBarcodeScanned = ({ data }: { data: string }) => {
     if (isScanning && data) {
       onScan(data);
     }
   };
+
+  // 极度防御：如果 permission 尚未就绪，不渲染 CameraView 
+  if (!permission?.granted && isScanning) {
+    return (
+      <View style={styles.centerContainer}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>

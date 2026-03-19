@@ -43,16 +43,17 @@ export default class ErrorBoundary extends Component<Props, State> {
 
       return (
         <View style={styles.container}>
-          <Ionicons name="alert-circle-outline" size={60} color={theme.colors.danger} />
-          <Text style={styles.title}>糟糕，出错了</Text>
+          <Ionicons name="alert-circle-outline" size={60} color={theme.colors.danger || '#ff4d4f'} />
+          <Text style={styles.title}>组件崩溃了</Text>
+
           <Text style={styles.message}>
-            组件加载过程中遇到了意外错误。
+            由于某些意外原因，此功能暂时无法使用。
           </Text>
           {__DEV__ && (
             <Text style={styles.errorDetail}>{this.state.error?.toString()}</Text>
           )}
           <TouchableOpacity style={styles.button} onPress={this.handleReset}>
-            <Text style={styles.buttonText}>重试</Text>
+            <Text style={styles.buttonText}>尝试通过重启解决</Text>
           </TouchableOpacity>
         </View>
       );

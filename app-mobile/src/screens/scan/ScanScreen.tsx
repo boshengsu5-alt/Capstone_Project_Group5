@@ -120,8 +120,9 @@ export default function ScanScreen() {
     handleScan(manualId.trim());
   };
 
-  // 极其严密的权限判定：只要 status 为 denied，即视为拒绝
+    // 极其严密的权限判定：只要 status 为 denied，即视为拒绝
   const isPermissionDenied = permission?.status === 'denied';
+  // 正在请求中：尚未获得 permission 对象，或者 status 为 undetermined 且尚未授权
   const isPermissionPending = !permission || (permission.status === 'undetermined' && !permission.granted);
 
   // 渲染扫码器
@@ -131,18 +132,25 @@ export default function ScanScreen() {
         onReset={() => {
           setIsScanning(true);
           setHasError(false);
+          setShowManualInput(false);
         }}
         fallback={
           <View style={styles.errorContainer}>
             <Ionicons name="alert-circle-outline" size={60} color={theme.colors.danger} />
-            <Text style={styles.errorText}>扫码组件初始化失败</Text>
-            <TouchableOpacity style={styles.retryButton} onPress={() => setShowManualInput(true)}>
+            <Text style={styles.errorText}>扫码组件初始化遇到了问题</Text>
+            <TouchableOpacity 
+              style={styles.retryButton} 
+              onPress={() => setShowManualInput(true)}
+            >
               <Text style={styles.retryText}>切换到手动输入</Text>
             </TouchableOpacity>
           </View>
         }
       >
-        <QRScanner onScan={handleScan} isScanning={isScanning && isFocused && !hasError && !isProcessing} />
+        <QRScanner 
+          onScan={handleScan} 
+          isScanning={isScanning && isFocused && !hasError && !isProcessing} 
+        />
       </ErrorBoundary>
 
       {/* 处理中遮罩 */}
@@ -153,24 +161,32 @@ export default function ScanScreen() {
         </View>
       )}
 
-      {/* 错误遮罩 */}
+      {/* 识别错误遮罩 */}
       {hasError && (
         <View style={styles.errorContainer}>
+          <Ionicons name="close-circle-outline" size={60} color={theme.colors.danger} />
           <Text style={styles.errorText}>无法识别该二维码，或设备不存在</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={handleRetry}>
-            <Text style={styles.retryText}>重新扫描</Text>
-          </TouchableOpacity>
+          <View style={styles.errorButtonRow}>
+            <TouchableOpacity style={[styles.inlineButton, { backgroundColor: 'rgba(255,255,255,0.2)' }]} onPress={handleRetry}>
+              <Text style={styles.inlineButtonText}>重新扫描</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.inlineButton, { backgroundColor: theme.colors.primary }]} onPress={() => setShowManualInput(true)}>
+              <Text style={styles.inlineButtonText}>手动输入</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       )}
 
       {/* 手动输入切换按钮 (在扫码器底部) */}
-      <TouchableOpacity
-        style={styles.manualSwitchButton}
-        onPress={() => setShowManualInput(true)}
-      >
-        <Ionicons name="create-outline" size={20} color="#fff" />
-        <Text style={styles.manualSwitchText}>手动输入编号</Text>
-      </TouchableOpacity>
+      {!hasError && (
+        <TouchableOpacity
+          style={styles.manualSwitchButton}
+          onPress={() => setShowManualInput(true)}
+        >
+          <Ionicons name="create-outline" size={20} color="#fff" />
+          <Text style={styles.manualSwitchText}>手动输入编号</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 
@@ -180,7 +196,7 @@ export default function ScanScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.manualContainer}
     >
-      <ScrollView contentContainerStyle={styles.manualScrollContent}>
+      <ScrollView contentContainerStyle={styles.manualScrollContent} bounces={false}>
         <View style={styles.manualIconContainer}>
           <Ionicons
             name={isPermissionDenied ? "camera-reverse-outline" : "create-outline"}
@@ -190,18 +206,18 @@ export default function ScanScreen() {
         </View>
 
         <Text style={styles.manualTitle}>
-          {isPermissionDenied ? '未获取相机权限' : '手动输入设备编号'}
+          {isPermissionDenied ? '相机权限受限' : '手动输入设备编号'}
         </Text>
         <Text style={styles.manualSubtitle}>
           {isPermissionDenied
-            ? '由于未获得相机授权，扫描功能不可用。\n请手动输入设备编号以继续。'
+            ? '由于您拒绝或未开启相机授权，无法使用扫码功能。\n请在下方手动输入设备 ID 以继续。'
             : '如果扫码遇到困难，请在此手动输入设备编号进行查询。'}
         </Text>
 
         <View style={styles.inputWrapper}>
           <TextInput
             style={styles.input}
-            placeholder="输入设备 ID (如: ASSET-001)"
+            placeholder="输入设备 ID (例如: ASSET-001)"
             placeholderTextColor="rgba(255,255,255,0.4)"
             value={manualId}
             onChangeText={setManualId}
@@ -251,10 +267,16 @@ export default function ScanScreen() {
         <View style={styles.titleUnderline} />
       </View>
 
+      {/* 
+        极其严密的条件判断链：
+        1. 先检查是否处于权限申请中的 Loading 状态
+        2. 如果被拒绝 (Denied) 或 用户主动要求手动输入 (showManualInput)，展示手动输入界面
+        3. 否则展示相机扫码器
+      */}
       {isPermissionPending && !showManualInput ? (
         <View style={styles.pendingContainer}>
           <ActivityIndicator size="large" color={theme.colors.primary} />
-          <Text style={styles.pendingText}>正在准备相机...</Text>
+          <Text style={styles.pendingText}>正在准备相机访问...</Text>
         </View>
       ) : (isPermissionDenied || showManualInput) ? (
         renderManualInput()
@@ -331,6 +353,23 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  errorButtonRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 10,
+  },
+  inlineButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    minWidth: 100,
+    alignItems: 'center',
+  },
+  inlineButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
   manualSwitchButton: {
     position: 'absolute',
