@@ -10,6 +10,11 @@
       "backgroundColor": "#6D28D9",
       "resizeMode": "contain"
     },
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.unigear.mobile",
@@ -28,6 +33,10 @@
         "VIBRATE"
       ],
       "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
     },
     "plugins": [
       [
