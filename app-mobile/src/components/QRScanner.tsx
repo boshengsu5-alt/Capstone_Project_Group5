@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { View, StyleSheet, Text, TouchableOpacity, Dimensions, Animated, ActivityIndicator } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
@@ -38,7 +38,7 @@ export default function QRScanner({ onScan, isScanning }: QRScannerProps) {
     } else {
       scanLineAnim.stopAnimation();
     }
-  }, [isScanning]);
+  }, [isScanning, scanLineAnim]);
 
   // 权限现在由父组件 ScanScreen 统一且严密地处理
   // 这里的 onBarcodeScanned 仅在 isScanning 为 true 时激活
@@ -48,8 +48,8 @@ export default function QRScanner({ onScan, isScanning }: QRScannerProps) {
     }
   };
 
-  // 极度防御：如果 permission 尚未就绪，不渲染 CameraView 
-  if (!permission?.granted && isScanning) {
+  // 极度防御：如果 permission 尚未就绪，不渲染 CameraView
+  if (!permission?.granted) {
     return (
       <View style={styles.centerContainer}>
         <ActivityIndicator size="large" color={theme.colors.primary} />
@@ -109,9 +109,15 @@ export default function QRScanner({ onScan, isScanning }: QRScannerProps) {
 }
 
 const styles = StyleSheet.create({
+  centerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: theme.colors.text,
+  },
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: theme.colors.text,
   },
   overlay: {
     flex: 1,
@@ -185,17 +191,11 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 12,
   },
   scanText: {
-    color: '#fff',
+    color: theme.colors.background,
     fontSize: 15,
     fontWeight: '500',
     textAlign: 'center',
     paddingHorizontal: 30,
     lineHeight: 22,
-  },
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#000',
   },
 });

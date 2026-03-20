@@ -26,9 +26,14 @@ export default function ApprovalModal({
 
     const handleApprove = async () => {
         setIsLoading(true);
-        await onApprove(booking.id);
-        setIsLoading(false);
-        onClose();
+        try {
+            await onApprove(booking.id);
+            resetAndClose();
+        } catch (error) {
+            console.error('Failed to approve booking:', error);
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     const handleReject = async () => {
@@ -37,9 +42,14 @@ export default function ApprovalModal({
             return;
         }
         setIsLoading(true);
-        await onReject(booking.id, rejectionReason);
-        setIsLoading(false);
-        onClose();
+        try {
+            await onReject(booking.id, rejectionReason);
+            resetAndClose();
+        } catch (error) {
+            console.error('Failed to reject booking:', error);
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     const resetAndClose = () => {

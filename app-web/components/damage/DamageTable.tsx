@@ -121,7 +121,7 @@ export default function DamageTable({ reports, onUpdateStatus }: DamageTableProp
                                         </td>
                                         <td className="px-6 py-4">
                                             <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium capitalize border ${bg} ${border} ${color}`}>
-                                                {status} {report.status}
+                                                    {icon} {report.status}
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 text-right">

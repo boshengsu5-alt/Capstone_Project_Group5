@@ -14,7 +14,7 @@ export type BookingWithDetails = Database['public']['Tables']['bookings']['Row']
 
 /** Damage report with joined asset and reporter details. 包含资产和报告者详情的损坏报告 */
 export type DamageReportWithDetails = DamageReport & {
-    assets: Pick<Database['public']['Tables']['assets']['Row'], 'name'> | null;
+    assets: Pick<Database['public']['Tables']['assets']['Row'], 'name' | 'qr_code'> | null;
     profiles: Pick<Database['public']['Tables']['profiles']['Row'], 'full_name' | 'student_id'> | null;
 };
 
@@ -165,7 +165,7 @@ export const bookingService = {
             .from('damage_reports')
             .select(`
                 *,
-                assets ( name ),
+                assets ( name, qr_code ),
                 profiles!reporter_id ( full_name, student_id )
             `)
             .order('created_at', { ascending: false });

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Alert, StyleSheet, Text, View, StatusBar, TouchableOpacity, ActivityIndicator, TextInput, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
-import { useNavigation, useIsFocused } from '@react-navigation/native';
+import { useNavigation, useIsFocused, NavigationProp, ParamListBase } from '@react-navigation/native';
 import { useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 import QRScanner from '../../components/QRScanner';
@@ -10,7 +10,7 @@ import { findApprovedBookingForAsset, activateBooking } from '../../services/boo
 import { theme } from '../../theme';
 
 export default function ScanScreen() {
-  const navigation = useNavigation<any>();
+  const navigation = useNavigation<NavigationProp<ParamListBase>>();
   const isFocused = useIsFocused();
   const [permission, requestPermission] = useCameraPermissions();
   const [isScanning, setIsScanning] = useState(true);
@@ -31,7 +31,8 @@ export default function ScanScreen() {
         requestPermission();
       }
     }
-  }, [isFocused, permission, requestPermission]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- 只关心 permission.status 变化，避免 permission 对象引用变化导致无限重执行
+  }, [isFocused, permission?.status, requestPermission]);
 
   const handleScan = useCallback(async (data: string) => {
     if (!isScanning || isProcessing) return;
@@ -100,7 +101,8 @@ export default function ScanScreen() {
           params: { id: asset.id },
         });
       }
-    } catch (error) {
+    } catch (error: unknown) {
+      console.error('Scan processing failed:', error);
       setHasError(true);
       setIsProcessing(false);
     }
@@ -120,7 +122,7 @@ export default function ScanScreen() {
     handleScan(manualId.trim());
   };
 
-    // 极其严密的权限判定：只要 status 为 denied，即视为拒绝
+  // 极其严密的权限判定：只要 status 为 denied，即视为拒绝
   const isPermissionDenied = permission?.status === 'denied';
   // 正在请求中：尚未获得 permission 对象，或者 status 为 undetermined 且尚未授权
   const isPermissionPending = !permission || (permission.status === 'undetermined' && !permission.granted);

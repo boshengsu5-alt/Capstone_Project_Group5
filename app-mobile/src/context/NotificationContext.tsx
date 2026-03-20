@@ -83,8 +83,8 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         },
         (payload) => {
             // Update unread count if a notification was marked as read
-            const oldNotification = payload.old as any;
-            const newNotification = payload.new as any;
+            const oldNotification = payload.old as Record<string, unknown>;
+            const newNotification = payload.new as Record<string, unknown>;
             if (!oldNotification.is_read && newNotification.is_read) {
                 setUnreadCount((prev) => Math.max(0, prev - 1));
             } else if (oldNotification.is_read && !newNotification.is_read) {

@@ -10,7 +10,7 @@ import {
   TouchableOpacity,
   Alert,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, NavigationProp, ParamListBase } from '@react-navigation/native';
 import { getMyBookings, cancelBooking } from '../../services/bookingService';
 import type { Booking, Asset, BookingStatus } from '../../../../database/types/supabase';
 import SafeImage from '../../components/SafeImage';
@@ -49,7 +49,7 @@ const getStatusColor = (status: BookingStatus) => {
 };
 
 export default function BookingHistoryScreen() {
-  const navigation = useNavigation<any>();
+  const navigation = useNavigation<NavigationProp<ParamListBase>>();
   const [bookings, setBookings] = useState<BookingWithAsset[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);

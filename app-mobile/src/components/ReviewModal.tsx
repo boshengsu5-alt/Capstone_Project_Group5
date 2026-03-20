@@ -34,7 +34,7 @@ export default function ReviewModal({
   const [comment, setComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // 每次关闭弹窗后重置犴态，下次打开时不会残留上次的评分和评论
+  // 每次关闭弹窗后重置状态，下次打开时不会残留上次的评分和评论
   React.useEffect(() => {
     if (!visible) {
       setRating(5);

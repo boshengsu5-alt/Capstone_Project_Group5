@@ -5,7 +5,7 @@ import { Alert } from 'react-native';
  * Displays user-friendly error messages based on error types and network issues.
  * Prevents red-screen crashes by gracefully catching and alerting.
  */
-export function handleApiError(error: any, title = '提示') {
+export function handleApiError(error: unknown, title = '提示') {
   // Default elegant fallback message
   let displayMessage = '网络开小差了，请稍后再试';
   
@@ -34,9 +34,9 @@ export function handleApiError(error: any, title = '提示') {
     if (/[\u4e00-\u9fa5]/.test(error)) {
       displayMessage = error;
     }
-  } else if (error && typeof error === 'object' && typeof error.message === 'string') {
+  } else if (error && typeof error === 'object' && 'message' in error && typeof (error as Record<string, unknown>).message === 'string') {
     // Supabase PostgrestError or similar plain-object errors with a message field
-    const errMessage = error.message;
+    const errMessage = (error as Record<string, unknown>).message as string;
     if (/[\u4e00-\u9fa5]/.test(errMessage)) {
       displayMessage = errMessage;
     } else if (errMessage) {

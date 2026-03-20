@@ -6,9 +6,10 @@ import { BookingWithDetails } from '@/lib/bookingService';
 interface BookingTableProps {
     bookings: BookingWithDetails[];
     onReview: (booking: BookingWithDetails) => void;
+    highlightId?: string | null;
 }
 
-export default function BookingTable({ bookings, onReview }: BookingTableProps) {
+export default function BookingTable({ bookings, onReview, highlightId }: BookingTableProps) {
     const getStatusBadge = (status: string) => {
         switch (status) {
             case 'pending':
@@ -55,11 +56,11 @@ export default function BookingTable({ bookings, onReview }: BookingTableProps) 
                         {bookings.map((booking, index) => (
                             <tr
                                 key={booking.id}
-                                className={`transition-colors group hover:bg-indigo-50/50 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}
+                                className={`transition-colors group hover:bg-indigo-50/50 ${booking.id === highlightId ? 'bg-indigo-50 ring-2 ring-indigo-300' : index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}
                             >
                                 <td className="px-6 py-4">
                                     <div className="font-medium text-gray-900">{booking.assets?.name ?? 'Unknown Asset'}</div>
-                                    <div className="text-gray-500 text-xs mt-0.5 mt-1 font-mono">{booking.assets?.qr_code ?? 'N/A'}</div>
+                                    <div className="text-gray-500 text-xs mt-1 font-mono">{booking.assets?.qr_code ?? 'N/A'}</div>
                                 </td>
                                 <td className="px-6 py-4">
                                     <div className="text-gray-900">{booking.profiles?.full_name ?? 'Unknown'}</div>
