@@ -46,18 +46,17 @@ export default function HomeScreen({ navigation, route }: Props) {
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(false);
+    // 兜底逾期检测：pg_cron 免费版不可用，每次进入首页时触发一次（fire-and-forget）
+    checkOverdueBookings().catch(() => {});
     try {
       // 通过 service 层获取数据，不直接调用 supabase
       const [assetsData, categoriesData] = await Promise.all([
         getAssets(categoryId),
         getCategories(),
-        // 兜底逾期检测：pg_cron 免费版不可用，每次进入首页时触发一次
-        checkOverdueBookings().catch(() => {}),
       ]);
       setAssets(assetsData);
       setCategories(categoriesData);
     } catch (error) {
-      // console.error('Error fetching data:', error);
       setError(true);
     } finally {
       setLoading(false);

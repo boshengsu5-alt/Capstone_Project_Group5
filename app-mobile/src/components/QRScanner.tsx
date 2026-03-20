@@ -185,11 +185,17 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 12,
   },
   scanText: {
-    color: theme.colors.background,
+    color: '#fff',
     fontSize: 15,
     fontWeight: '500',
     textAlign: 'center',
     paddingHorizontal: 30,
     lineHeight: 22,
+  },
+  centerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#000',
   },
 });

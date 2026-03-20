@@ -10,13 +10,18 @@ export default function App() {
   const fadeAnim = useState(new Animated.Value(1))[0];
 
   useEffect(() => {
-    console.log('[DEBUG] App: Splash timer started');
-    // Simulate App Loading/Splash Screen Time
-    setTimeout(() => {
-      console.log('[DEBUG] App: Splash timer finished, setting isAppReady to true directly');
-      setIsAppReady(true);
-    }, 1500); // reduced to 1.5s
-  }, []);
+    // Show splash for 1.5s, then fade out and set isAppReady
+    const timer = setTimeout(() => {
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 400,
+        useNativeDriver: true,
+      }).start(() => {
+        setIsAppReady(true);
+      });
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [fadeAnim]);
 
   if (!isAppReady) {
     return (

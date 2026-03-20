@@ -28,9 +28,11 @@ export default function ProfileScreen({ navigation }: Props) {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
+      setLoadError(false);
       try {
         const profileData = await getMyProfile() as unknown as Profile;
         setProfile(profileData);
@@ -39,12 +41,14 @@ export default function ProfileScreen({ navigation }: Props) {
         const count = await getUnreadCount();
         setUnreadCount(count);
       } catch (err) {
-        // console.error('[ProfileScreen] Failed to fetch profile:', err);
+        setLoadError(true);
+        Alert.alert('提示', '资料加载失败，请稍后重试');
       } finally {
         setLoading(false);
       }
     };
     fetchData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleSignOut = () => {

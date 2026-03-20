@@ -61,7 +61,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
           filter: `user_id=eq.${session.user.id}`,
         },
         (payload) => {
-          console.log('[NotificationContext] New notification received:', payload);
+          if (__DEV__) console.log('[NotificationContext] New notification received:', payload);
           setUnreadCount((prev) => prev + 1);
 
           const newNotification = payload.new as Record<string, unknown>;

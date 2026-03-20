@@ -137,7 +137,7 @@ export default function BookingHistoryScreen() {
         </View>
 
         {/* 操作按钮区域 */}
-        {(canReturn || canCancel) && (
+        {(canReturn || canCancel || canReview) && (
           <View style={styles.actionRow}>
             {canReturn && (
               <>
