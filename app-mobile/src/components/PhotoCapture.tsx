@@ -5,7 +5,7 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import { theme } from '../theme';
 
 interface PhotoCaptureProps {
-  onPhotoCaptured: (photoUri: string) => void;
+  onPhotoCaptured: (photoUri: string, base64?: string) => void;
 }
 
 export default function PhotoCapture({ onPhotoCaptured }: PhotoCaptureProps) {
@@ -31,17 +31,17 @@ export default function PhotoCapture({ onPhotoCaptured }: PhotoCaptureProps) {
   const takePicture = async () => {
     if (cameraRef.current) {
       try {
-        const photo = await cameraRef.current.takePictureAsync({ quality: 0.8 });
+        const photo = await cameraRef.current.takePictureAsync({ quality: 0.8, base64: true });
 
         // 使用 expo-image-manipulator 降低画质/压缩尺寸
         const manipResult = await ImageManipulator.manipulateAsync(
           photo.uri,
           [{ resize: { width: 800 } }],
-          { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
+          { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG, base64: true }
         );
 
         setPreviewUri(manipResult.uri);
-        onPhotoCaptured(manipResult.uri);
+        onPhotoCaptured(manipResult.uri, manipResult.base64 ?? undefined);
       } catch (error) {
         // console.error("拍照失败", error);
       }

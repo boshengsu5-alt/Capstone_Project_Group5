@@ -3,7 +3,7 @@
 import type { FC } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Package, ClipboardList, RotateCcw, AlertTriangle, ScrollText, X } from 'lucide-react';
+import { LayoutDashboard, Package, ClipboardList, RotateCcw, AlertTriangle, ScrollText, Users, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface SidebarProps {
@@ -21,6 +21,7 @@ const Sidebar: FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
     { name: 'Returns', href: '/dashboard/returns', icon: RotateCcw },
     { name: 'Damage Reports', href: '/dashboard/damage', icon: AlertTriangle },
     { name: 'Audit Logs', href: '/dashboard/audit-logs', icon: ScrollText },
+    { name: 'Users', href: '/dashboard/users', icon: Users },
   ];
 
   return (
@@ -35,7 +36,7 @@ const Sidebar: FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
 
       <div
         className={cn(
-          "fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:w-64",
+          "fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 transition-transform duration-300 ease-in-out lg:translate-x-0",
           isOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >

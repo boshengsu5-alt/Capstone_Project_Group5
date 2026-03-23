@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, Animated, Dimensions, SafeAreaView } from 'react-native';
+import { theme } from '../theme';
 
 interface ToastContextType {
   showToast: (message: string) => void;
@@ -93,7 +94,7 @@ const styles = StyleSheet.create({
     paddingTop: 10,
   },
   toast: {
-    backgroundColor: 'rgba(30, 27, 75, 0.95)', // Premium deep purple
+    backgroundColor: theme.colors.authBackground + 'F2', // 95% opacity
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 12,
@@ -106,10 +107,10 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 10,
     borderWidth: 1,
-    borderColor: 'rgba(99, 102, 241, 0.3)',
+    borderColor: theme.colors.authPrimary + '4D', // 30% opacity
   },
   iconContainer: {
-    backgroundColor: '#6366F1',
+    backgroundColor: theme.colors.authPrimary,
     width: 32,
     height: 32,
     borderRadius: 16,

@@ -24,6 +24,17 @@ export default function ApprovalModal({
 
     if (!isOpen || !booking) return null;
 
+    // 非 pending 状态只显示详情，不显示审批按钮
+    const isReadOnly = booking.status !== 'pending';
+
+    const getStatusLabel = (status: string) => {
+        const map: Record<string, string> = {
+            approved: 'Approved', rejected: 'Rejected', active: 'Active (Borrowed)',
+            returned: 'Returned', overdue: 'Overdue', cancelled: 'Cancelled', pending: 'Pending',
+        };
+        return map[status] || status;
+    };
+
     const handleApprove = async () => {
         setIsLoading(true);
         try {
@@ -65,7 +76,7 @@ export default function ApprovalModal({
                 {/* Header */}
                 <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
                     <h2 className="text-xl font-semibold text-gray-800">
-                        {mode === 'decision' ? 'Review Booking Request' : 'Reject Booking'}
+                        {isReadOnly ? 'Booking Details' : mode === 'decision' ? 'Review Booking Request' : 'Reject Booking'}
                     </h2>
                     <button
                         onClick={resetAndClose}
@@ -84,7 +95,13 @@ export default function ApprovalModal({
                         <p><span className="font-semibold text-gray-900">Notes:</span> {booking.notes || 'None'}</p>
                     </div>
 
-                    {mode === 'decision' ? (
+                    {isReadOnly ? (
+                        <div className="mb-2 text-center">
+                            <span className="inline-block px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-700">
+                                Status: {getStatusLabel(booking.status)}
+                            </span>
+                        </div>
+                    ) : mode === 'decision' ? (
                         <p className="text-gray-600 mb-6 font-medium text-center">
                             Do you want to approve or reject this request?
                         </p>
@@ -107,7 +124,14 @@ export default function ApprovalModal({
 
                 {/* Footer */}
                 <div className="px-6 py-4 bg-gray-50 flex gap-3 justify-end items-center">
-                    {mode === 'decision' ? (
+                    {isReadOnly ? (
+                        <button
+                            onClick={resetAndClose}
+                            className="px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg transition-colors"
+                        >
+                            Close
+                        </button>
+                    ) : mode === 'decision' ? (
                         <>
                             <button
                                 onClick={() => setMode('reject')}

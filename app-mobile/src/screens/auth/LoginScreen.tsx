@@ -121,7 +121,7 @@ export default function LoginScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1E1B4B',
+    backgroundColor: theme.colors.authBackground,
   },
   keyboardView: {
     flex: 1,
@@ -139,11 +139,11 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#6366F1',
+    backgroundColor: theme.colors.authPrimary,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
-    shadowColor: '#6366F1',
+    shadowColor: theme.colors.authPrimary,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.6,
     shadowRadius: 15,
@@ -162,7 +162,7 @@ const styles = StyleSheet.create({
   },
   slogan: {
     fontSize: 14,
-    color: '#A5B4FC',
+    color: theme.colors.authLight,
     marginTop: 8,
   },
   form: {
@@ -185,7 +185,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   input: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: theme.colors.inputBackground,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,

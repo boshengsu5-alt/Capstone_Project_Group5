@@ -112,14 +112,14 @@ export async function activateBooking(bookingId: string) {
  * @param bookingId - The booking ID associated with this photo.
  * @returns Public URL of the uploaded photo.
  */
-export async function uploadReturnPhoto(photoUri: string, bookingId: string): Promise<string> {
+export async function uploadReturnPhoto(photoUri: string, bookingId: string, base64?: string): Promise<string> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('用户未登录');
 
   const fileExt = photoUri.split('.').pop() || 'jpg';
   const fileName = `${user.id}/${bookingId}_${Date.now()}.${fileExt}`;
 
-  return uploadFile('returns', photoUri, fileName);
+  return uploadFile('returns', photoUri, fileName, base64);
 }
 
 /**
@@ -208,6 +208,30 @@ export async function findApprovedBookingForAsset(assetId: string) {
     .eq('asset_id', assetId)
     .eq('borrower_id', user.id)
     .eq('status', 'approved')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Find user's pending booking for an asset (to prevent duplicate booking on re-scan).
+ * 查找用户对某资产的待审批借用（防止重复扫码时重复预约）
+ *
+ * @param assetId - Asset scanned via QR code. 扫码识别的资产 ID
+ * @returns Pending booking if exists, null otherwise. 待审批的借用记录或 null
+ */
+export async function findPendingBookingForAsset(assetId: string) {
+  const user = await getCurrentUser();
+
+  const { data, error } = await db
+    .from('bookings')
+    .select('*')
+    .eq('asset_id', assetId)
+    .eq('borrower_id', user.id)
+    .eq('status', 'pending')
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle();

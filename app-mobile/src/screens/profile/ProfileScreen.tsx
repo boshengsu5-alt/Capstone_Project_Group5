@@ -126,7 +126,10 @@ export default function ProfileScreen({ navigation }: Props) {
           <Ionicons name="chevron-forward" size={20} color={theme.colors.gray} />
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.menuItem}>
+        <TouchableOpacity
+          style={styles.menuItem}
+          onPress={() => Alert.alert('提示', '设置功能正在开发中，敬请期待')}
+        >
           <Ionicons name="settings-outline" size={22} color={theme.colors.text} />
           <Text style={styles.menuText}>设置</Text>
           <Ionicons name="chevron-forward" size={20} color={theme.colors.gray} />

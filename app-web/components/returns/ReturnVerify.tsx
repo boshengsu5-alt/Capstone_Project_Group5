@@ -23,9 +23,10 @@ export default function ReturnVerify({ booking, onVerify }: ReturnVerifyProps) {
         }
     };
 
-    // Use placeholder images if the actual URLs are missing
-    const pickupPhoto = booking.pickup_photo_url || 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?q=80&w=600&auto=format&fit=crop';
-    const returnPhoto = booking.return_photo_url || 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?q=80&w=600&auto=format&fit=crop';
+    // 优先使用实际拍摄的照片，没有时回退到资产商品图，都没有则为空
+    const assetImage = booking.assets?.images?.[0] || '';
+    const pickupPhoto = booking.pickup_photo_url || assetImage;
+    const returnPhoto = booking.return_photo_url || '';
 
     return (
         <div className="bg-white border text-card-foreground shadow-sm rounded-xl overflow-hidden mt-6">
@@ -72,17 +73,25 @@ export default function ReturnVerify({ booking, onVerify }: ReturnVerifyProps) {
                         </span>
                     </div>
                     <div className="relative aspect-video rounded-lg overflow-hidden border bg-gray-100 group">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                            src={pickupPhoto}
-                            alt="Condition at pickup"
-                            className="object-cover w-full h-full transition-transform duration-300 group-hover:scale-105"
-                        />
-                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
-                            <a href={pickupPhoto} target="_blank" rel="noreferrer" className="p-2 bg-white/90 rounded-full text-gray-700 hover:text-gray-900 shadow-sm">
-                                <ExternalLink className="w-5 h-5" />
-                            </a>
-                        </div>
+                        {pickupPhoto ? (
+                            <>
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                    src={pickupPhoto}
+                                    alt="Condition at pickup"
+                                    className="object-cover w-full h-full transition-transform duration-300 group-hover:scale-105"
+                                />
+                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+                                    <a href={pickupPhoto} target="_blank" rel="noreferrer" className="p-2 bg-white/90 rounded-full text-gray-700 hover:text-gray-900 shadow-sm">
+                                        <ExternalLink className="w-5 h-5" />
+                                    </a>
+                                </div>
+                            </>
+                        ) : (
+                            <div className="w-full h-full flex items-center justify-center text-gray-400">
+                                <span className="text-sm">No pickup photo</span>
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -98,17 +107,25 @@ export default function ReturnVerify({ booking, onVerify }: ReturnVerifyProps) {
                         </span>
                     </div>
                     <div className="relative aspect-video rounded-lg overflow-hidden border bg-gray-100 group">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                            src={returnPhoto}
-                            alt="Condition at return"
-                            className="object-cover w-full h-full transition-transform duration-300 group-hover:scale-105"
-                        />
-                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
-                            <a href={returnPhoto} target="_blank" rel="noreferrer" className="p-2 bg-white/90 rounded-full text-gray-700 hover:text-gray-900 shadow-sm">
-                                <ExternalLink className="w-5 h-5" />
-                            </a>
-                        </div>
+                        {returnPhoto ? (
+                            <>
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                    src={returnPhoto}
+                                    alt="Condition at return"
+                                    className="object-cover w-full h-full transition-transform duration-300 group-hover:scale-105"
+                                />
+                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+                                    <a href={returnPhoto} target="_blank" rel="noreferrer" className="p-2 bg-white/90 rounded-full text-gray-700 hover:text-gray-900 shadow-sm">
+                                        <ExternalLink className="w-5 h-5" />
+                                    </a>
+                                </div>
+                            </>
+                        ) : (
+                            <div className="w-full h-full flex items-center justify-center text-gray-400">
+                                <span className="text-sm">No return photo</span>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>

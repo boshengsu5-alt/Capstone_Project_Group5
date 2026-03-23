@@ -21,6 +21,7 @@ export default function AssetsPage() {
   const [assets, setAssets] = useState<AssetWithCategory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [editingAsset, setEditingAsset] = useState<AssetWithCategory | null>(null);
   const [selectedAssetForReview, setSelectedAssetForReview] = useState<{id: string, name: string} | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
@@ -49,7 +50,25 @@ export default function AssetsPage() {
 
   const handleFormSuccess = () => {
     setShowForm(false);
+    setEditingAsset(null);
     fetchAssets();
+  };
+
+  const handleEdit = (asset: AssetWithCategory) => {
+    setEditingAsset(asset);
+    setShowForm(true);
+  };
+
+  const handleDelete = async (asset: AssetWithCategory) => {
+    if (!confirm(`确定要删除资产 "${asset.name}" 吗？此操作不可撤销。`)) return;
+    try {
+      const res = await fetch(`/api/assets?id=${asset.id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Delete failed');
+      showToast('资产已删除', 'success');
+      fetchAssets();
+    } catch {
+      showToast('删除失败，请重试', 'error');
+    }
   };
 
   const handleExport = () => {
@@ -210,7 +229,16 @@ export default function AssetsPage() {
                           filteredAssets.map((asset) => (
                           <tr key={asset.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
                             <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 dark:text-white sm:pl-6">
-                              {asset.name}
+                              <div className="flex items-center gap-3">
+                                {asset.images?.[0] ? (
+                                  <img src={asset.images[0]} alt={asset.name} className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
+                                ) : (
+                                  <div className="w-10 h-10 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center flex-shrink-0">
+                                    <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0022.5 18.75V5.25A2.25 2.25 0 0020.25 3H3.75A2.25 2.25 0 001.5 5.25v13.5A2.25 2.25 0 003.75 21z" /></svg>
+                                  </div>
+                                )}
+                                <span>{asset.name}</span>
+                              </div>
                             </td>
                             <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400 font-mono text-xs uppercase">{asset.serial_number || 'N/A'}</td>
                             <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">
@@ -248,8 +276,17 @@ export default function AssetsPage() {
                               >
                                 Reviews<span className="sr-only">, {asset.name}</span>
                               </button>
-                              <button className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300">
+                              <button
+                                onClick={() => handleEdit(asset)}
+                                className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300"
+                              >
                                 Edit<span className="sr-only">, {asset.name}</span>
+                              </button>
+                              <button
+                                onClick={() => handleDelete(asset)}
+                                className="text-rose-600 hover:text-rose-900 dark:text-rose-400 dark:hover:text-rose-300"
+                              >
+                                Delete<span className="sr-only">, {asset.name}</span>
                               </button>
                             </td>
                           </tr>
@@ -265,16 +302,26 @@ export default function AssetsPage() {
         ) : (
           <div className="max-w-4xl mx-auto">
              <div className="mb-6">
-                <button 
-                  onClick={() => setShowForm(false)}
+                <button
+                  onClick={() => { setShowForm(false); setEditingAsset(null); }}
                   className="text-sm text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300 mb-4 flex items-center gap-2"
                 >
                   &larr; Back to Assets
                 </button>
              </div>
-             <AssetForm 
-               onCancel={() => setShowForm(false)} 
+             <AssetForm
+               onCancel={() => { setShowForm(false); setEditingAsset(null); }}
                onSuccess={handleFormSuccess}
+               editingAsset={editingAsset ? {
+                 id: editingAsset.id,
+                 name: editingAsset.name,
+                 category_id: editingAsset.category_id,
+                 serial_number: editingAsset.serial_number || '',
+                 purchase_price: editingAsset.purchase_price,
+                 location: editingAsset.location || '',
+                 description: editingAsset.description || '',
+                 images: editingAsset.images || [],
+               } : null}
              />
           </div>
         )}

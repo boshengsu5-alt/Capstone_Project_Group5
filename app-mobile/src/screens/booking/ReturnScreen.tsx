@@ -113,14 +113,13 @@ export default function ReturnScreen() {
   const { bookingId, assetName = '未知设备' } = route.params ?? {};
 
   // Step 1 → 2: 照片拍摄完成，自动上传
-  const handlePhotoCaptured = async (uri: string) => {
-    // console.log('[ReturnScreen] 照片已拍摄，URI:', uri);
+  const handlePhotoCaptured = async (uri: string, base64?: string) => {
     setPhotoUri(uri);
     setStep(2);
     setIsUploading(true);
 
     try {
-      const url = await uploadReturnPhoto(uri, bookingId);
+      const url = await uploadReturnPhoto(uri, bookingId, base64);
       // console.log('[ReturnScreen] 上传成功，公开链接:', url);
       setUploadedUrl(url);
       setStep(3);

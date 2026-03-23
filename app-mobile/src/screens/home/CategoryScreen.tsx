@@ -9,6 +9,20 @@ import type { Category } from '../../../../database/types/supabase';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'CategoryScreen'>;
 
+// 数据库存的是 emoji，Ionicons 无法渲染，需要映射为有效图标名
+const categoryIconMap: Record<string, string> = {
+  'Audio & Sound': 'musical-notes-outline',
+  'Books & Materials': 'book-outline',
+  'Cameras & Media': 'camera-outline',
+  'Drones': 'airplane-outline',
+  'Electronics': 'laptop-outline',
+  'Furniture': 'bed-outline',
+  'Keys & Access': 'key-outline',
+  'Lab Equipment': 'flask-outline',
+  'Other': 'cube-outline',
+  'Sports & Fitness': 'football-outline',
+};
+
 export default function CategoryScreen({ navigation }: Props) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,7 +46,7 @@ export default function CategoryScreen({ navigation }: Props) {
       onPress={() => navigation.navigate('HomeScreen', { categoryId: item.id })}
     >
       <View style={styles.iconContainer}>
-        <Ionicons name={(item.icon || 'cube-outline') as any} size={32} color={theme.colors.primary} />
+        <Ionicons name={(categoryIconMap[item.name] || 'cube-outline') as any} size={32} color={theme.colors.primary} />
       </View>
       <Text style={styles.categoryText}>{item.name}</Text>
     </TouchableOpacity>
@@ -86,6 +100,7 @@ const styles = StyleSheet.create({
     width: '33.33%',
     alignItems: 'center',
     marginBottom: theme.spacing.lg,
+    paddingHorizontal: 4,
   },
   iconContainer: {
     width: 60,
@@ -97,8 +112,9 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   categoryText: {
-    fontSize: 14,
+    fontSize: 13,
     color: theme.colors.text,
     fontWeight: '500',
+    textAlign: 'center',
   }
 });

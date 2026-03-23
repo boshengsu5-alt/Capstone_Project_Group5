@@ -6,11 +6,26 @@ import ApprovalModal from '@/components/bookings/ApprovalModal';
 import { bookingService, BookingWithDetails } from '@/lib/bookingService';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/components/ui/Toast';
+import { Download } from 'lucide-react';
+import { exportToExcel } from '@/lib/exportUtils';
+import type { BookingStatus } from '@/types/database';
+
+const STATUS_OPTIONS: { value: 'all' | BookingStatus; label: string }[] = [
+    { value: 'all', label: 'All Status' },
+    { value: 'pending', label: 'Pending' },
+    { value: 'approved', label: 'Approved' },
+    { value: 'active', label: 'Active' },
+    { value: 'returned', label: 'Returned' },
+    { value: 'overdue', label: 'Overdue' },
+    { value: 'rejected', label: 'Rejected' },
+    { value: 'cancelled', label: 'Cancelled' },
+];
 
 export default function BookingsPage() {
     const { showToast } = useToast();
     const [bookings, setBookings] = useState<BookingWithDetails[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [statusFilter, setStatusFilter] = useState<'all' | BookingStatus>('all');
 
     // Modal state
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -63,6 +78,34 @@ export default function BookingsPage() {
         };
     }, []);
 
+    const filteredBookings = statusFilter === 'all'
+        ? bookings
+        : bookings.filter(b => b.status === statusFilter);
+
+    const handleExport = () => {
+        if (filteredBookings.length === 0) {
+            showToast('No data to export', 'info');
+            return;
+        }
+        const statusMap: Record<string, string> = {
+            pending: '待审批', approved: '已批准', active: '借出中',
+            returned: '已归还', overdue: '逾期', rejected: '已拒绝', cancelled: '已取消',
+        };
+        const exportData = filteredBookings.map(b => ({
+            '资产名称': b.assets?.name || 'N/A',
+            '借用人': b.profiles?.full_name || 'N/A',
+            '学号': b.profiles?.student_id || 'N/A',
+            '开始日期': new Date(b.start_date).toLocaleDateString(),
+            '结束日期': new Date(b.end_date).toLocaleDateString(),
+            '状态': statusMap[b.status] || b.status,
+            '创建时间': new Date(b.created_at).toLocaleString(),
+        }));
+        try {
+            exportToExcel(exportData, `借用记录_${new Date().toISOString().split('T')[0]}`, '借用记录');
+            showToast('报表导出成功', 'success');
+        } catch { showToast('导出失败', 'error'); }
+    };
+
     // Handlers
     const handleReviewClick = (booking: BookingWithDetails) => {
         setSelectedBooking(booking);
@@ -105,14 +148,28 @@ export default function BookingsPage() {
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between mb-8">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Booking Requests</h1>
-                    <p className="text-sm text-gray-500 mt-1">
+                    <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">Booking Requests</h1>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                         Review and manage equipment borrowing applications from students.
                     </p>
                 </div>
 
-                <div className="mt-4 md:mt-0">
-                    {/* Future add-ons: filter dropdowns, date pickers, etc. */}
+                <div className="mt-4 md:mt-0 flex items-center gap-3">
+                    <select
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value as 'all' | BookingStatus)}
+                        className="rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none shadow-sm"
+                    >
+                        {STATUS_OPTIONS.map(opt => (
+                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                    </select>
+                    <button
+                        onClick={handleExport}
+                        className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-sm"
+                    >
+                        <Download className="w-4 h-4" /> Export
+                    </button>
                     <button
                         onClick={() => loadBookings()}
                         disabled={isLoading}
@@ -125,15 +182,15 @@ export default function BookingsPage() {
 
             {/* Main Content Area */}
             {isLoading ? (
-                <div className="w-full h-64 flex flex-col items-center justify-center bg-white rounded-xl border border-gray-100 shadow-sm">
+                <div className="w-full h-64 flex flex-col items-center justify-center bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm">
                     <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
                     <p className="text-gray-500 font-medium">Loading requests...</p>
                 </div>
             ) : (
                 <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 relative z-10">
-                    <BookingTable 
-                      bookings={bookings} 
-                      onReview={handleReviewClick} 
+                    <BookingTable
+                      bookings={filteredBookings}
+                      onReview={handleReviewClick}
                       highlightId={newBookingId}
                     />
                 </div>

@@ -51,7 +51,7 @@ export default function RootNavigator() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={theme.colors.primary} />
-        <Text style={{ marginTop: 20, color: '#666' }}>{debugState}</Text>
+        {__DEV__ && <Text style={{ marginTop: 20, color: '#666' }}>{debugState}</Text>}
       </View>
     );
   }

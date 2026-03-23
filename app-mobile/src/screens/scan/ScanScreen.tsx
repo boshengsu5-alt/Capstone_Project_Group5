@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import QRScanner from '../../components/QRScanner';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import { getAssetByQrCode } from '../../services/assetService';
-import { findApprovedBookingForAsset, activateBooking } from '../../services/bookingService';
+import { findApprovedBookingForAsset, findPendingBookingForAsset, activateBooking } from '../../services/bookingService';
 import { theme } from '../../theme';
 
 export default function ScanScreen() {
@@ -59,47 +59,88 @@ export default function ScanScreen() {
       const approvedBooking = await findApprovedBookingForAsset(asset.id);
 
       if (approvedBooking) {
-        // 用户有 approved 借用 → 弹窗确认取货激活
         setIsProcessing(false);
-        Alert.alert(
-          '确认取货',
-          `检测到您对「${asset.name}」有一个已审批的借用申请。\n\n确认取货后状态将变为「已借用」，借用周期开始计时。`,
-          [
-            {
-              text: '取消',
-              style: 'cancel',
-              onPress: () => { setIsScanning(true); },
-            },
-            {
-              text: '确认取货',
-              onPress: async () => {
-                setIsProcessing(true);
-                try {
-                  await activateBooking(approvedBooking.id);
-                  Alert.alert(
-                    '取货成功',
-                    `设备「${asset.name}」已成功激活！\n请在 ${approvedBooking.end_date} 前归还。`,
-                    [{ text: '好的', onPress: () => { setIsScanning(true); } }]
-                  );
-                } catch (err: unknown) {
-                  const msg = err instanceof Error ? err.message : '激活失败，请重试';
-                  Alert.alert('取货失败', msg, [
-                    { text: '好的', onPress: () => { setIsScanning(true); } },
-                  ]);
-                } finally {
-                  setIsProcessing(false);
-                }
+
+        // 前端先检查是否到了借用开始日期
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const startDate = new Date(approvedBooking.start_date);
+        startDate.setHours(0, 0, 0, 0);
+
+        if (today < startDate) {
+          // 还没到借用日期 → 直接提示，不弹确认取货
+          const dateStr = approvedBooking.start_date.slice(0, 10);
+          Alert.alert(
+            '未到取货时间',
+            `您对「${asset.name}」的借用从 ${dateStr} 开始，请在当天或之后再来扫码取货。`,
+            [{ text: '好的', onPress: () => { setIsScanning(true); } }]
+          );
+        } else {
+          // 已到借用日期 → 弹窗确认取货激活
+          Alert.alert(
+            '确认取货',
+            `检测到您对「${asset.name}」有一个已审批的借用申请。\n\n确认取货后状态将变为「已借用」，借用周期开始计时。`,
+            [
+              {
+                text: '取消',
+                style: 'cancel',
+                onPress: () => { setIsScanning(true); },
               },
-            },
-          ]
-        );
+              {
+                text: '确认取货',
+                onPress: async () => {
+                  setIsProcessing(true);
+                  try {
+                    await activateBooking(approvedBooking.id);
+                    Alert.alert(
+                      '取货成功',
+                      `设备「${asset.name}」已成功激活！\n请在 ${approvedBooking.end_date} 前归还。`,
+                      [{ text: '好的', onPress: () => { setIsScanning(true); } }]
+                    );
+                  } catch (err: unknown) {
+                    const msg = err instanceof Error ? err.message : '激活失败，请重试';
+                    Alert.alert('取货失败', msg, [
+                      { text: '好的', onPress: () => { setIsScanning(true); } },
+                    ]);
+                  } finally {
+                    setIsProcessing(false);
+                  }
+                },
+              },
+            ]
+          );
+        }
       } else {
-        // 没有 approved 借用 → 用真正的 asset.id 跳转到详情页
+        // 没有 approved 借用 → 再查是否有 pending 借用，避免重复预约
+        const pendingBooking = await findPendingBookingForAsset(asset.id);
         setIsProcessing(false);
-        navigation.navigate('HomeTab', {
-          screen: 'AssetDetailScreen',
-          params: { id: asset.id },
-        });
+
+        if (pendingBooking) {
+          // 已有待审批的借用 → 提示用户等待，不要重复预约
+          Alert.alert(
+            '预约审批中',
+            `您对「${asset.name}」的借用申请正在等待管理员审批，请耐心等待。\n\n审批通过后再次扫码即可取货。`,
+            [
+              {
+                text: '查看我的预约',
+                onPress: () => {
+                  navigation.navigate('BookingsTab', { screen: 'BookingHistory' });
+                },
+              },
+              {
+                text: '好的',
+                style: 'cancel',
+                onPress: () => { setIsScanning(true); },
+              },
+            ]
+          );
+        } else {
+          // 既没有 approved 也没有 pending → 跳转到详情页发起新预约
+          navigation.navigate('HomeTab', {
+            screen: 'AssetDetailScreen',
+            params: { id: asset.id },
+          });
+        }
       }
     } catch (error: unknown) {
       console.error('Scan processing failed:', error);

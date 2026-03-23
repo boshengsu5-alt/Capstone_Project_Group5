@@ -1,3 +1,4 @@
+
 export const theme = {
   colors: {
     primary: '#6D28D9', // 手册要求的紫色
@@ -6,6 +7,9 @@ export const theme = {
     text: '#1F2937',
     gray: '#9CA3AF',
     danger: '#EF4444',
+    warning: '#FBBF24',
+    success: '#10B981',
+    amber: '#F59E0B',
     // 认证屏幕专用颜色
     authBackground: '#1E1B4B',
     authPrimary: '#6366F1',

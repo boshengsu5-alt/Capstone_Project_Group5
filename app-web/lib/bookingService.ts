@@ -8,13 +8,13 @@ import { auditService } from './auditService';
 
 /** Booking with joined asset and borrower details. 包含资产和借用者详情的借用记录 */
 export type BookingWithDetails = Database['public']['Tables']['bookings']['Row'] & {
-    assets: Pick<Database['public']['Tables']['assets']['Row'], 'name' | 'qr_code'> | null;
+    assets: Pick<Database['public']['Tables']['assets']['Row'], 'name' | 'qr_code' | 'images'> | null;
     profiles: Pick<Database['public']['Tables']['profiles']['Row'], 'full_name' | 'student_id'> | null;
 };
 
 /** Damage report with joined asset and reporter details. 包含资产和报告者详情的损坏报告 */
 export type DamageReportWithDetails = DamageReport & {
-    assets: Pick<Database['public']['Tables']['assets']['Row'], 'name' | 'qr_code'> | null;
+    assets: Pick<Database['public']['Tables']['assets']['Row'], 'name' | 'qr_code' | 'images'> | null;
     profiles: Pick<Database['public']['Tables']['profiles']['Row'], 'full_name' | 'student_id'> | null;
 };
 
@@ -28,7 +28,7 @@ export const bookingService = {
             .from('bookings')
             .select(`
                 *,
-                assets ( name, qr_code ),
+                assets ( name, qr_code, images ),
                 profiles!borrower_id ( full_name, student_id )
             `)
             .order('created_at', { ascending: false });
@@ -165,7 +165,7 @@ export const bookingService = {
             .from('damage_reports')
             .select(`
                 *,
-                assets ( name, qr_code ),
+                assets ( name, qr_code, images ),
                 profiles!reporter_id ( full_name, student_id )
             `)
             .order('created_at', { ascending: false });

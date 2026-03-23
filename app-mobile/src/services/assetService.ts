@@ -17,7 +17,7 @@ const db = supabase as any;
  * @param categoryId - Optional category UUID to filter. 可选的分类 ID 筛选
  * @returns Array of assets with nested category data. 包含嵌套分类数据的资产数组
  */
-export async function getAssets(categoryId?: string): Promise<(Asset & { categories: Category })[]> {
+export async function getAssets(categoryId?: string, page?: number, limit: number = 10): Promise<(Asset & { categories: Category })[]> {
   let query = db
     .from('assets')
     .select('*, categories(*)')
@@ -25,6 +25,11 @@ export async function getAssets(categoryId?: string): Promise<(Asset & { categor
 
   if (categoryId) {
     query = query.eq('category_id', categoryId);
+  }
+
+  if (page !== undefined) {
+    const from = page * limit;
+    query = query.range(from, from + limit - 1);
   }
 
   const { data, error } = await query;

@@ -18,6 +18,12 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
   const refreshUnreadCount = async () => {
     try {
+      // 未登录时不请求，避免 AuthSessionMissingError
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      if (!currentSession) {
+        setUnreadCount(0);
+        return;
+      }
       const count = await getUnreadCount();
       setUnreadCount(count);
     } catch (error) {

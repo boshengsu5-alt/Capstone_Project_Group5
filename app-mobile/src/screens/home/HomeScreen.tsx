@@ -26,6 +26,20 @@ import SafeImage from '../../components/SafeImage';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'HomeScreen'>;
 
+// 数据库存的是 emoji，Ionicons 无法渲染，需要映射为有效图标名
+const categoryIconMap: Record<string, string> = {
+  'Audio & Sound': 'musical-notes-outline',
+  'Books & Materials': 'book-outline',
+  'Cameras & Media': 'camera-outline',
+  'Drones': 'airplane-outline',
+  'Electronics': 'laptop-outline',
+  'Furniture': 'bed-outline',
+  'Keys & Access': 'key-outline',
+  'Lab Equipment': 'flask-outline',
+  'Other': 'cube-outline',
+  'Sports & Fitness': 'football-outline',
+};
+
 const { width } = Dimensions.get('window');
 
 const AD_DATA = [
@@ -34,11 +48,17 @@ const AD_DATA = [
   { id: '3', color: '#A78BFA', text: '优质精选，猜你喜欢' },
 ];
 
+const PAGE_SIZE = 10;
+
 export default function HomeScreen({ navigation, route }: Props) {
   const [assets, setAssets] = useState<(Asset & { categories: Category })[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<boolean>(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   // 从 CategoryScreen 传入的分类筛选 ID
   const categoryId = route.params?.categoryId;
@@ -46,22 +66,47 @@ export default function HomeScreen({ navigation, route }: Props) {
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(false);
+    setPage(0);
+    setHasMore(true);
     // 兜底逾期检测：pg_cron 免费版不可用，每次进入首页时触发一次（fire-and-forget）
     checkOverdueBookings().catch(() => {});
     try {
       // 通过 service 层获取数据，不直接调用 supabase
       const [assetsData, categoriesData] = await Promise.all([
-        getAssets(categoryId),
+        getAssets(categoryId, 0, PAGE_SIZE),
         getCategories(),
       ]);
       setAssets(assetsData);
       setCategories(categoriesData);
-    } catch (error) {
+      setHasMore(assetsData.length >= PAGE_SIZE);
+    } catch (err) {
       setError(true);
     } finally {
       setLoading(false);
     }
   }, [categoryId]);
+
+  const loadMore = useCallback(async () => {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    try {
+      const nextPage = page + 1;
+      const moreAssets = await getAssets(categoryId, nextPage, PAGE_SIZE);
+      if (moreAssets.length < PAGE_SIZE) setHasMore(false);
+      setAssets(prev => [...prev, ...moreAssets]);
+      setPage(nextPage);
+    } catch (err) {
+      // 加载更多失败不影响已有数据
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [page, loadingMore, hasMore, categoryId]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchData();
+    setRefreshing(false);
+  }, [fetchData]);
 
   React.useEffect(() => {
     fetchData();
@@ -73,7 +118,7 @@ export default function HomeScreen({ navigation, route }: Props) {
       onPress={() => navigation.navigate('CategoryScreen', { categoryId: item.id })}
     >
       <View style={styles.categoryHomeIcon}>
-        <Ionicons name={(item.icon || 'cube-outline') as any} size={28} color={theme.colors.primary} />
+        <Ionicons name={(categoryIconMap[item.name] || 'cube-outline') as any} size={28} color={theme.colors.primary} />
       </View>
       <Text style={styles.categoryHomeText} numberOfLines={1}>{item.name}</Text>
     </TouchableOpacity>
@@ -170,6 +215,15 @@ export default function HomeScreen({ navigation, route }: Props) {
         columnWrapperStyle={styles.row}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
+        refreshing={refreshing}
+        onRefresh={onRefresh}
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={loadingMore ? (
+          <View style={styles.footerLoader}>
+            <ActivityIndicator size="small" color={theme.colors.primary} />
+          </View>
+        ) : null}
       />
     </SafeAreaView>
   );
@@ -312,5 +366,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     color: theme.colors.danger,
+  },
+  footerLoader: {
+    paddingVertical: theme.spacing.lg,
+    alignItems: 'center' as const,
   },
 });

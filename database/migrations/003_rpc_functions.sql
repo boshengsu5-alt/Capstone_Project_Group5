@@ -28,10 +28,11 @@ DECLARE
   v_asset_id UUID;
   v_borrower_id UUID;
   v_status booking_status;
+  v_start_date TIMESTAMPTZ;
 BEGIN
   -- 获取借用记录信息并锁定行，防止并发
-  SELECT asset_id, borrower_id, status
-  INTO v_asset_id, v_borrower_id, v_status
+  SELECT asset_id, borrower_id, status, start_date
+  INTO v_asset_id, v_borrower_id, v_status, v_start_date
   FROM bookings
   WHERE id = p_booking_id
   FOR UPDATE;
@@ -49,6 +50,11 @@ BEGIN
   -- 校验：只有借用者本人才能激活（取货）
   IF v_borrower_id <> auth.uid() THEN
     RAISE EXCEPTION 'Only the borrower can activate this booking';
+  END IF;
+
+  -- 校验：只有到了借用开始日期当天或之后才能取货
+  IF CURRENT_DATE < v_start_date::date THEN
+    RAISE EXCEPTION '还未到取货日期，请在 % 当天或之后扫码取货', v_start_date::date;
   END IF;
 
   -- 更新借用状态为 active

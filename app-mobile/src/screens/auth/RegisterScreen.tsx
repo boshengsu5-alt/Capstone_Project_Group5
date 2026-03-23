@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { theme } from '../../theme';
-import { signUp } from '../../services/authService';
+import { signUp, signOut } from '../../services/authService';
 import { AuthStackParamList } from '../../navigation/AuthStackNavigator';
 import { handleApiError } from '../../utils/errorHandler';
 
@@ -53,6 +53,8 @@ export default function RegisterScreen({ navigation }: Props) {
     setLoading(true);
     try {
       await signUp(email.trim(), password, fullName.trim());
+      // 注册后 Supabase 会自动创建 session，需要立即退出，防止跳转到首页
+      await signOut();
       Alert.alert('注册成功', '请查看邮箱完成验证，然后登录', [
         { text: '去登录', onPress: () => navigation.navigate('Login') },
       ]);

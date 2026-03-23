@@ -46,8 +46,8 @@ BEGIN
     RAISE EXCEPTION '结束时间必须晚于开始时间';
   END IF;
 
-  -- ② 校验：不能预订过去的时间段
-  IF p_start_date < now() THEN
+  -- ② 校验：开始日期不能早于今天（按日期比较，允许预订当天）
+  IF p_start_date::date < CURRENT_DATE THEN
     RAISE EXCEPTION '不能预订过去的日期';
   END IF;
 

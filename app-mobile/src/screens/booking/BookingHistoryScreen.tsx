@@ -39,12 +39,12 @@ const getStatusLabel = (status: BookingStatus) => {
 
 const getStatusColor = (status: BookingStatus) => {
   switch (status) {
-    case 'overdue': return '#EF4444';
-    case 'active': return '#F59E0B';
-    case 'returned': return '#10B981';
-    case 'approved': return '#6366F1';
-    case 'pending': return '#6B7280';
-    default: return '#9CA3AF';
+    case 'overdue': return theme.colors.danger;
+    case 'active': return theme.colors.amber;
+    case 'returned': return theme.colors.success;
+    case 'approved': return theme.colors.authPrimary;
+    case 'pending': return theme.colors.gray;
+    default: return theme.colors.gray;
   }
 };
 
@@ -180,8 +180,8 @@ export default function BookingHistoryScreen() {
                   setReviewModalVisible(true);
                 }}
               >
-                <Ionicons name="star-outline" size={16} color="#FBBF24" />
-                <Text style={[styles.actionText, { color: '#FBBF24' }]}>评价设备</Text>
+                <Ionicons name="star-outline" size={16} color={theme.colors.warning} />
+                <Text style={[styles.actionText, { color: theme.colors.warning }]}>评价设备</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -269,7 +269,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   card: {
-    backgroundColor: '#ffffff',
+    backgroundColor: theme.colors.background,
     borderRadius: 16,
     marginBottom: 20,
     padding: 16,
@@ -279,7 +279,7 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     elevation: 4,
     borderWidth: 1,
-    borderColor: '#F3F4F6',
+    borderColor: theme.colors.inputBackground,
   },
   cardContent: {
     flexDirection: 'row',
@@ -288,7 +288,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 12,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: theme.colors.inputBackground,
   },
   infoContainer: {
     flex: 1,
@@ -352,7 +352,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.danger + '10',
   },
   actionBtnReview: {
-    backgroundColor: '#FBBF24' + '15',
+    backgroundColor: theme.colors.warning + '15',
   },
   actionText: {
     fontSize: 13,
@@ -385,7 +385,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   goHomeButtonText: {
-    color: '#FFFFFF',
+    color: theme.colors.background,
     fontSize: 16,
     fontWeight: '600',
   },

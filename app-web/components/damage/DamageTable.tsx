@@ -51,30 +51,30 @@ export default function DamageTable({ reports, onUpdateStatus }: DamageTableProp
 
     if (reports.length === 0) {
         return (
-            <div className="w-full bg-white rounded-xl shadow-sm border border-gray-100 p-12 flex flex-col items-center justify-center text-center">
-                <div className="w-16 h-16 bg-gray-50 border rounded-full flex items-center justify-center mb-4 text-gray-400">
+            <div className="w-full bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800 p-12 flex flex-col items-center justify-center text-center">
+                <div className="w-16 h-16 bg-gray-50 dark:bg-gray-800 border dark:border-gray-700 rounded-full flex items-center justify-center mb-4 text-gray-400">
                     <CheckCircle2 className="w-8 h-8" />
                 </div>
-                <h3 className="text-lg font-medium text-gray-900 mb-1">No damage reports</h3>
-                <p className="text-sm text-gray-500 max-w-sm">All equipment seems to be in good condition. No damage incidents have been reported.</p>
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-1">No damage reports</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 max-w-sm">All equipment seems to be in good condition. No damage incidents have been reported.</p>
             </div>
         );
     }
 
     return (
-        <div className="w-full bg-white rounded-xl shadow-[0_2px_10px_-4px_rgba(0,0,0,0.1)] border border-gray-100 overflow-hidden">
+        <div className="w-full bg-white dark:bg-gray-900 rounded-xl shadow-[0_2px_10px_-4px_rgba(0,0,0,0.1)] border border-gray-100 dark:border-gray-800 overflow-hidden">
             <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm whitespace-nowrap">
-                    <thead className="bg-gray-50/80 border-b border-gray-100">
+                    <thead className="bg-gray-50/80 dark:bg-gray-800/80 border-b border-gray-100 dark:border-gray-700">
                         <tr>
-                            <th scope="col" className="px-6 py-4 font-semibold text-gray-600">Incident</th>
-                            <th scope="col" className="px-6 py-4 font-semibold text-gray-600">Asset</th>
-                            <th scope="col" className="px-6 py-4 font-semibold text-gray-600">Reported By</th>
-                            <th scope="col" className="px-6 py-4 font-semibold text-gray-600">Status</th>
-                            <th scope="col" className="px-6 py-4 font-semibold text-gray-600 text-right">Details</th>
+                            <th scope="col" className="px-6 py-4 font-semibold text-gray-600 dark:text-gray-300">Incident</th>
+                            <th scope="col" className="px-6 py-4 font-semibold text-gray-600 dark:text-gray-300">Asset</th>
+                            <th scope="col" className="px-6 py-4 font-semibold text-gray-600 dark:text-gray-300">Reported By</th>
+                            <th scope="col" className="px-6 py-4 font-semibold text-gray-600 dark:text-gray-300">Status</th>
+                            <th scope="col" className="px-6 py-4 font-semibold text-gray-600 dark:text-gray-300 text-right">Details</th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-100/50">
+                    <tbody className="divide-y divide-gray-100/50 dark:divide-gray-800">
                         {reports.map((report, index) => {
                             const { icon, color, bg, border } = getStatusIconAndColor(report.status);
                             const isExpanded = expandedRow === report.id;
@@ -87,7 +87,7 @@ export default function DamageTable({ reports, onUpdateStatus }: DamageTableProp
 
                             const rowBg = isExpanded
                                 ? 'bg-indigo-50/40 border-l-2 border-l-indigo-400'
-                                : `border-l-2 border-l-transparent ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`;
+                                : `border-l-2 border-l-transparent ${index % 2 === 0 ? 'bg-white dark:bg-gray-900' : 'bg-gray-50/30 dark:bg-gray-800/30'}`;
 
                             return (
                                 <React.Fragment key={report.id}>
@@ -101,7 +101,7 @@ export default function DamageTable({ reports, onUpdateStatus }: DamageTableProp
                                                     {icon}
                                                 </div>
                                                 <div>
-                                                    <div className="font-medium text-gray-900 flex items-center gap-2">
+                                                    <div className="font-medium text-gray-900 dark:text-white flex items-center gap-2">
                                                         {new Date(report.created_at).toLocaleDateString()}
                                                         {getSeverityBadge(report.severity)}
                                                     </div>
@@ -112,12 +112,12 @@ export default function DamageTable({ reports, onUpdateStatus }: DamageTableProp
                                             </div>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <div className="font-medium text-gray-900">{report.assets?.name || 'Unknown'}</div>
-                                            <div className="text-gray-500 text-xs mt-0.5 font-mono">{report.assets?.qr_code}</div>
+                                            <div className="font-medium text-gray-900 dark:text-white">{report.assets?.name || 'Unknown'}</div>
+                                            <div className="text-gray-500 dark:text-gray-400 text-xs mt-0.5 font-mono">{report.assets?.qr_code}</div>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <div className="text-gray-900">{report.profiles?.full_name || 'System Generated'}</div>
-                                            <div className="text-gray-500 text-xs mt-0.5">{report.profiles?.student_id || 'Admin'}</div>
+                                            <div className="text-gray-900 dark:text-gray-100">{report.profiles?.full_name || 'System Generated'}</div>
+                                            <div className="text-gray-500 dark:text-gray-400 text-xs mt-0.5">{report.profiles?.student_id || 'Admin'}</div>
                                         </td>
                                         <td className="px-6 py-4">
                                             <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium capitalize border ${bg} ${border} ${color}`}>
@@ -125,7 +125,7 @@ export default function DamageTable({ reports, onUpdateStatus }: DamageTableProp
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 text-right">
-                                            <button className="text-gray-400 px-2 py-1 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors text-xs font-medium">
+                                            <button className="text-gray-400 px-2 py-1 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors text-xs font-medium">
                                                 {isExpanded ? 'Hide' : 'View'}
                                             </button>
                                         </td>
