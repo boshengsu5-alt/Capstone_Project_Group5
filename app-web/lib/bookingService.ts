@@ -183,15 +183,46 @@ export const bookingService = {
      * 处理归还验证（管理员确认归还完成）
      */
     async processReturn(bookingId: string, status: string): Promise<boolean> {
+        // 同时获取 asset_id 以便更新资产状态
+        const { data: booking, error: bookingFetchError } = await supabase
+            .from('bookings')
+            .select('asset_id, assets(name)')
+            .eq('id', bookingId)
+            .single();
+
+        if (bookingFetchError || !booking) {
+            console.error('Error fetching booking for return processing:', bookingFetchError);
+            return false;
+        }
+
         const { error } = await (supabase as any)
             .from('bookings')
-            .update({ status })
+            .update({ 
+                status,
+                rejection_reason: 'VERIFIED' 
+            })
             .eq('id', bookingId);
 
         if (error) {
             console.error('Error processing return:', error);
             return false;
         }
+
+        // 正常归还：将资产状态改回 available
+        await (supabase as any)
+            .from('assets')
+            .update({ status: 'available' })
+            .eq('id', (booking as any).asset_id);
+
+        // Add Audit Log
+        await auditService.logAction({
+            operation_type: 'VERIFY',
+            resource_type: 'booking',
+            resource_id: bookingId,
+            resource_name: (booking as any).assets?.name,
+            change_description: 'Admin verified the return as intact. Asset status set to available.'
+        });
+
         return true;
     },
 
@@ -199,44 +230,104 @@ export const bookingService = {
      * Create a damage report from return verification (admin-initiated).
      * 管理员在归还验证时创建损坏报告
      */
-    async createDamageReport(bookingId: string, description: string, severity: string): Promise<boolean> {
-        // 先获取 booking 详情以拿到 asset_id 和当前管理员 ID
-        const { data: booking } = await supabase
+    async createDamageReport(bookingId: string, description: string, severity: string, photoUrl?: string): Promise<{ success: boolean; scoreUpdated: boolean; oldScore?: number; newScore?: number }> {
+        // 使用星号选择以确保获取所有原始字段
+        const { data: booking, error: bookingError } = await supabase
             .from('bookings')
-            .select('asset_id, borrower_id')
+            .select(`
+                *,
+                assets ( name )
+            `)
             .eq('id', bookingId)
             .single();
 
-        if (!booking) {
-            console.error('Booking not found for damage report');
-            return false;
+        if (bookingError || !booking) {
+            console.error('Booking not found for damage report', bookingError);
+            return { success: false, scoreUpdated: false };
         }
+
+        const borrowerId = (booking as any).borrower_id;
+        console.log(`DEBUG: Found borrower ID: ${borrowerId} for booking: ${bookingId}`);
+
+        // 获取当前分数（用于验证）
+        const { data: profileBefore } = await supabase
+            .from('profiles')
+            .select('credit_score')
+            .eq('id', borrowerId)
+            .single();
+        const oldScore = (profileBefore as any)?.credit_score;
+        console.log(`DEBUG: Old score for ${borrowerId} is ${oldScore}`);
 
         const { data: { user } } = await supabase.auth.getUser();
 
-        const { error } = await (supabase as any)
+        // 插入损坏报告
+        const { error: reportError } = await (supabase as any)
             .from('damage_reports')
             .insert({
                 booking_id: bookingId,
                 asset_id: (booking as any).asset_id,
-                reporter_id: user?.id ?? (booking as any).borrower_id,
+                reporter_id: user?.id ?? borrowerId,
                 description,
                 severity,
-                photo_urls: [],
+                photo_urls: photoUrl ? [photoUrl] : [],
             });
 
-        if (error) {
-            console.error('Error creating damage report:', error);
-            return false;
+        if (reportError) {
+            console.error('Error creating damage report:', reportError);
+            return { success: false, scoreUpdated: false };
         }
 
-        // 同时更新 booking 状态为 returned
+        // 扣除 20 积分
+        console.log(`DEBUG: Calling RPC update_credit_score with p_delta: -20`);
+        const { error: rpcError } = await (supabase as any).rpc('update_credit_score', {
+            p_user_id: borrowerId,
+            p_delta: -20,
+            p_reason: `damage_report_${severity}`
+        });
+
+        if (rpcError) {
+            console.error('DEBUG: RPC Error:', rpcError);
+        }
+
+        // 稍等 500ms 确保数据库完成更新（应对极致同步延迟）
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        // 再次获取分数
+        const { data: profileAfter } = await supabase
+            .from('profiles')
+            .select('credit_score')
+            .eq('id', borrowerId)
+            .single();
+        const newScore = (profileAfter as any)?.credit_score;
+        console.log(`DEBUG: New score for ${borrowerId} is ${newScore}`);
+
+        // 更新状态标记
         await (supabase as any)
             .from('bookings')
-            .update({ status: 'returned' })
+            .update({ status: 'returned', rejection_reason: 'VERIFIED' })
             .eq('id', bookingId);
 
-        return true;
+        // 归还验证时报告损坏：将资产状态改为 maintenance
+        await (supabase as any)
+            .from('assets')
+            .update({ status: 'maintenance' })
+            .eq('id', (booking as any).asset_id);
+
+        // 审计日志
+        await auditService.logAction({
+            operation_type: 'VERIFY',
+            resource_type: 'booking',
+            resource_id: bookingId,
+            resource_name: (booking as any).assets?.name,
+            change_description: `Admin reported damage (${severity}). Score change: ${oldScore} -> ${newScore}. ID: ${borrowerId}`
+        });
+
+        return { 
+            success: true, 
+            scoreUpdated: oldScore !== newScore,
+            oldScore,
+            newScore
+        };
     },
 
     /**
@@ -289,7 +380,7 @@ export const bookingService = {
                     p_reason: `damage_${(report as any).severity}`,
                 });
 
-                // 同时将资产状态改为 maintenance
+                // 当状态变为 resolved 时，意味着维修完成，将资产状态改回 available
                 const { data: damageReport } = await supabase
                     .from('damage_reports')
                     .select('asset_id')
@@ -299,7 +390,7 @@ export const bookingService = {
                 if (damageReport) {
                     await (supabase as any)
                         .from('assets')
-                        .update({ status: 'maintenance' })
+                        .update({ status: status === 'resolved' ? 'available' : 'maintenance' })
                         .eq('id', (damageReport as any).asset_id);
                 }
             }

@@ -14,7 +14,7 @@ export const auditService = {
    * @param params - Log details including operation type, resource, and description.
    */
   async logAction(params: {
-    operation_type: 'CREATE' | 'UPDATE' | 'DELETE' | 'APPROVE' | 'REJECT';
+    operation_type: 'CREATE' | 'UPDATE' | 'DELETE' | 'APPROVE' | 'REJECT' | 'VERIFY';
     resource_type: string;
     resource_id?: string;
     resource_name?: string;

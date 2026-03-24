@@ -37,23 +37,34 @@ export default function ReturnsPage() {
         loadReturns();
     }, []);
 
-    const handleVerify = async (id: string, isDamaged: boolean) => {
+    const [verifiedIds, setVerifiedIds] = useState<Set<string>>(new Set());
+
+    const handleVerify = async (id: string, isDamaged: boolean, severity?: string, photoUrl?: string) => {
         try {
-            if (isDamaged) {
-                // In a real app, this would open a damage report modal or redirect
-                await bookingService.createDamageReport(id, 'Item reported damaged during return verification', 'moderate');
-                showToast('已创建损坏报告，资产状态已更新', 'info');
+            if (isDamaged && severity) {
+                // Now includes severity and photo URL as requested
+                const result = await bookingService.createDamageReport(id, 'Item reported damaged during return verification', severity, photoUrl);
+                
+                if (result.success) {
+                    const scoreMsg = result.scoreUpdated 
+                        ? `信用分已从 ${result.oldScore} 降至 ${result.newScore}` 
+                        : (result.oldScore === 0 ? '信用分已为 0，未再扣减' : '损坏报告已创建，但信用分未变化，请检查数据库状态');
+                    showToast(`已创建损坏报告 (${severity})。${scoreMsg}`, result.scoreUpdated ? 'success' : 'warning');
+                } else {
+                    showToast('损坏报告创建失败', 'error');
+                }
             } else {
                 await bookingService.processReturn(id, 'returned');
                 showToast('归还验证通过', 'success');
             }
 
-            // Remove from local list to simulate processing
-            setReturns(prev => prev.filter(r => r.id !== id));
-            if (selectedId === id) setSelectedId(null);
+            // Mark as verified in current session
+            setVerifiedIds(prev => new Set(prev).add(id));
+            
+            // Note: We don't remove from returns list or nullify selectedId immediately 
+            // to allow the "Completed" state to be visible.
+            // Items with rejection_reason === 'VERIFIED' will be persistent.
 
-            // Refresh data
-            await loadReturns();
         } catch (error) {
             console.error('Verification failed', error);
             showToast('验证操作失败，网络连接异常', 'error');
@@ -123,8 +134,16 @@ export default function ReturnsPage() {
                                         </div>
                                     </div>
                                     </div>
-                                    <div className="text-sm font-medium text-purple-600">
-                                        {selectedId === booking.id ? 'Hide Details' : 'Verify Now'}
+                                    <div className="text-sm font-medium">
+                                        {verifiedIds.has(booking.id) || booking.rejection_reason === 'VERIFIED' ? (
+                                            <span className="text-green-600 flex items-center gap-1 font-semibold">
+                                                <CheckCircle2 className="w-4 h-4" /> Verified
+                                            </span>
+                                        ) : (
+                                            <span className="text-purple-600">
+                                                {selectedId === booking.id ? 'Hide Details' : 'Verify Now'}
+                                            </span>
+                                        )}
                                     </div>
                                 </li>
                             ))}
@@ -137,6 +156,7 @@ export default function ReturnsPage() {
                             <ReturnVerify
                                 booking={returns.find(r => r.id === selectedId)!}
                                 onVerify={handleVerify}
+                                isVerified={verifiedIds.has(selectedId)}
                             />
                         </div>
                     )}
