@@ -1,12 +1,21 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { HomeStackParamList } from '../../navigation/HomeStackNavigator';
 import { theme } from '../../theme';
 import { createBooking } from '../../services/bookingService';
 import { handleApiError } from '../../utils/errorHandler';
+import { alertManager } from '../../utils/alertManager';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'BookingFormScreen'>;
+
+/** 将 ISO 日期时间字符串格式化为可读形式。将 "2026-03-25T09:00:00" 转为 "2026-03-25  09:00" */
+function formatDateTime(dt: string): string {
+  const [datePart, timePart] = dt.split('T');
+  if (!timePart) return datePart;
+  // 只取 HH:mm，去掉秒
+  return `${datePart}  ${timePart.slice(0, 5)}`;
+}
 
 export default function BookingFormScreen({ route, navigation }: Props) {
   const { assetId, startDate, endDate } = route.params;
@@ -15,11 +24,11 @@ export default function BookingFormScreen({ route, navigation }: Props) {
   const handleSubmit = async () => {
     // 前端日期校验防御：确保日期参数合法
     if (!startDate || !endDate) {
-      Alert.alert('日期缺失', '请先在日历上选择借用起止日期');
+      alertManager.alert('日期缺失', '请先在日历上选择借用起止日期');
       return;
     }
     if (endDate < startDate) {
-      Alert.alert('日期错误', '结束日期不能早于开始日期');
+      alertManager.alert('日期错误', '结束日期不能早于开始日期');
       return;
     }
 
@@ -27,16 +36,9 @@ export default function BookingFormScreen({ route, navigation }: Props) {
       setIsSubmitting(true);
       await createBooking(assetId, startDate, endDate);
 
-      Alert.alert(
-        '成功',
-        '预约申请已提交！',
-        [
-          {
-            text: '确定',
-            onPress: () => navigation.popToTop()
-          }
-        ]
-      );
+      alertManager.alert('提交成功', '预约申请已提交，等待管理员审批！', [
+        { text: '确定', onPress: () => navigation.popToTop() },
+      ]);
     } catch (error: unknown) {
       handleApiError(error, '提交失败');
     } finally {
@@ -52,12 +54,12 @@ export default function BookingFormScreen({ route, navigation }: Props) {
 
         <View style={styles.card}>
           <View style={styles.dateRow}>
-            <Text style={styles.dateLabel}>开始日期:</Text>
-            <Text style={styles.dateValue}>{startDate}</Text>
+            <Text style={styles.dateLabel}>取借时间</Text>
+            <Text style={styles.dateValue}>{formatDateTime(startDate)}</Text>
           </View>
           <View style={styles.dateRow}>
-            <Text style={styles.dateLabel}>结束日期:</Text>
-            <Text style={styles.dateValue}>{endDate}</Text>
+            <Text style={styles.dateLabel}>归还时间</Text>
+            <Text style={styles.dateValue}>{formatDateTime(endDate)}</Text>
           </View>
         </View>
 

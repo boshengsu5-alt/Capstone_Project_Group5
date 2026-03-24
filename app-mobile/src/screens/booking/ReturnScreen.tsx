@@ -6,10 +6,10 @@ import {
   SafeAreaView,
   TouchableOpacity,
   ScrollView,
-  Alert,
   ActivityIndicator,
   Image,
 } from 'react-native';
+import { alertManager } from '../../utils/alertManager';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import PhotoCapture from '../../components/PhotoCapture';
 import { uploadReturnPhoto, returnAsset } from '../../services/bookingService';
@@ -129,7 +129,7 @@ export default function ReturnScreen() {
       if (errMsg.toLowerCase().includes('fetch') || errMsg.toLowerCase().includes('network')) {
         errMsg = '网络开小差了，请稍后再试';
       }
-      Alert.alert(
+      alertManager.alert(
         '上传失败',
         errMsg,
         [{ text: '重拍', onPress: () => { setPhotoUri(null); setStep(1); } }]
@@ -146,7 +146,7 @@ export default function ReturnScreen() {
     try {
       setIsSubmitting(true);
       await returnAsset(bookingId, uploadedUrl);
-      Alert.alert(
+      alertManager.alert(
         '归还成功',
         `设备「${assetName}」已成功归还！\n\n归还照片已存档至工单，感谢您的使用。`,
         [{ text: '完成', onPress: () => navigation.goBack() }]

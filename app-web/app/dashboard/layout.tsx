@@ -6,6 +6,7 @@ import Sidebar from '@/components/layout/Sidebar';
 import Navbar from '@/components/layout/Navbar';
 import { ToastProvider } from '@/components/ui/Toast';
 import { getCurrentUser, checkAdminRole } from '@/lib/auth';
+import { supabase } from '@/lib/supabase';
 
 export default function DashboardLayout({
   children,
@@ -37,6 +38,18 @@ export default function DashboardLayout({
       }
     }
     verifyAccess();
+
+    // 监听 auth 状态变化：当 refresh token 失效时 Supabase 会触发 SIGNED_OUT 事件，
+    // 此时需要清理本地过期 session 并跳转登录页，避免控制台抛出未处理的 AuthApiError
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_OUT') {
+        router.replace('/login');
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, [router]);
 
   // 权限校验中显示加载状态

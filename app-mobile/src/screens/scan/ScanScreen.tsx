@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Alert, StyleSheet, Text, View, StatusBar, TouchableOpacity, ActivityIndicator, TextInput, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { StyleSheet, Text, View, StatusBar, TouchableOpacity, ActivityIndicator, TextInput, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { alertManager } from '../../utils/alertManager';
 import { useNavigation, useIsFocused, NavigationProp, ParamListBase } from '@react-navigation/native';
 import { useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
@@ -70,14 +71,14 @@ export default function ScanScreen() {
         if (today < startDate) {
           // 还没到借用日期 → 直接提示，不弹确认取货
           const dateStr = approvedBooking.start_date.slice(0, 10);
-          Alert.alert(
+          alertManager.alert(
             '未到取货时间',
             `您对「${asset.name}」的借用从 ${dateStr} 开始，请在当天或之后再来扫码取货。`,
             [{ text: '好的', onPress: () => { setIsScanning(true); } }]
           );
         } else {
           // 已到借用日期 → 弹窗确认取货激活
-          Alert.alert(
+          alertManager.alert(
             '确认取货',
             `检测到您对「${asset.name}」有一个已审批的借用申请。\n\n确认取货后状态将变为「已借用」，借用周期开始计时。`,
             [
@@ -92,14 +93,14 @@ export default function ScanScreen() {
                   setIsProcessing(true);
                   try {
                     await activateBooking(approvedBooking.id);
-                    Alert.alert(
+                    alertManager.alert(
                       '取货成功',
                       `设备「${asset.name}」已成功激活！\n请在 ${approvedBooking.end_date} 前归还。`,
                       [{ text: '好的', onPress: () => { setIsScanning(true); } }]
                     );
                   } catch (err: unknown) {
                     const msg = err instanceof Error ? err.message : '激活失败，请重试';
-                    Alert.alert('取货失败', msg, [
+                    alertManager.alert('取货失败', msg, [
                       { text: '好的', onPress: () => { setIsScanning(true); } },
                     ]);
                   } finally {
@@ -117,7 +118,7 @@ export default function ScanScreen() {
 
         if (pendingBooking) {
           // 已有待审批的借用 → 提示用户等待，不要重复预约
-          Alert.alert(
+          alertManager.alert(
             '预约审批中',
             `您对「${asset.name}」的借用申请正在等待管理员审批，请耐心等待。\n\n审批通过后再次扫码即可取货。`,
             [
@@ -157,7 +158,7 @@ export default function ScanScreen() {
 
   const handleManualSubmit = () => {
     if (!manualId.trim()) {
-      Alert.alert('提示', '请输入设备编号');
+      alertManager.alert('提示', '请输入设备编号');
       return;
     }
     handleScan(manualId.trim());

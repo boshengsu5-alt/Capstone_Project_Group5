@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ActivityIndicator, Text, TouchableOpacity } from 'react-native';
+import {
+    View, StyleSheet, ActivityIndicator, Text, TouchableOpacity,
+    Modal, FlatList, SafeAreaView,
+} from 'react-native';
 import { Calendar, LocaleConfig, DateData } from 'react-native-calendars';
+import { Ionicons } from '@expo/vector-icons';
 import { format, addDays, isBefore, isEqual, parseISO } from 'date-fns';
 import { getBookingsForAsset } from '../services/bookingService';
 import { theme } from '../theme';
@@ -14,6 +18,14 @@ LocaleConfig.locales['zh'] = {
     today: '今天'
 };
 LocaleConfig.defaultLocale = 'zh';
+
+// 生成 08:00 ~ 22:00 每 30 分钟一个时间槽
+const TIME_SLOTS: string[] = Array.from({ length: 29 }, (_, i) => {
+    const totalMin = 8 * 60 + i * 30;
+    const h = Math.floor(totalMin / 60);
+    const m = totalMin % 60;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+});
 
 interface CalendarViewProps {
     assetId: string;
@@ -35,8 +47,8 @@ interface MarkedDates {
 }
 
 /**
- * Calendar component showing asset availability with date range selection.
- * 日历组件，展示资产可用性并支持日期范围选择
+ * Calendar component showing asset availability with date range + time selection.
+ * 日历组件，展示资产可用性并支持日期范围及精确到半小时的时间选择
  */
 const CalendarView: React.FC<CalendarViewProps> = ({ assetId, onDateChange }) => {
     const [loading, setLoading] = useState(true);
@@ -45,11 +57,25 @@ const CalendarView: React.FC<CalendarViewProps> = ({ assetId, onDateChange }) =>
     const [selectionStart, setSelectionStart] = useState<string | null>(null);
     const [selectionEnd, setSelectionEnd] = useState<string | null>(null);
 
+    // 时间选择状态
+    const [startTime, setStartTime] = useState<string>('09:00');
+    const [endTime, setEndTime] = useState<string>('18:00');
+    // 当前打开的时间选择器目标：'start' | 'end' | null
+    const [timePickerTarget, setTimePickerTarget] = useState<'start' | 'end' | null>(null);
+
     useEffect(() => {
-        if (assetId) {
-            fetchBookings();
-        }
+        if (assetId) fetchBookings();
     }, [assetId]);
+
+    // 每当日期或时间变化时通知父组件
+    useEffect(() => {
+        if (selectionStart && selectionEnd && onDateChange) {
+            onDateChange(
+                `${selectionStart}T${startTime}:00`,
+                `${selectionEnd}T${endTime}:00`,
+            );
+        }
+    }, [selectionStart, selectionEnd, startTime, endTime]);
 
     const fetchBookings = async () => {
         try {
@@ -61,23 +87,27 @@ const CalendarView: React.FC<CalendarViewProps> = ({ assetId, onDateChange }) =>
             bookings.forEach((booking: { start_date: string; end_date: string }) => {
                 let current = parseISO(booking.start_date);
                 const end = parseISO(booking.end_date);
+                let isFirst = true;
 
                 while (isBefore(current, end) || isEqual(current, end)) {
                     const dateString = format(current, 'yyyy-MM-dd');
+                    const isLast = isEqual(addDays(current, 1), addDays(end, 1));
+                    // period 标记类型要求首尾两天必须标 startingDay/endingDay，否则颜色不渲染
                     marked[dateString] = {
                         disabled: true,
                         disableTouchEvent: true,
                         color: theme.colors.danger,
                         textColor: theme.colors.background,
-                        selected: true,
+                        startingDay: isFirst,
+                        endingDay: isLast || isEqual(current, end),
                     };
+                    isFirst = false;
                     current = addDays(current, 1);
                 }
             });
 
             setBookedDates(marked);
-        } catch (error) {
-            // 网络或查询失败时显示错误状态，避免 loading 无限转圈
+        } catch {
             setFetchError(true);
         } finally {
             setLoading(false);
@@ -86,24 +116,23 @@ const CalendarView: React.FC<CalendarViewProps> = ({ assetId, onDateChange }) =>
 
     const handleDayPress = (day: DateData) => {
         const dateString = day.dateString;
-
-        // 已被预订的日期不可选
         if (bookedDates[dateString]?.disabled) return;
 
         if (!selectionStart || (selectionStart && selectionEnd)) {
-            // 开始新选择
+            // 第一次点击：设置开始日期，弹出取借时间选择
             setSelectionStart(dateString);
             setSelectionEnd(null);
+            setTimePickerTarget('start');
         } else {
-            // 完成范围选择
             const start = parseISO(selectionStart);
             const end = parseISO(dateString);
 
             if (isBefore(end, start)) {
-                // 结束日期在开始之前，重新设为起点
+                // 点的日期比开始日期早，重新设为开始日期并弹出取借时间
                 setSelectionStart(dateString);
+                setSelectionEnd(null);
+                setTimePickerTarget('start');
             } else {
-                // 检查范围内是否有冲突
                 let hasConflict = false;
                 let current = start;
                 while (isBefore(current, end) || isEqual(current, end)) {
@@ -113,14 +142,15 @@ const CalendarView: React.FC<CalendarViewProps> = ({ assetId, onDateChange }) =>
                     }
                     current = addDays(current, 1);
                 }
-
                 if (hasConflict) {
+                    // 范围内有冲突，重新设为开始日期并弹出取借时间
                     setSelectionStart(dateString);
+                    setSelectionEnd(null);
+                    setTimePickerTarget('start');
                 } else {
+                    // 第二次点击：设置结束日期，弹出归还时间选择
                     setSelectionEnd(dateString);
-                    if (onDateChange) {
-                        onDateChange(selectionStart, dateString);
-                    }
+                    setTimePickerTarget('end');
                 }
             }
         }
@@ -128,7 +158,6 @@ const CalendarView: React.FC<CalendarViewProps> = ({ assetId, onDateChange }) =>
 
     const getMarkedDates = () => {
         const marked: MarkedDates = { ...bookedDates };
-
         if (selectionStart) {
             marked[selectionStart] = {
                 ...marked[selectionStart],
@@ -137,7 +166,6 @@ const CalendarView: React.FC<CalendarViewProps> = ({ assetId, onDateChange }) =>
                 color: theme.colors.primary,
                 textColor: theme.colors.background,
             };
-
             if (selectionEnd) {
                 marked[selectionEnd] = {
                     ...marked[selectionEnd],
@@ -146,8 +174,6 @@ const CalendarView: React.FC<CalendarViewProps> = ({ assetId, onDateChange }) =>
                     color: theme.colors.primary,
                     textColor: theme.colors.background,
                 };
-
-                // 标记中间日期
                 let current = addDays(parseISO(selectionStart), 1);
                 const end = parseISO(selectionEnd);
                 while (isBefore(current, end)) {
@@ -162,7 +188,6 @@ const CalendarView: React.FC<CalendarViewProps> = ({ assetId, onDateChange }) =>
                 }
             }
         }
-
         return marked;
     };
 
@@ -186,6 +211,8 @@ const CalendarView: React.FC<CalendarViewProps> = ({ assetId, onDateChange }) =>
         );
     }
 
+    const showTimePicker = selectionStart !== null && selectionEnd !== null;
+
     return (
         <View style={styles.container}>
             <Calendar
@@ -201,13 +228,100 @@ const CalendarView: React.FC<CalendarViewProps> = ({ assetId, onDateChange }) =>
                     textMonthFontWeight: 'bold',
                 }}
             />
+
+            {/* 时间选择区域：只有选完日期范围后才显示 */}
+            {showTimePicker && (
+                <View style={styles.timeSection}>
+                    <Text style={styles.timeSectionTitle}>选择时间</Text>
+
+                    <TouchableOpacity
+                        style={styles.timeRow}
+                        onPress={() => setTimePickerTarget('start')}
+                        activeOpacity={0.7}
+                    >
+                        <View style={styles.timeRowLeft}>
+                            <Ionicons name="time-outline" size={18} color={theme.colors.primary} />
+                            <Text style={styles.timeRowLabel}>取借时间</Text>
+                        </View>
+                        <View style={styles.timeValueWrap}>
+                            <Text style={styles.timeValue}>{startTime}</Text>
+                            <Ionicons name="chevron-forward" size={16} color={theme.colors.gray} />
+                        </View>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={styles.timeRow}
+                        onPress={() => setTimePickerTarget('end')}
+                        activeOpacity={0.7}
+                    >
+                        <View style={styles.timeRowLeft}>
+                            <Ionicons name="time-outline" size={18} color={theme.colors.primary} />
+                            <Text style={styles.timeRowLabel}>归还时间</Text>
+                        </View>
+                        <View style={styles.timeValueWrap}>
+                            <Text style={styles.timeValue}>{endTime}</Text>
+                            <Ionicons name="chevron-forward" size={16} color={theme.colors.gray} />
+                        </View>
+                    </TouchableOpacity>
+                </View>
+            )}
+
+            {/* 时间选择 Modal */}
+            <Modal
+                visible={timePickerTarget !== null}
+                animationType="slide"
+                transparent
+                onRequestClose={() => setTimePickerTarget(null)}
+            >
+                <TouchableOpacity
+                    style={styles.modalOverlay}
+                    activeOpacity={1}
+                    onPress={() => setTimePickerTarget(null)}
+                />
+                <SafeAreaView style={styles.modalSheet}>
+                    <View style={styles.modalHandle} />
+                    <Text style={styles.modalTitle}>
+                        {timePickerTarget === 'start' ? '选择取借时间' : '选择归还时间'}
+                    </Text>
+                    <FlatList
+                        data={TIME_SLOTS}
+                        keyExtractor={(item) => item}
+                        showsVerticalScrollIndicator={false}
+                        renderItem={({ item }) => {
+                            const isSelected = timePickerTarget === 'start'
+                                ? item === startTime
+                                : item === endTime;
+                            return (
+                                <TouchableOpacity
+                                    style={[styles.slotItem, isSelected && styles.slotItemSelected]}
+                                    onPress={() => {
+                                        if (timePickerTarget === 'start') {
+                                            setStartTime(item);
+                                        } else {
+                                            setEndTime(item);
+                                        }
+                                        setTimePickerTarget(null);
+                                    }}
+                                    activeOpacity={0.7}
+                                >
+                                    <Text style={[styles.slotText, isSelected && styles.slotTextSelected]}>
+                                        {item}
+                                    </Text>
+                                    {isSelected && (
+                                        <Ionicons name="checkmark" size={18} color={theme.colors.background} />
+                                    )}
+                                </TouchableOpacity>
+                            );
+                        }}
+                    />
+                </SafeAreaView>
+            </Modal>
         </View>
     );
 };
 
 const styles = StyleSheet.create({
     container: {
-        padding: theme.spacing.sm,
         backgroundColor: theme.colors.background,
         borderRadius: 12,
         marginVertical: 10,
@@ -216,6 +330,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.1,
         shadowRadius: 4,
         elevation: 3,
+        overflow: 'hidden',
     },
     centerContainer: {
         height: 300,
@@ -242,6 +357,98 @@ const styles = StyleSheet.create({
         color: theme.colors.background,
         fontSize: 14,
         fontWeight: '600',
+    },
+    // ---- 时间选择区 ----
+    timeSection: {
+        borderTopWidth: StyleSheet.hairlineWidth,
+        borderTopColor: '#E5E7EB',
+        paddingHorizontal: theme.spacing.md,
+        paddingTop: theme.spacing.md,
+        paddingBottom: theme.spacing.sm,
+    },
+    timeSectionTitle: {
+        fontSize: 15,
+        fontWeight: '600',
+        color: theme.colors.text,
+        marginBottom: theme.spacing.sm,
+    },
+    timeRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingVertical: 12,
+        paddingHorizontal: theme.spacing.sm,
+        backgroundColor: theme.colors.inputBackground,
+        borderRadius: 10,
+        marginBottom: theme.spacing.sm,
+    },
+    timeRowLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    timeRowLabel: {
+        fontSize: 15,
+        color: theme.colors.text,
+    },
+    timeValueWrap: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+    },
+    timeValue: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: theme.colors.primary,
+    },
+    // ---- Modal ----
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.4)',
+    },
+    modalSheet: {
+        backgroundColor: theme.colors.background,
+        borderTopLeftRadius: 20,
+        borderTopRightRadius: 20,
+        maxHeight: '60%',
+        paddingHorizontal: theme.spacing.md,
+        paddingBottom: theme.spacing.lg,
+    },
+    modalHandle: {
+        width: 40,
+        height: 4,
+        borderRadius: 2,
+        backgroundColor: '#E5E7EB',
+        alignSelf: 'center',
+        marginVertical: 12,
+    },
+    modalTitle: {
+        fontSize: 17,
+        fontWeight: '700',
+        color: theme.colors.text,
+        textAlign: 'center',
+        marginBottom: theme.spacing.md,
+    },
+    slotItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingVertical: 14,
+        paddingHorizontal: theme.spacing.md,
+        borderRadius: 10,
+        marginBottom: 6,
+        backgroundColor: theme.colors.inputBackground,
+    },
+    slotItemSelected: {
+        backgroundColor: theme.colors.primary,
+    },
+    slotText: {
+        fontSize: 16,
+        color: theme.colors.text,
+    },
+    slotTextSelected: {
+        color: theme.colors.background,
+        fontWeight: '700',
     },
 });
 

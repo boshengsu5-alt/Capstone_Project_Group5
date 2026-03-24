@@ -11,10 +11,16 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { ProfileStackParamList } from '../../navigation/ProfileStackNavigator';
 import { theme } from '../../theme';
 import NotificationItem from '../../components/NotificationItem';
 import { getMyNotifications, markAsRead, markAllAsRead } from '../../services/notificationService';
 import type { Notification } from '../../../../database/types/supabase';
+
+type Props = {
+  navigation: NativeStackNavigationProp<ProfileStackParamList, 'Notifications'>;
+};
 
 // 将 ISO 时间字符串转成易读格式
 function formatTime(dateStr: string): string {
@@ -32,7 +38,7 @@ function formatTime(dateStr: string): string {
   return date.toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' });
 }
 
-export default function NotificationScreen() {
+export default function NotificationScreen({ navigation }: Props) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -62,6 +68,7 @@ export default function NotificationScreen() {
   };
 
   const handlePressItem = async (item: Notification) => {
+    // 未读时先标记已读，再跳转详情；已读则直接跳转
     if (!item.is_read) {
       try {
         await markAsRead(item.id);
@@ -72,6 +79,7 @@ export default function NotificationScreen() {
         // console.error('[NotificationScreen] 标记已读失败:', err);
       }
     }
+    navigation.navigate('NotificationDetail', { notification: { ...item, is_read: true } });
   };
 
   const handleMarkAllRead = async () => {

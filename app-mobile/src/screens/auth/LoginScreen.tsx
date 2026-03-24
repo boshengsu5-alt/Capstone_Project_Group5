@@ -9,13 +9,11 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { theme } from '../../theme';
 import { signIn } from '../../services/authService';
 import { AuthStackParamList } from '../../navigation/AuthStackNavigator';
-import { handleApiError } from '../../utils/errorHandler';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Login'>;
 
@@ -23,16 +21,19 @@ export default function LoginScreen({ navigation }: Props) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
   const handleLogin = async () => {
+    setErrorMsg('');
+
     if (!email.trim() || !password.trim()) {
-      Alert.alert('提示', '请填写邮箱和密码');
+      setErrorMsg('请填写邮箱和密码');
       return;
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email.trim())) {
-      Alert.alert('邮箱格式错误', '请输入有效的邮箱地址');
+      setErrorMsg('请输入有效的邮箱地址');
       return;
     }
 
@@ -41,7 +42,14 @@ export default function LoginScreen({ navigation }: Props) {
       await signIn(email.trim(), password);
       // 登录成功后 RootNavigator 会自动监听 auth 状态变化并跳转到主页
     } catch (error: any) {
-      handleApiError(error, '登录失败');
+      const msg = error?.message?.toLowerCase() ?? '';
+      if (msg.includes('credentials') || msg.includes('invalid login')) {
+        setErrorMsg('邮箱或密码错误，请检查后再试');
+      } else if (msg.includes('fetch') || msg.includes('network')) {
+        setErrorMsg('网络连接失败，请稍后再试');
+      } else {
+        setErrorMsg(error?.message || '登录失败，请稍后再试');
+      }
     } finally {
       setLoading(false);
     }
@@ -90,6 +98,10 @@ export default function LoginScreen({ navigation }: Props) {
                 secureTextEntry
               />
             </View>
+
+            {errorMsg ? (
+              <Text style={styles.errorText}>{errorMsg}</Text>
+            ) : null}
 
             <TouchableOpacity
               style={[styles.loginButton, loading && styles.disabledButton]}
@@ -218,5 +230,11 @@ const styles = StyleSheet.create({
   registerHighlight: {
     color: theme.colors.primary,
     fontWeight: 'bold',
+  },
+  errorText: {
+    color: theme.colors.danger,
+    fontSize: 14,
+    marginBottom: 12,
+    textAlign: 'center',
   },
 });

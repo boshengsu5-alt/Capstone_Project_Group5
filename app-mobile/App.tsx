@@ -4,6 +4,7 @@ import { View, Text, StyleSheet, Animated, StatusBar } from 'react-native';
 import RootNavigator from './src/navigation/RootNavigator';
 import { ToastProvider } from './src/context/ToastContext';
 import { NotificationProvider } from './src/context/NotificationContext';
+import AppAlert from './src/components/ui/AppAlert';
 
 export default function App() {
   const [isAppReady, setIsAppReady] = useState(false);
@@ -41,6 +42,7 @@ export default function App() {
     <ToastProvider>
       <NotificationProvider>
         <RootNavigator />
+        <AppAlert />
         <ExpoStatusBar style="auto" />
       </NotificationProvider>
     </ToastProvider>

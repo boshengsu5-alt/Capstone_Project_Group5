@@ -9,9 +9,9 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
-  Alert,
   ScrollView,
 } from 'react-native';
+import { alertManager } from '../../utils/alertManager';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { theme } from '../../theme';
 import { signUp, signOut } from '../../services/authService';
@@ -29,24 +29,24 @@ export default function RegisterScreen({ navigation }: Props) {
 
   const handleRegister = async () => {
     if (!fullName.trim() || !email.trim() || !password.trim()) {
-      Alert.alert('提示', '请填写所有必填项');
+      alertManager.alert('提示', '请填写所有必填项');
       return;
     }
 
     // Bug #002: 邮箱格式校验
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email.trim())) {
-      Alert.alert('邮箱格式错误', '请输入有效的邮箱地址，例如 name@school.edu');
+      alertManager.alert('邮箱格式错误', '请输入有效的邮箱地址，例如 name@school.edu');
       return;
     }
 
     if (password !== confirmPassword) {
-      Alert.alert('提示', '两次输入的密码不一致');
+      alertManager.alert('提示', '两次输入的密码不一致');
       return;
     }
 
     if (password.length < 6) {
-      Alert.alert('提示', '密码长度不能少于6位');
+      alertManager.alert('提示', '密码长度不能少于6位');
       return;
     }
 
@@ -55,7 +55,7 @@ export default function RegisterScreen({ navigation }: Props) {
       await signUp(email.trim(), password, fullName.trim());
       // 注册后 Supabase 会自动创建 session，需要立即退出，防止跳转到首页
       await signOut();
-      Alert.alert('注册成功', '请查看邮箱完成验证，然后登录', [
+      alertManager.alert('注册成功', '请查看邮箱完成验证，然后登录', [
         { text: '去登录', onPress: () => navigation.navigate('Login') },
       ]);
     } catch (error: any) {

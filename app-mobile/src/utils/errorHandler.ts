@@ -1,4 +1,4 @@
-import { Alert } from 'react-native';
+import { alertManager } from './alertManager';
 
 /**
  * Global API Error Handler
@@ -44,6 +44,6 @@ export function handleApiError(error: unknown, title = '提示') {
     }
   }
   
-  Alert.alert(title, displayMessage);
+  alertManager.alert(title, displayMessage);
 }
 

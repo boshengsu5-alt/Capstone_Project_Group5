@@ -1,17 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  Alert,
   ActivityIndicator,
   SafeAreaView,
   Platform,
   StatusBar,
 } from 'react-native';
+import { alertManager } from '../../utils/alertManager';
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useFocusEffect } from '@react-navigation/native';
 import { ProfileStackParamList } from '../../navigation/ProfileStackNavigator';
 import { theme } from '../../theme';
 import { signOut, getMyProfile } from '../../services/authService';
@@ -28,31 +29,32 @@ export default function ProfileScreen({ navigation }: Props) {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [loggingOut, setLoggingOut] = useState(false);
-  const [loadError, setLoadError] = useState(false);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoadError(false);
-      try {
-        const profileData = await getMyProfile() as unknown as Profile;
-        setProfile(profileData);
+  // useFocusEffect 确保每次从通知页返回时都重新查询未读数，使徽章保持最新
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      const fetchData = async () => {
+        try {
+          const profileData = await getMyProfile() as unknown as Profile;
+          if (!cancelled) setProfile(profileData);
 
-        // 通过 service 层查询未读通知数量，不直接调用 supabase
-        const count = await getUnreadCount();
-        setUnreadCount(count);
-      } catch (err) {
-        setLoadError(true);
-        Alert.alert('提示', '资料加载失败，请稍后重试');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+          // 通过 service 层查询未读通知数量，不直接调用 supabase
+          const count = await getUnreadCount();
+          if (!cancelled) setUnreadCount(count);
+        } catch (err) {
+          if (!cancelled) alertManager.alert('提示', '资料加载失败，请稍后重试');
+        } finally {
+          if (!cancelled) setLoading(false);
+        }
+      };
+      fetchData();
+      return () => { cancelled = true; };
+    }, [])
+  );
 
   const handleSignOut = () => {
-    Alert.alert('确认退出', '确定要退出登录吗？', [
+    alertManager.alert('确认退出', '确定要退出登录吗？', [
       { text: '取消', style: 'cancel' },
       {
         text: '退出',
@@ -128,7 +130,7 @@ export default function ProfileScreen({ navigation }: Props) {
 
         <TouchableOpacity
           style={styles.menuItem}
-          onPress={() => Alert.alert('提示', '设置功能正在开发中，敬请期待')}
+          onPress={() => alertManager.alert('提示', '设置功能正在开发中，敬请期待')}
         >
           <Ionicons name="settings-outline" size={22} color={theme.colors.text} />
           <Text style={styles.menuText}>设置</Text>

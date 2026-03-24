@@ -9,8 +9,8 @@ import {
   ActivityIndicator,
   TouchableWithoutFeedback,
   Keyboard,
-  Alert,
 } from 'react-native';
+import { alertManager } from '../utils/alertManager';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../theme';
 import { submitReview } from '../services/bookingService';
@@ -49,12 +49,12 @@ export default function ReviewModal({
     try {
       setIsSubmitting(true);
       await submitReview(bookingId, rating, comment);
-      Alert.alert('评价成功', '感谢您的反馈！');
+      alertManager.alert('评价成功', '感谢您的反馈！');
       onSuccess();
       onClose();
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : '系统繁忙，请稍后再试';
-      Alert.alert('评价失败', msg);
+      alertManager.alert('评价失败', msg);
     } finally {
       setIsSubmitting(false);
     }

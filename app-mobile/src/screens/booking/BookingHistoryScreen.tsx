@@ -8,8 +8,8 @@ import {
   ActivityIndicator,
   RefreshControl,
   TouchableOpacity,
-  Alert,
 } from 'react-native';
+import { alertManager } from '../../utils/alertManager';
 import { useNavigation, NavigationProp, ParamListBase } from '@react-navigation/native';
 import { getMyBookings, cancelBooking } from '../../services/bookingService';
 import type { Booking, Asset, BookingStatus } from '../../../../database/types/supabase';
@@ -64,7 +64,7 @@ export default function BookingHistoryScreen() {
       const data = await getMyBookings();
       setBookings(data as BookingWithAsset[]);
     } catch (error) {
-      Alert.alert('加载失败', '获取借用记录失败，请下拉刷新重试');
+      alertManager.alert('加载失败', '获取借用记录失败，请下拉刷新重试');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -82,7 +82,7 @@ export default function BookingHistoryScreen() {
 
   // 取消借用（仅 pending/approved 可取消）
   const handleCancel = (bookingId: string, assetName: string) => {
-    Alert.alert('取消借用', `确定要取消「${assetName}」的借用申请吗？`, [
+    alertManager.alert('取消借用', `确定要取消「${assetName}」的借用申请吗？`, [
       { text: '再想想', style: 'cancel' },
       {
         text: '确认取消',
@@ -90,7 +90,7 @@ export default function BookingHistoryScreen() {
         onPress: async () => {
           try {
             await cancelBooking(bookingId);
-            Alert.alert('已取消', '借用申请已取消');
+            alertManager.alert('已取消', '借用申请已取消');
             fetchBookings();
           } catch (err: unknown) {
             handleApiError(err, '取消失败');
@@ -108,6 +108,7 @@ export default function BookingHistoryScreen() {
 
     // 根据状态决定可用操作
     const canReturn = item.status === 'active' || item.status === 'overdue';
+    const canPickUp = item.status === 'approved';   // 已通过 → 可扫码取货
     const canCancel = item.status === 'pending' || item.status === 'approved';
     const canReview = item.status === 'returned';
 
@@ -130,15 +131,25 @@ export default function BookingHistoryScreen() {
             <View style={styles.dateRow}>
               <Text style={styles.dateLabel}>借用周期：</Text>
               <Text style={styles.dateRange}>
-                {item.start_date} 至 {item.end_date}
+                {item.start_date?.split('T')[0]} 至 {item.end_date?.split('T')[0]}
               </Text>
             </View>
           </View>
         </View>
 
         {/* 操作按钮区域 */}
-        {(canReturn || canCancel || canReview) && (
+        {(canReturn || canPickUp || canCancel || canReview) && (
           <View style={styles.actionRow}>
+            {/* 已通过：扫码取货（主操作，紫色实色） */}
+            {canPickUp && (
+              <TouchableOpacity
+                style={styles.actionBtnPickUp}
+                onPress={() => navigation.navigate('ScanTab')}
+              >
+                <Ionicons name="qr-code-outline" size={16} color="#fff" />
+                <Text style={styles.actionTextPickUp}>扫码取货</Text>
+              </TouchableOpacity>
+            )}
             {canReturn && (
               <>
                 <TouchableOpacity
@@ -353,6 +364,20 @@ const styles = StyleSheet.create({
   },
   actionBtnReview: {
     backgroundColor: theme.colors.warning + '15',
+  },
+  actionBtnPickUp: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: theme.colors.primary,
+    gap: 4,
+  },
+  actionTextPickUp: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#fff',
   },
   actionText: {
     fontSize: 13,

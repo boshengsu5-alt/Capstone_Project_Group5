@@ -7,10 +7,10 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
-  Alert,
   ActivityIndicator,
   Image,
 } from 'react-native';
+import { alertManager } from '../../utils/alertManager';
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import type { BookingsStackParamList } from '../../navigation/BookingsStackNavigator';
 import { submitDamageReport } from '../../services/bookingService';
@@ -42,13 +42,13 @@ export default function DamageReportScreen() {
 
   // 选择照片（相册 or 相机）
   const handleAddPhoto = () => {
-    Alert.alert('添加损坏照片', '请选择来源', [
+    alertManager.alert('添加损坏照片', '请选择来源', [
       {
         text: '拍摄照片',
         onPress: async () => {
           const { status } = await ImagePicker.requestCameraPermissionsAsync();
           if (status !== 'granted') {
-            Alert.alert('权限不足', '需要相机权限才能拍照');
+            alertManager.alert('权限不足', '需要相机权限才能拍照');
             return;
           }
           const result = await ImagePicker.launchCameraAsync({
@@ -66,7 +66,7 @@ export default function DamageReportScreen() {
         onPress: async () => {
           const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
           if (status !== 'granted') {
-            Alert.alert('权限不足', '需要相册权限才能选取照片');
+            alertManager.alert('权限不足', '需要相册权限才能选取照片');
             return;
           }
           const result = await ImagePicker.launchImageLibraryAsync({
@@ -101,11 +101,11 @@ export default function DamageReportScreen() {
 
   const handleSubmit = async () => {
     if (description.trim().length < 10) {
-      Alert.alert('描述太短', '请至少用10个字描述损坏情况');
+      alertManager.alert('描述太短', '请至少用10个字描述损坏情况');
       return;
     }
     if (photoUris.length === 0) {
-      Alert.alert('缺少照片', '请上传至少一张损坏区域照片');
+      alertManager.alert('缺少照片', '请上传至少一张损坏区域照片');
       return;
     }
 
@@ -126,14 +126,14 @@ export default function DamageReportScreen() {
       // 提交损坏报告
       await submitDamageReport(assetId, bookingId, description.trim(), severity, uploadedUrls);
 
-      Alert.alert(
+      alertManager.alert(
         '报修单已提交',
         '感谢您的反馈！老师将在 1-2 个工作日内核验，信用分结果届时通知。',
         [{ text: '好的', onPress: () => navigation.goBack() }]
       );
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : '网络错误，请稍后重试';
-      Alert.alert('提交失败', message);
+      alertManager.alert('提交失败', message);
     } finally {
       setSubmitting(false);
     }
