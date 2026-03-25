@@ -2,44 +2,46 @@
 
 import React, { useState, useEffect } from 'react';
 import Header from '@/components/layout/Header';
+import { Plus, Search, Filter, QrCode, ClipboardList, Pencil, CheckCircle2, AlertCircle, Clock, Package, Eye, Trash2, Download } from 'lucide-react';
+import { getAssets, deleteAsset } from '@/lib/assetService';
 import AssetForm from '@/components/assets/AssetForm';
 import AssetReviewsModal from '@/components/assets/AssetReviewsModal';
+import QRCodeModal from '@/components/assets/QRCodeModal';
+import DeleteAssetModal from '@/components/assets/DeleteAssetModal';
 import { QRCodeSVG } from 'qrcode.react';
 import { cn } from '@/lib/utils';
 import { Asset, Category } from '@/types/database';
 import { useToast } from '@/components/ui/Toast';
 import { exportToExcel } from '@/lib/exportUtils';
-import { authFetch } from '@/lib/authFetch';
-import { Download } from 'lucide-react';
+import { useLanguage } from '@/components/providers/LanguageProvider';
 
-/** Asset row with joined category info from API response. API 响应中带分类信息的资产行 */
+/** Asset row with joined category info from API response. */
 type AssetWithCategory = Asset & {
   categories?: Pick<Category, 'id' | 'name'> | null;
 };
 
 export default function AssetsPage() {
+  const { t } = useLanguage();
   const { showToast } = useToast();
   const [assets, setAssets] = useState<AssetWithCategory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingAsset, setEditingAsset] = useState<AssetWithCategory | null>(null);
   const [selectedAssetForReview, setSelectedAssetForReview] = useState<{id: string, name: string} | null>(null);
+  const [selectedAssetForQR, setSelectedAssetForQR] = useState<AssetWithCategory | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
+  const [assetToDelete, setAssetToDelete] = useState<AssetWithCategory | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const fetchAssets = async () => {
     try {
       setIsLoading(true);
-      const res = await authFetch('/api/assets');
-      if (res.ok) {
-        const data = await res.json();
-        setAssets(data);
-      } else {
-        showToast('无法获取资产列表，请检查网络', 'error');
-      }
-    } catch (error) {
+      const data = await getAssets();
+      setAssets(data as AssetWithCategory[]);
+    } catch (error: any) {
       console.error('Failed to fetch assets', error);
-      showToast('网络连接中断 (Supabase Connection Error)', 'error');
+      showToast(error.message || 'Failed to load assets', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -55,71 +57,78 @@ export default function AssetsPage() {
     fetchAssets();
   };
 
+  const handleDeleteConfirmed = async () => {
+    if (!assetToDelete) return;
+    
+    try {
+      setIsDeleting(true);
+      await deleteAsset(assetToDelete.id);
+      showToast('Asset archived successfully!', 'success');
+      setAssetToDelete(null);
+      fetchAssets();
+    } catch (err: any) {
+      console.error('Delete error:', err);
+      const isForbidden = err.message?.includes('无法归档正在借出中的资产') || err.message?.includes('borrowed');
+      const isSchemaError = err.message?.includes('column assets.is_archived does not exist');
+      
+      if (isSchemaError) {
+        showToast('Database Schema Mismatch: Please run the SQL migration (is_archived column missing).', 'error');
+      } else {
+        showToast(err.message || 'Failed to delete asset', isForbidden ? 'warning' : 'error');
+      }
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const handleEdit = (asset: AssetWithCategory) => {
     setEditingAsset(asset);
     setShowForm(true);
   };
 
-  const handleDelete = async (asset: AssetWithCategory) => {
-    if (!confirm(`确定要删除资产 "${asset.name}" 吗？此操作不可撤销。`)) return;
-    try {
-      const res = await authFetch(`/api/assets?id=${asset.id}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Delete failed');
-      showToast('资产已删除', 'success');
-      fetchAssets();
-    } catch {
-      showToast('删除失败，请重试', 'error');
-    }
-  };
-
   const handleExport = () => {
     if (filteredAssets.length === 0) {
-      showToast('没有可导出的数据', 'info');
+      showToast('No data to export', 'info');
       return;
     }
 
     const statusMap: Record<string, string> = {
-      available: '闲置',
-      borrowed: '借出',
-      maintenance: '维修中',
-      retired: '已报废',
+      available: 'Available',
+      borrowed: 'Borrowed',
+      maintenance: 'Maintenance',
+      retired: 'Retired',
     };
 
-    const exportData = filteredAssets.map((asset) => ({
-      '资产名称': asset.name,
-      '分类': asset.categories?.name || '未分类',
-      '状态': statusMap[asset.status] || asset.status,
-      '序列号': asset.serial_number || 'N/A',
-      '价格': asset.purchase_price ?? 0,
-      '位置': asset.location || '未记录',
-      '购买日期': asset.purchase_date ? new Date(asset.purchase_date).toLocaleDateString() : 'N/A',
+    const exportData = filteredAssets.map((asset: AssetWithCategory) => ({
+      'Name': asset.name,
+      'Category': asset.categories?.name || 'Uncategorized',
+      'Status': statusMap[asset.status] || asset.status,
+      'Serial Number': asset.serial_number || 'N/A',
+      'Price': asset.purchase_price ?? 0,
+      'Location': asset.location || 'N/A',
+      'Purchase Date': asset.purchase_date ? new Date(asset.purchase_date).toLocaleDateString() : 'N/A',
     }));
 
     try {
-      exportToExcel(exportData, `资产报表_${new Date().toISOString().split('T')[0]}`, '资产列表');
-      showToast('报表导出成功', 'success');
+      exportToExcel(exportData, `Assets_Report_${new Date().toISOString().split('T')[0]}`, 'Assets');
+      showToast('Report exported successfully', 'success');
     } catch (error) {
-      showToast('导出失败，请重试', 'error');
+      showToast('Export failed', 'error');
     }
   };
 
-  // Derived state for filtering
-  const categoriesMap = assets.reduce((acc: Record<string, string>, asset) => {
+  const categoriesMap = assets.reduce((acc: Record<string, string>, asset: AssetWithCategory) => {
     if (asset.categories) {
       acc[asset.categories.id] = asset.categories.name;
     }
     return acc;
   }, {});
-  const categories = Object.entries(categoriesMap).map(([id, name]) => ({ id, name }));
+  const categoriesList = Object.entries(categoriesMap).map(([id, name]) => ({ id, name }));
   
-  const filteredAssets = assets.filter(asset => {
+  const filteredAssets = assets.filter((asset: AssetWithCategory) => {
     const matchesSearch = asset.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           (asset.serial_number && asset.serial_number.toLowerCase().includes(searchQuery.toLowerCase()));
-    
-    // selectedCategory stores category_id now
     const matchesCategory = selectedCategory === 'All' || asset.category_id === selectedCategory;
-
-    
     return matchesSearch && matchesCategory;
   });
 
@@ -132,26 +141,26 @@ export default function AssetsPage() {
           <>
             <div className="sm:flex sm:items-center mb-6">
               <div className="sm:flex-auto">
-                <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Assets Dashboard</h1>
+                <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">{t('assets.title')}</h1>
                 <p className="mt-2 text-sm text-gray-700 dark:text-gray-300">
-                  A comprehensive list of all IT hardware and assets currently tracked.
+                  {t('assets.subtitle')}
                 </p>
               </div>
               <div className="mt-4 sm:ml-16 sm:mt-0 sm:flex-none flex gap-3">
                 <button
                   type="button"
                   onClick={handleExport}
-                  className="flex items-center gap-2 rounded-md bg-white px-4 py-2 text-center text-sm font-semibold text-gray-900 border border-gray-300 shadow-sm hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-600 transition-colors dark:bg-gray-800 dark:text-white dark:border-gray-700 dark:hover:bg-gray-700"
+                  className="flex items-center gap-2 rounded-md bg-white px-4 py-2 text-center text-sm font-semibold text-gray-900 border border-gray-300 shadow-sm hover:bg-gray-50 dark:bg-gray-800 dark:text-white dark:border-gray-700 dark:hover:bg-gray-700 transition-colors"
                 >
                   <Download className="h-4 w-4" />
-                  导出资产报表
+                  {t('assets.exportBtn')}
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowForm(true)}
-                  className="block rounded-md bg-indigo-600 px-4 py-2 text-center text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 transition-colors"
+                  className="block rounded-md bg-indigo-600 px-4 py-2 text-center text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 transition-colors"
                 >
-                  Add new asset
+                  {t('assets.addBtn')}
                 </button>
               </div>
             </div>
@@ -159,19 +168,14 @@ export default function AssetsPage() {
             {/* --- Search and Filter Section --- */}
             <div className="mb-6 flex flex-col sm:flex-row gap-4 items-center justify-between bg-white dark:bg-gray-900 p-4 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800">
               <div className="w-full sm:max-w-md">
-                <label htmlFor="search" className="sr-only">Search</label>
                 <div className="relative">
                   <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                    <svg className="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clipRule="evenodd" />
-                    </svg>
+                    <Search className="h-5 w-5 text-gray-400" />
                   </div>
                   <input
                     type="text"
-                    name="search"
-                    id="search"
                     className="block w-full rounded-md border-0 py-2 pl-10 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 dark:bg-gray-800 dark:text-white dark:ring-gray-700 dark:placeholder-gray-500"
-                    placeholder="Search by name or serial number..."
+                    placeholder={t('assets.searchPlh')}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                   />
@@ -181,14 +185,12 @@ export default function AssetsPage() {
               <div className="w-full sm:max-w-xs flex items-center gap-2">
                  <span className="text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">Filter:</span>
                  <select
-                  id="category"
-                  name="category"
                   className="block w-full rounded-md border-0 py-2 pl-3 pr-10 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-indigo-600 sm:text-sm sm:leading-6 dark:bg-gray-800 dark:text-white dark:ring-gray-700 dark:focus:ring-indigo-500"
                   value={selectedCategory}
                   onChange={(e) => setSelectedCategory(e.target.value)}
                 >
-                  <option value="All">全部分类</option>
-                  {categories.map((cat) => (
+                  <option value="All">{t('common.allCategories')}</option>
+                  {categoriesList.map((cat) => (
                     <option key={cat.id} value={cat.id}>{cat.name}</option>
                   ))}
                 </select>
@@ -202,14 +204,14 @@ export default function AssetsPage() {
                     <table className="min-w-full divide-y divide-gray-300 dark:divide-gray-800">
                       <thead className="bg-gray-50 dark:bg-gray-900/50">
                         <tr>
-                          <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 dark:text-white sm:pl-6">Name</th>
-                          <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">Serial Number</th>
-                          <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">QR Code</th>
-                          <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">Price</th>
-                          <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">Location</th>
-                          <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">Category</th>
-                          <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">Condition</th>
-                          <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">Status</th>
+                          <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 dark:text-white sm:pl-6">{t('tables.name')}</th>
+                          <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">{t('tables.serial')}</th>
+                          <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">{t('tables.qrCode')}</th>
+                          <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">{t('tables.price')}</th>
+                          <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">{t('tables.location')}</th>
+                          <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">{t('tables.category')}</th>
+                          <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">{t('tables.condition')}</th>
+                          <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">{t('tables.status')}</th>
                           <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-6">
                             <span className="sr-only">Actions</span>
                           </th>
@@ -223,11 +225,11 @@ export default function AssetsPage() {
                         ) : filteredAssets.length === 0 ? (
                            <tr>
                              <td colSpan={9} className="text-center py-10 text-gray-500">
-                               {assets.length === 0 ? 'No assets found. Click "Add new asset" to track your first item.' : '未找到匹配资产'}
+                               {assets.length === 0 ? 'No assets found. Click "Add new asset" to track your first item.' : 'No matching assets found'}
                              </td>
                            </tr>
                         ) : (
-                          filteredAssets.map((asset) => (
+                          filteredAssets.map((asset: AssetWithCategory) => (
                           <tr key={asset.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
                             <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 dark:text-white sm:pl-6">
                               <div className="flex items-center gap-3">
@@ -235,7 +237,7 @@ export default function AssetsPage() {
                                   <img src={asset.images[0]} alt={asset.name} className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
                                 ) : (
                                   <div className="w-10 h-10 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center flex-shrink-0">
-                                    <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0022.5 18.75V5.25A2.25 2.25 0 0020.25 3H3.75A2.25 2.25 0 001.5 5.25v13.5A2.25 2.25 0 003.75 21z" /></svg>
+                                    <Package className="w-5 h-5 text-gray-400" />
                                   </div>
                                 )}
                                 <span>{asset.name}</span>
@@ -244,11 +246,15 @@ export default function AssetsPage() {
                             <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400 font-mono text-xs uppercase">{asset.serial_number || 'N/A'}</td>
                             <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">
                               {asset.qr_code ? (
-                                <div className="group relative w-10 h-10">
+                                <div 
+                                  className="group relative w-10 h-10 cursor-pointer"
+                                  onClick={() => setSelectedAssetForQR(asset)}
+                                  title="Click to view QR label"
+                                >
                                   <QRCodeSVG 
                                     value={asset.qr_code} 
                                     size={40} 
-                                    className="cursor-pointer transition-transform duration-300 group-hover:scale-150 group-hover:z-10 relative bg-white p-1 rounded shadow-sm"
+                                    className="transition-transform duration-300 group-hover:scale-110 bg-white p-1 rounded shadow-sm hover:ring-2 hover:ring-purple-500/50"
                                   />
                                 </div>
                               ) : 'N/A'}
@@ -275,19 +281,19 @@ export default function AssetsPage() {
                                 onClick={() => setSelectedAssetForReview({ id: asset.id, name: asset.name })}
                                 className="text-yellow-600 hover:text-yellow-900 dark:text-yellow-400 dark:hover:text-yellow-300"
                               >
-                                Reviews<span className="sr-only">, {asset.name}</span>
+                                Reviews
                               </button>
                               <button
                                 onClick={() => handleEdit(asset)}
                                 className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300"
                               >
-                                Edit<span className="sr-only">, {asset.name}</span>
+                                Edit
                               </button>
-                              <button
-                                onClick={() => handleDelete(asset)}
+                              <button 
+                                onClick={() => setAssetToDelete(asset)}
                                 className="text-rose-600 hover:text-rose-900 dark:text-rose-400 dark:hover:text-rose-300"
                               >
-                                Delete<span className="sr-only">, {asset.name}</span>
+                                Archive
                               </button>
                             </td>
                           </tr>
@@ -303,26 +309,23 @@ export default function AssetsPage() {
         ) : (
           <div className="max-w-4xl mx-auto">
              <div className="mb-6">
-                <button
-                  onClick={() => { setShowForm(false); setEditingAsset(null); }}
+                <button 
+                  onClick={() => {
+                    setShowForm(false);
+                    setEditingAsset(null);
+                  }}
                   className="text-sm text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300 mb-4 flex items-center gap-2"
                 >
                   &larr; Back to Assets
                 </button>
              </div>
-             <AssetForm
-               onCancel={() => { setShowForm(false); setEditingAsset(null); }}
+             <AssetForm 
+               onCancel={() => {
+                 setShowForm(false);
+                 setEditingAsset(null);
+               }} 
                onSuccess={handleFormSuccess}
-               editingAsset={editingAsset ? {
-                 id: editingAsset.id,
-                 name: editingAsset.name,
-                 category_id: editingAsset.category_id,
-                 serial_number: editingAsset.serial_number || '',
-                 purchase_price: editingAsset.purchase_price,
-                 location: editingAsset.location || '',
-                 description: editingAsset.description || '',
-                 images: editingAsset.images || [],
-               } : null}
+               asset={editingAsset}
              />
           </div>
         )}
@@ -332,6 +335,22 @@ export default function AssetsPage() {
             assetId={selectedAssetForReview.id}
             assetName={selectedAssetForReview.name}
             onClose={() => setSelectedAssetForReview(null)}
+          />
+        )}
+
+        {selectedAssetForQR && (
+          <QRCodeModal 
+            asset={selectedAssetForQR}
+            onClose={() => setSelectedAssetForQR(null)}
+          />
+        )}
+
+        {assetToDelete && (
+          <DeleteAssetModal 
+            asset={assetToDelete}
+            isDeleting={isDeleting}
+            onConfirm={handleDeleteConfirmed}
+            onClose={() => setAssetToDelete(null)}
           />
         )}
       </main>

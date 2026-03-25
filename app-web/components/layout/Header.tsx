@@ -11,7 +11,7 @@ export default function Header() {
   const pathSegments = pathname.split('/').filter(Boolean);
 
   return (
-    <header className="flex h-16 shrink-0 items-center gap-x-4 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-4 sm:gap-x-6 sm:px-6 lg:px-8">
+    <header className="flex h-16 shrink-0 items-center gap-x-4 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-6 lg:px-10">
       <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
         <nav className="flex items-center" aria-label="Breadcrumb">
           <ol role="list" className="flex items-center space-x-2 sm:space-x-4">

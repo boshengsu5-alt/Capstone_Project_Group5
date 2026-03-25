@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { LayoutDashboard, Package, ClipboardList, RotateCcw, AlertTriangle, ScrollText, Users, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useLanguage } from '@/components/providers/LanguageProvider';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -13,15 +14,16 @@ interface SidebarProps {
 
 const Sidebar: FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
   const pathname = usePathname();
+  const { t } = useLanguage();
 
   const navigation = [
-    { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-    { name: 'Assets', href: '/dashboard/assets', icon: Package },
-    { name: 'Bookings', href: '/dashboard/bookings', icon: ClipboardList },
-    { name: 'Returns', href: '/dashboard/returns', icon: RotateCcw },
-    { name: 'Damage Reports', href: '/dashboard/damage', icon: AlertTriangle },
-    { name: 'Audit Logs', href: '/dashboard/audit-logs', icon: ScrollText },
-    { name: 'Users', href: '/dashboard/users', icon: Users },
+    { name: t('sidebar.dashboard'), href: '/dashboard', icon: LayoutDashboard },
+    { name: t('sidebar.assets'), href: '/dashboard/assets', icon: Package },
+    { name: t('sidebar.bookings'), href: '/dashboard/bookings', icon: ClipboardList },
+    { name: t('sidebar.returns'), href: '/dashboard/returns', icon: RotateCcw },
+    { name: t('sidebar.damage'), href: '/dashboard/damage', icon: AlertTriangle },
+    { name: t('sidebar.audit'), href: '/dashboard/audit-logs', icon: ScrollText },
+    { name: t('sidebar.users'), href: '/dashboard/users', icon: Users },
   ];
 
   return (

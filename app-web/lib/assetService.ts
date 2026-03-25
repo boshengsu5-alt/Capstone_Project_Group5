@@ -13,16 +13,33 @@ const db = supabase as any;
 
 /** Fetch all assets with joined category info, ordered by newest first. 获取所有资产（含分类信息），按创建时间倒序 */
 export async function getAssets(): Promise<Asset[]> {
-  const { data, error } = await db
-    .from('assets')
-    .select('*, categories(*)')
-    .order('created_at', { ascending: false });
+  // 1. First attempt with Logical Delete filter
+  try {
+    const { data, error } = await db
+      .from('assets')
+      .select('*, categories(*)')
+      .eq('is_archived', false)
+      .order('created_at', { ascending: false });
 
-  if (error) {
-    console.error('Error fetching assets:', error);
+    if (!error) return data ?? [];
+
+    // 2. If column missing, fallback to unfiltered list but log a LOUD warning
+    if (error.message?.includes('column assets.is_archived does not exist')) {
+      console.warn('⚠️ DATABASE SCHEMA OUT OF SYNC: is_archived column is missing. Please run the SQL migration.');
+      const { data: fallbackData, error: fallbackError } = await db
+        .from('assets')
+        .select('*, categories(*)')
+        .order('created_at', { ascending: false });
+      
+      if (fallbackError) throw fallbackError;
+      return fallbackData ?? [];
+    }
+
+    throw error;
+  } catch (error: any) {
+    console.error('Fetch Error:', error.message, '| Details:', error.details || 'no details');
     return [];
   }
-  return data ?? [];
 }
 
 // ============================================================
@@ -118,7 +135,6 @@ export async function updateAsset(id: string, updates: AssetUpdate): Promise<Ass
       .single();
 
     if (error) {
-      console.error('Error updating asset:', error);
       throw new Error(error.message);
     }
 
@@ -133,7 +149,6 @@ export async function updateAsset(id: string, updates: AssetUpdate): Promise<Ass
 
     return updatedAsset as Asset;
   } catch (err: any) {
-    console.error('updateAsset service error:', err);
     throw err;
   }
 }
@@ -148,37 +163,47 @@ export async function updateAsset(id: string, updates: AssetUpdate): Promise<Ass
  */
 export async function deleteAsset(id: string): Promise<boolean> {
   try {
-    // Get asset info first for logging
+    // Get asset info first — check status and get name for logging
     const { data: asset } = await db
       .from('assets')
-      .select('name')
+      .select('name, status')
       .eq('id', id)
       .single();
 
+    // 🔒 Guard: forbid archival of borrowed assets (they must be returned first)
+    if (asset?.status === 'borrowed') {
+      throw new Error(
+        '无法归档正在借出中的资产。请先完成归还流程后再操作。'
+      );
+    }
+
+    // 🔄 Logical Delete: Use dedicated boolean column
     const { error } = await db
       .from('assets')
-      .delete()
+      .update({ 
+        is_archived: true,
+        updated_at: new Date().toISOString()
+      })
       .eq('id', id);
 
     if (error) {
-      console.error('Error deleting asset:', error);
+      console.error('Archival Error:', error.message, '| Details:', error.details || 'no details');
       throw new Error(error.message);
     }
 
     // Audit log
     if (asset) {
       await auditService.logAction({
-        operation_type: 'DELETE',
+        operation_type: 'DELETE', // Keep type as DELETE or ARCHIVE for consistency
         resource_type: 'asset',
         resource_id: id,
         resource_name: asset.name,
-        change_description: `Deleted asset: ${asset.name}`
+        change_description: `Logical delete (Archived) asset: ${asset.name}`
       });
     }
 
     return true;
   } catch (err: any) {
-    console.error('deleteAsset service error:', err);
     throw err;
   }
 }

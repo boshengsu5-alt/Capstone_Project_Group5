@@ -31,8 +31,10 @@ import {
   Legend
 } from 'recharts';
 import { bookingService, BookingWithDetails } from '@/lib/bookingService';
+import { useLanguage } from '@/components/providers/LanguageProvider';
 
 export default function DashboardPage() {
+  const { t } = useLanguage();
   const [assets, setAssets] = useState<Asset[]>([]);
   const [bookings, setBookings] = useState<BookingWithDetails[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -69,8 +71,7 @@ export default function DashboardPage() {
           table: 'bookings'
         },
         () => {
-          console.log('Realtime update detected in bookings. Refreshing dashboard data...');
-          fetchData(); // Partial refresh of data states
+          fetchData();
         }
       )
       .subscribe();
@@ -129,8 +130,7 @@ export default function DashboardPage() {
           total: cumulative
         };
       });
-    } catch (err) {
-      console.error('Error processing growth data:', err);
+    } catch {
       return [];
     }
   };
@@ -180,7 +180,7 @@ export default function DashboardPage() {
     <div className="flex flex-col flex-1 h-full w-full bg-[#050505] text-gray-100 overflow-y-auto font-sans selection:bg-purple-500/30">
       <Header />
       
-      <main className="flex-1 p-6 lg:p-10 max-w-[1600px] mx-auto w-full space-y-10">
+      <main className="flex-1 px-6 lg:px-10 max-w-[1600px] w-full space-y-6 py-6 pb-20">
         
         {/* --- KPI Cards (Day 6): 四个核心计数卡片 --- */}
         <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -224,15 +224,43 @@ export default function DashboardPage() {
 
         {/* --- Charts Section: Visual Reports --- */}
         <section className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          
-          {/* Left Block: Pie Chart (Asset Category Distribution) */}
-          <div className="lg:col-span-4 bg-gray-900/40 backdrop-blur-xl border border-white/5 rounded-3xl p-6 flex flex-col h-[400px]">
+          {isLoading && (
+            <>
+              {/* Skeleton: Pie Chart placeholder */}
+              <div className="lg:col-span-4 bg-gray-900/40 border border-white/5 rounded-3xl p-6 h-[400px] animate-pulse">
+                <div className="h-5 w-36 bg-white/10 rounded mb-4" />
+                <div className="h-4 w-24 bg-white/5 rounded mb-8 ml-7" />
+                <div className="flex items-center justify-center flex-1 mt-6">
+                  <div className="w-40 h-40 rounded-full border-[16px] border-white/10 bg-transparent" />
+                </div>
+              </div>
+              {/* Skeleton: Area Chart placeholder */}
+              <div className="lg:col-span-8 bg-gray-900/40 border border-white/5 rounded-3xl p-6 h-[400px] animate-pulse">
+                <div className="flex justify-between mb-4">
+                  <div>
+                    <div className="h-5 w-44 bg-white/10 rounded mb-2" />
+                    <div className="h-4 w-32 bg-white/5 rounded ml-7" />
+                  </div>
+                  <div className="h-4 w-28 bg-white/5 rounded self-center" />
+                </div>
+                <div className="flex-1 flex flex-col justify-end gap-2 mt-6">
+                  {[60, 75, 50, 90, 65, 80, 70].map((h, i) => (
+                    <div key={i} style={{ height: `${h}%`, opacity: 0.15 }} className="bg-purple-500 rounded-t" />
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+          {!isLoading && (
+            <>
+            {/* Left Block: Pie Chart (Asset Category Distribution) */}
+            <div className="lg:col-span-4 bg-gray-900/40 backdrop-blur-xl border border-white/5 rounded-3xl p-6 flex flex-col h-[400px]">
             <div className="mb-4">
               <h3 className="text-lg font-bold text-white flex items-center gap-2">
                 <Package className="w-5 h-5 text-purple-400" />
-                Asset Distribution
+                {t('dashboard.distChart')}
               </h3>
-              <p className="text-gray-500 text-xs px-7">By Category</p>
+              <p className="text-gray-500 text-xs px-7">{t('dashboard.distSub')}</p>
             </div>
             <div className="flex-1 min-h-0">
               <ResponsiveContainer width="100%" height="100%">
@@ -268,14 +296,14 @@ export default function DashboardPage() {
               <div>
                 <h3 className="text-lg font-bold text-white flex items-center gap-2">
                   <ArrowUpRight className="w-5 h-5 text-amber-400" />
-                  Inventory Growth
+                  {t('dashboard.growthChart')}
                 </h3>
-                <p className="text-gray-500 text-xs px-7">Cumulative Total Trend</p>
+                <p className="text-gray-500 text-xs px-7">{t('dashboard.growthSub')}</p>
               </div>
               <div className="flex items-center gap-4 text-xs font-mono text-gray-500">
                 <div className="flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-purple-500"></span>
-                  Total Assets: {totalAssets}
+                  {t('dashboard.kpiTotal')}: {totalAssets}
                 </div>
               </div>
             </div>
@@ -316,14 +344,16 @@ export default function DashboardPage() {
               </ResponsiveContainer>
             </div>
           </div>
+            </>
+          )}
         </section>
 
         {/* --- Bottom Section: Assets Table --- */}
         <section className="space-y-6">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-2">
             <div>
-              <h2 className="text-2xl font-bold text-white tracking-tight">Active Inventory</h2>
-              <p className="text-gray-400 text-sm mt-1">Real-time status of all registered hardware and equipment.</p>
+              <h2 className="text-2xl font-bold text-white tracking-tight">{t('dashboard.activeInv')}</h2>
+              <p className="text-gray-400 text-sm mt-1">{t('dashboard.activeInvSub')}</p>
             </div>
             
             <div className="flex flex-wrap items-center gap-4">
@@ -332,7 +362,7 @@ export default function DashboardPage() {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-purple-400 transition-colors" />
                 <input 
                   type="text" 
-                  placeholder="Search assets..."
+                  placeholder={t('common.search')}
                   className="w-full bg-gray-900/50 border border-white/10 rounded-xl py-2 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
@@ -347,7 +377,7 @@ export default function DashboardPage() {
                   value={selectedCategory}
                   onChange={(e) => setSelectedCategory(e.target.value)}
                 >
-                  <option value="All" className="bg-gray-900">All Categories</option>
+                  <option value="All" className="bg-gray-900">{t('common.allCategories')}</option>
                   {categories.map((cat) => (
                     <option key={cat.id} value={cat.id} className="bg-gray-900">{cat.name}</option>
                   ))}
@@ -360,12 +390,12 @@ export default function DashboardPage() {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-white/5 border-b border-white/10">
-                  <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Asset Details</th>
-                  <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Identifier</th>
-                  <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Category</th>
-                  <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Status</th>
-                  <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">Condition</th>
-                  <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest text-right">Actions</th>
+                  <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">{t('tables.asset')}</th>
+                  <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">{t('tables.identifier')}</th>
+                  <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">{t('tables.category')}</th>
+                  <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">{t('tables.status')}</th>
+                  <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">{t('tables.condition')}</th>
+                  <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest text-right">{t('tables.actions')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
@@ -397,8 +427,8 @@ export default function DashboardPage() {
                               )}
                            </div>
                            <div>
-                              <p className="font-semibold text-white truncate max-w-[180px]">{asset.name}</p>
-                              <p className="text-xs text-gray-500">{asset.location}</p>
+                              <p className="font-semibold text-white truncate max-w-[180px]">{asset.name || 'Unknown Asset'}</p>
+                              <p className="text-xs text-gray-500">{asset.location || 'No location'}</p>
                            </div>
                         </div>
                       </td>
@@ -425,11 +455,11 @@ export default function DashboardPage() {
                           asset.status === 'maintenance' && "bg-rose-500/10 text-rose-400 border-rose-500/20",
                           asset.status === 'retired' && "bg-gray-500/10 text-gray-400 border-gray-500/20"
                         )}>
-                          {asset.status === 'borrowed' ? 'Loaned' : asset.status}
+                          {asset.status === 'borrowed' ? t('status.borrowed') : (t(`status.${asset.status}`) || asset.status)}
                         </span>
                       </td>
                       <td className="px-6 py-4 capitalize">
-                         <span className="text-sm font-medium text-gray-300">{asset.condition}</span>
+                         <span className="text-sm font-medium text-gray-300">{asset.condition || 'Unknown'}</span>
                       </td>
                       <td className="px-6 py-4 text-right">
                         <button className="text-gray-500 hover:text-white transition-colors text-xs font-bold uppercase tracking-widest">

@@ -1,41 +1,32 @@
 import React, { useState, useRef } from 'react';
 import { Package, Tag, Hash, DollarSign, MapPin, AlignLeft, ShieldCheck, Asterisk, Upload, X, Loader2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { authFetch } from '@/lib/authFetch';
 import { useToast } from '@/components/ui/Toast';
-
-interface EditingAsset {
-  id: string;
-  name: string;
-  category_id: string;
-  serial_number: string;
-  purchase_price: number | null;
-  location: string;
-  description: string;
-  images: string[];
-}
+import { createAsset, updateAsset } from '@/lib/assetService';
+import { Asset } from '@/types/database';
 
 interface AssetFormProps {
   onCancel: () => void;
   onSuccess: () => void;
-  editingAsset?: EditingAsset | null;
+  asset?: Asset | null; // Used for edit mode
 }
 
-export default function AssetForm({ onCancel, onSuccess, editingAsset }: AssetFormProps) {
+export default function AssetForm({ onCancel, onSuccess, asset }: AssetFormProps) {
+  const isEditMode = !!asset;
   const { showToast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [images, setImages] = useState<string[]>(editingAsset?.images ?? []);
+  const [images, setImages] = useState<string[]>(asset?.images ?? []);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState({
-    name: editingAsset?.name ?? '',
-    category_id: editingAsset?.category_id ?? '',
-    serial_number: editingAsset?.serial_number ?? '',
-    purchase_price: editingAsset?.purchase_price?.toString() ?? '',
-    location: editingAsset?.location ?? '',
-    description: editingAsset?.description ?? '',
+    name: asset?.name || '',
+    category_id: asset?.category_id || '',
+    serial_number: asset?.serial_number || '',
+    purchase_price: asset?.purchase_price?.toString() || '',
+    location: asset?.location || '',
+    description: asset?.description || '',
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -94,83 +85,32 @@ export default function AssetForm({ onCancel, onSuccess, editingAsset }: AssetFo
     e.preventDefault();
     setError(null);
 
-    // 增强表单校验：管理员新建资产时，如果未填写必填项（名称、分类、描述），请阻止提交并弹出醒目的 Toast 黄色警告。
     if (!formData.name.trim()) {
-      showToast('设备名称是必填项，请输入后再提交', 'warning');
-      setError('设备名称不能为空 (Asset name is required)');
-      return;
-    }
-    
-    if (!formData.category_id.trim()) {
-      showToast('请选择设备分类，以便系统统一管理', 'warning');
-      setError('必须选择或填写分类 (Category is required)');
-      return;
-    }
-
-    if (!formData.description.trim()) {
-      showToast('设备描述不能为空，请补充相关规格信息', 'warning');
-      setError('设备描述不能为空 (Description is required)');
-      return;
-    }
-
-    if (!formData.location.trim()) {
-      showToast('请指定存储位置，方便后续资产盘点', 'warning');
-      setError('必须填写存放位置 (Storage location is required)');
-      return;
-    }
-
-    if (!formData.serial_number.trim()) {
-      showToast('序列号有助于精准追踪，请尽量填写', 'warning');
-      setError('必须填写设备序列号 (Serial number required)');
-      return;
-    }
-
-    if (images.length === 0) {
-      showToast('请至少上传一张设备实拍图片', 'warning');
-      setError('请至少上传一张设备图片以供识别 (At least 1 image required)');
+      showToast('Asset name is required.', 'warning');
+      setError('Asset name cannot be empty.');
       return;
     }
 
     try {
       setIsSubmitting(true);
+      
+      const payload = {
+        ...formData,
+        purchase_price: formData.purchase_price ? parseFloat(formData.purchase_price) : 0,
+        images: images || []
+      };
 
-      if (editingAsset) {
-        // Update existing asset
-        const res = await authFetch(`/api/assets?id=${editingAsset.id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            ...formData,
-            purchase_price: formData.purchase_price ? parseFloat(formData.purchase_price) : 0,
-            images: images || []
-          }),
-        });
-        if (!res.ok) {
-          const errorData = await res.json();
-          throw new Error(errorData.error || 'Failed to update asset.');
-        }
-        showToast('资产更新成功！', 'success');
+      if (isEditMode && asset) {
+        await updateAsset(asset.id, payload);
+        showToast('Asset updated successfully!', 'success');
       } else {
-        // Create new asset
-        const res = await authFetch('/api/assets', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            ...formData,
-            purchase_price: formData.purchase_price ? parseFloat(formData.purchase_price) : 0,
-            images: images || []
-          }),
-        });
-        if (!res.ok) {
-          const errorData = await res.json();
-          throw new Error(errorData.error || 'Failed to save asset. Backend error.');
-        }
-        showToast('资产登记成功！', 'success');
+        await createAsset(payload);
+        showToast('Asset registered successfully!', 'success');
       }
-
       onSuccess();
     } catch (err: any) {
-      const msg = err.message || '网络连接异常，请检查 Supabase 状态或稍后再试。';
+      console.error('Asset form error:', err);
+      const msg = err.message || 'An error occurred while saving the asset.';
       setError(msg);
       showToast(msg, 'error');
     } finally {
@@ -184,9 +124,11 @@ export default function AssetForm({ onCancel, onSuccess, editingAsset }: AssetFo
         <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
           <ShieldCheck className="w-32 h-32 text-indigo-600 dark:text-indigo-400" />
         </div>
-        <h3 className="text-xl sm:text-2xl font-bold leading-7 text-gray-900 dark:text-white tracking-tight">{editingAsset ? 'Edit Asset' : 'Register New Asset'}</h3>
+        <h3 className="text-xl sm:text-2xl font-bold leading-7 text-gray-900 dark:text-white tracking-tight">
+          {isEditMode ? 'Edit Asset Record' : 'Register New Asset'}
+        </h3>
         <p className="mt-3 text-sm sm:text-base leading-6 text-gray-600 dark:text-gray-400 max-w-2xl">
-          Enter the comprehensive details of the hardware to add it to the centralized management system. Fields marked with <span className="text-rose-500 font-bold">*</span> are mandatory.
+          Enter the comprehensive details of the hardware to add it. Field marked with <span className="text-rose-500 font-bold">*</span> is mandatory.
         </p>
       </div>
 
@@ -402,9 +344,9 @@ export default function AssetForm({ onCancel, onSuccess, editingAsset }: AssetFo
             {isSubmitting ? (
               <>
                 <Loader2 className="animate-spin -ml-1 mr-3 h-4 w-4 text-white" />
-                提交中...
+                Submitting...
               </>
-            ) : editingAsset ? 'Update Asset' : 'Save Asset Record'}
+            ) : isEditMode ? 'Update Asset Info' : 'Save Asset Record'}
           </button>
         </div>
       </form>

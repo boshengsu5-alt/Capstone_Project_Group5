@@ -6,7 +6,7 @@ import ApprovalModal from '@/components/bookings/ApprovalModal';
 import { bookingService, BookingWithDetails } from '@/lib/bookingService';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/components/ui/Toast';
-import { Download } from 'lucide-react';
+import { ClipboardList, RefreshCw, Download } from 'lucide-react';
 import { exportToExcel } from '@/lib/exportUtils';
 import type { BookingStatus } from '@/types/database';
 
@@ -30,10 +30,8 @@ export default function BookingsPage() {
     // Modal state
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedBooking, setSelectedBooking] = useState<BookingWithDetails | null>(null);
-
     const [newBookingId, setNewBookingId] = useState<string | null>(null);
 
-    // Fetch data
     const loadBookings = async () => {
         setIsLoading(true);
         try {
@@ -51,21 +49,12 @@ export default function BookingsPage() {
     useEffect(() => {
         loadBookings();
 
-        // --- Realtime Subscription ---
         const channel = (supabase as any)
           .channel('bookings-page-changes')
-          .on(
-            'postgres_changes',
-            {
-              event: '*',
-              schema: 'public',
-              table: 'bookings'
-            },
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' },
             (payload: any) => {
-              console.log('Realtime update in bookings page:', payload);
               if (payload.new && payload.new.id) {
                 setNewBookingId(payload.new.id);
-                // Reset highlight after animation duration
                 setTimeout(() => setNewBookingId(null), 2000);
               }
               loadBookings();
@@ -73,9 +62,7 @@ export default function BookingsPage() {
           )
           .subscribe();
 
-        return () => {
-          supabase.removeChannel(channel);
-        };
+        return () => { supabase.removeChannel(channel); };
     }, []);
 
     const filteredBookings = statusFilter === 'all'
@@ -92,21 +79,20 @@ export default function BookingsPage() {
             returned: '已归还', overdue: '逾期', rejected: '已拒绝', cancelled: '已取消',
         };
         const exportData = filteredBookings.map(b => ({
-            '资产名称': b.assets?.name || 'N/A',
-            '借用人': b.profiles?.full_name || 'N/A',
-            '学号': b.profiles?.student_id || 'N/A',
-            '开始日期': new Date(b.start_date).toLocaleDateString(),
-            '结束日期': new Date(b.end_date).toLocaleDateString(),
-            '状态': statusMap[b.status] || b.status,
-            '创建时间': new Date(b.created_at).toLocaleString(),
+            'Asset': b.assets?.name || 'N/A',
+            'Borrower': b.profiles?.full_name || 'N/A',
+            'ID': b.profiles?.student_id || 'N/A',
+            'Start': new Date(b.start_date).toLocaleDateString(),
+            'End': new Date(b.end_date).toLocaleDateString(),
+            'Status': statusMap[b.status] || b.status,
+            'Created': new Date(b.created_at).toLocaleString(),
         }));
         try {
-            exportToExcel(exportData, `借用记录_${new Date().toISOString().split('T')[0]}`, '借用记录');
-            showToast('报表导出成功', 'success');
-        } catch { showToast('导出失败', 'error'); }
+            exportToExcel(exportData, `Bookings_Report_${new Date().toISOString().split('T')[0]}`, 'Bookings');
+            showToast('Report exported successfully', 'success');
+        } catch { showToast('Export failed', 'error'); }
     };
 
-    // Handlers
     const handleReviewClick = (booking: BookingWithDetails) => {
         setSelectedBooking(booking);
         setIsModalOpen(true);
@@ -114,17 +100,16 @@ export default function BookingsPage() {
 
     const handleApprove = async (id: string) => {
         try {
-            // 获取当前管理员 ID，确保审批通知能正确发送给学生
             const { data: { user } } = await (await import('@/lib/supabase')).supabase.auth.getUser();
             const success = await bookingService.approveBooking(id, user?.id);
             if (success) {
-                showToast('借用申请已批准', 'success');
+                showToast('Booking approved successfully', 'success');
                 await loadBookings();
             } else {
-                showToast('批准操作失败，请重试', 'error');
+                showToast('Approve operation failed', 'error');
             }
-        } catch (error) {
-            showToast('网络异常，无法连接到 Supabase', 'error');
+        } catch {
+            showToast('Network error, connection failed', 'error');
         }
     };
 
@@ -133,80 +118,84 @@ export default function BookingsPage() {
             const { data: { user } } = await (await import('@/lib/supabase')).supabase.auth.getUser();
             const success = await bookingService.rejectBooking(id, reason, user?.id);
             if (success) {
-                showToast('申请已拒绝，通知已发送', 'info');
+                showToast('Booking rejected, notification sent', 'info');
                 await loadBookings();
             } else {
-                showToast('拒绝操作失败', 'error');
+                showToast('Reject operation failed', 'error');
             }
-        } catch (error) {
-            showToast('网络异常，操作无法完成', 'error');
+        } catch {
+            showToast('Network error, operation failed', 'error');
         }
     };
 
     return (
-        <div className="p-6 md:p-8 max-w-7xl mx-auto w-full">
-            {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between mb-8">
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">Booking Requests</h1>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                        Review and manage equipment borrowing applications from students.
-                    </p>
+        <div className="flex flex-col flex-1 h-full w-full bg-[#050505] text-gray-100 overflow-y-auto">
+            <main className="flex-1 p-6 lg:p-10 max-w-[1600px] mx-auto w-full space-y-8">
+
+                {/* Header */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                    <div>
+                        <div className="flex items-center gap-2.5 mb-1">
+                            <ClipboardList className="w-5 h-5 text-purple-400" />
+                            <h1 className="text-2xl font-bold text-white tracking-tight">Booking Requests</h1>
+                        </div>
+                        <p className="text-sm text-gray-500">
+                            Review and manage equipment borrowing applications from students.
+                        </p>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                        <select
+                            value={statusFilter}
+                            onChange={(e) => setStatusFilter(e.target.value as 'all' | BookingStatus)}
+                            className="rounded-xl border border-white/10 bg-gray-900/60 px-3 py-2 text-sm text-gray-200 focus:ring-2 focus:ring-purple-500 focus:outline-none shadow-sm backdrop-blur-sm"
+                        >
+                            {STATUS_OPTIONS.map(opt => (
+                                <option key={opt.value} value={opt.value} className="bg-gray-900 text-gray-200">{opt.label}</option>
+                            ))}
+                        </select>
+                        <button
+                            onClick={handleExport}
+                            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-300 bg-gray-900/60 border border-white/10 rounded-xl hover:bg-white/5 transition-colors shadow-sm backdrop-blur-sm"
+                        >
+                            <Download className="w-4 h-4" /> Export
+                        </button>
+                        <button
+                            onClick={() => loadBookings()}
+                            disabled={isLoading}
+                            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-300 bg-gray-900/60 border border-white/10 rounded-xl hover:bg-white/5 transition-colors shadow-sm disabled:opacity-50 backdrop-blur-sm"
+                        >
+                            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+                            Refresh
+                        </button>
+                    </div>
                 </div>
 
-                <div className="mt-4 md:mt-0 flex items-center gap-3">
-                    <select
-                        value={statusFilter}
-                        onChange={(e) => setStatusFilter(e.target.value as 'all' | BookingStatus)}
-                        className="rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none shadow-sm"
-                    >
-                        {STATUS_OPTIONS.map(opt => (
-                            <option key={opt.value} value={opt.value}>{opt.label}</option>
-                        ))}
-                    </select>
-                    <button
-                        onClick={handleExport}
-                        className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-sm"
-                    >
-                        <Download className="w-4 h-4" /> Export
-                    </button>
-                    <button
-                        onClick={() => loadBookings()}
-                        disabled={isLoading}
-                        className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors shadow-sm disabled:opacity-50"
-                    >
-                        <span className={isLoading ? "animate-spin" : ""}>↻</span> Refresh
-                    </button>
-                </div>
-            </div>
+                {/* Main Content */}
+                {isLoading ? (
+                    <div className="w-full h-64 flex flex-col items-center justify-center bg-gray-900/40 rounded-2xl border border-white/5 backdrop-blur-sm">
+                        <div className="w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mb-4" />
+                        <p className="text-gray-400 font-medium">Loading requests...</p>
+                    </div>
+                ) : (
+                    <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 relative z-10">
+                        <BookingTable
+                            bookings={filteredBookings}
+                            onReview={handleReviewClick}
+                            highlightId={newBookingId}
+                        />
+                    </div>
+                )}
 
-            {/* Main Content Area */}
-            {isLoading ? (
-                <div className="w-full h-64 flex flex-col items-center justify-center bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm">
-                    <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-                    <p className="text-gray-500 font-medium">Loading requests...</p>
-                </div>
-            ) : (
-                <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 relative z-10">
-                    <BookingTable
-                      bookings={filteredBookings}
-                      onReview={handleReviewClick}
-                      highlightId={newBookingId}
-                    />
-                </div>
-            )}
-
-            {/* Modal */}
-            <ApprovalModal
-                isOpen={isModalOpen}
-                booking={selectedBooking}
-                onClose={() => {
-                    setIsModalOpen(false);
-                    setSelectedBooking(null);
-                }}
-                onApprove={handleApprove}
-                onReject={handleReject}
-            />
+                {/* Modal */}
+                <ApprovalModal
+                    isOpen={isModalOpen}
+                    booking={selectedBooking}
+                    onClose={() => { setIsModalOpen(false); setSelectedBooking(null); }}
+                    onApprove={handleApprove}
+                    onReject={handleReject}
+                />
+            </main>
         </div>
     );
 }

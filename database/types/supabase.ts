@@ -93,6 +93,7 @@ export interface Asset {
     status: AssetStatus;
     location: string;
     images: string[];
+    is_archived: boolean;
     warranty_status: WarrantyStatus;
     warranty_expiry: string | null;
     purchase_date: string | null;
