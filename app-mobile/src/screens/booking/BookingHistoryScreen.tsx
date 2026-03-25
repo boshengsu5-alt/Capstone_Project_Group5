@@ -11,15 +11,16 @@ import {
 } from 'react-native';
 import { alertManager } from '../../utils/alertManager';
 import { useNavigation, NavigationProp, ParamListBase } from '@react-navigation/native';
-import { getMyBookings, cancelBooking } from '../../services/bookingService';
-import type { Booking, Asset, BookingStatus } from '../../../../database/types/supabase';
+import { getMyBookings, cancelBooking, getReviewByBookingId } from '../../services/bookingService';
+import { supabase } from '../../services/supabase';
+import type { Booking, Asset, BookingStatus, Review } from '../../../../database/types/supabase';
 import SafeImage from '../../components/SafeImage';
 import ReviewModal from '../../components/ReviewModal';
+import ReviewCard, { ReviewWithMeta } from '../../components/ReviewCard';
 import { theme } from '../../theme';
 import { Ionicons } from '@expo/vector-icons';
 import { handleApiError } from '../../utils/errorHandler';
 
-// 从 service 返回的借用记录，包含关联的资产信息
 type BookingWithAsset = Booking & {
   assets: Pick<Asset, 'name' | 'images'> | null;
 };
@@ -48,6 +49,7 @@ const getStatusColor = (status: BookingStatus) => {
   }
 };
 
+
 export default function BookingHistoryScreen() {
   const navigation = useNavigation<NavigationProp<ParamListBase>>();
   const [bookings, setBookings] = useState<BookingWithAsset[]>([]);
@@ -56,13 +58,34 @@ export default function BookingHistoryScreen() {
 
   // 评价弹窗状态
   const [reviewModalVisible, setReviewModalVisible] = useState(false);
-  const [selectedBooking, setSelectedBooking] = useState<{id: string, name: string} | null>(null);
+  const [selectedBooking, setSelectedBooking] = useState<{ id: string; name: string } | null>(null);
+
+  const [currentUserId, setCurrentUserId] = useState<string | undefined>();
+  // 各 bookingId 对应的评价（已归还的借用）
+  const [reviewsMap, setReviewsMap] = useState<Record<string, ReviewWithMeta | null>>({});
 
   const fetchBookings = async (isRefreshing = false) => {
     if (!isRefreshing) setLoading(true);
     try {
-      const data = await getMyBookings();
+      const [data, { data: { user } }] = await Promise.all([
+        getMyBookings(),
+        supabase.auth.getUser(),
+      ]);
+      setCurrentUserId(user?.id);
       setBookings(data as BookingWithAsset[]);
+      // 并发拉取所有「已归还」借用的评价
+      const returnedItems = (data as BookingWithAsset[]).filter(b => b.status === 'returned');
+      const reviewEntries = await Promise.all(
+        returnedItems.map(async b => {
+          const review = await getReviewByBookingId(b.id).catch(() => null);
+          // 加上 reviewer_name = '我' 方便 ReviewCard 组件显示
+          const withMeta = review
+            ? ({ ...review, reviewer_name: '我' } as ReviewWithMeta)
+            : null;
+          return [b.id, withMeta] as [string, ReviewWithMeta | null];
+        })
+      );
+      setReviewsMap(Object.fromEntries(reviewEntries));
     } catch (error) {
       alertManager.alert('加载失败', '获取借用记录失败，请下拉刷新重试');
     } finally {
@@ -80,7 +103,6 @@ export default function BookingHistoryScreen() {
     fetchBookings(true);
   };
 
-  // 取消借用（仅 pending/approved 可取消）
   const handleCancel = (bookingId: string, assetName: string) => {
     alertManager.alert('取消借用', `确定要取消「${assetName}」的借用申请吗？`, [
       { text: '再想想', style: 'cancel' },
@@ -106,11 +128,12 @@ export default function BookingHistoryScreen() {
     const imageUrl = asset?.images?.[0];
     const assetName = asset?.name || '未知设备';
 
-    // 根据状态决定可用操作
     const canReturn = item.status === 'active' || item.status === 'overdue';
-    const canPickUp = item.status === 'approved';   // 已通过 → 可扫码取货
+    const canPickUp = item.status === 'approved';
     const canCancel = item.status === 'pending' || item.status === 'approved';
-    const canReview = item.status === 'returned';
+    const isReturned = item.status === 'returned';
+    const existingReview = isReturned ? reviewsMap[item.id] : undefined;
+    const hasReview = !!existingReview;
 
     return (
       <View style={styles.card}>
@@ -127,7 +150,6 @@ export default function BookingHistoryScreen() {
                 <Text style={[styles.status, { color: statusColor }]}>{getStatusLabel(item.status)}</Text>
               </View>
             </View>
-
             <View style={styles.dateRow}>
               <Text style={styles.dateLabel}>借用周期：</Text>
               <Text style={styles.dateRange}>
@@ -137,10 +159,17 @@ export default function BookingHistoryScreen() {
           </View>
         </View>
 
+        {/* 已有评价：用 ReviewCard 展示（含追问/回复） */}
+        {isReturned && hasReview && existingReview && (
+          <ReviewCard
+            review={existingReview}
+            currentUserId={currentUserId}
+          />
+        )}
+
         {/* 操作按钮区域 */}
-        {(canReturn || canPickUp || canCancel || canReview) && (
+        {(canReturn || canPickUp || canCancel || isReturned) && (
           <View style={styles.actionRow}>
-            {/* 已通过：扫码取货（主操作，紫色实色） */}
             {canPickUp && (
               <TouchableOpacity
                 style={styles.actionBtnPickUp}
@@ -154,20 +183,14 @@ export default function BookingHistoryScreen() {
               <>
                 <TouchableOpacity
                   style={styles.actionBtn}
-                  onPress={() => navigation.navigate('ReturnScreen', {
-                    bookingId: item.id,
-                    assetName,
-                  })}
+                  onPress={() => navigation.navigate('ReturnScreen', { bookingId: item.id, assetName })}
                 >
                   <Ionicons name="camera-outline" size={16} color={theme.colors.primary} />
                   <Text style={styles.actionText}>拍照归还</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.actionBtn, styles.actionBtnDanger]}
-                  onPress={() => navigation.navigate('DamageReport', {
-                    assetId: item.asset_id,
-                    bookingId: item.id,
-                  })}
+                  onPress={() => navigation.navigate('DamageReport', { assetId: item.asset_id, bookingId: item.id })}
                 >
                   <Ionicons name="warning-outline" size={16} color={theme.colors.danger} />
                   <Text style={[styles.actionText, { color: theme.colors.danger }]}>损坏报修</Text>
@@ -183,7 +206,8 @@ export default function BookingHistoryScreen() {
                 <Text style={[styles.actionText, { color: theme.colors.danger }]}>取消借用</Text>
               </TouchableOpacity>
             )}
-            {canReview && (
+            {/* 已归还：无评价 → 评价设备；有评价 → 修改评价 */}
+            {isReturned && (
               <TouchableOpacity
                 style={[styles.actionBtn, styles.actionBtnReview]}
                 onPress={() => {
@@ -191,8 +215,14 @@ export default function BookingHistoryScreen() {
                   setReviewModalVisible(true);
                 }}
               >
-                <Ionicons name="star-outline" size={16} color={theme.colors.warning} />
-                <Text style={[styles.actionText, { color: theme.colors.warning }]}>评价设备</Text>
+                <Ionicons
+                  name={hasReview ? 'create-outline' : 'star-outline'}
+                  size={16}
+                  color={theme.colors.warning}
+                />
+                <Text style={[styles.actionText, { color: theme.colors.warning }]}>
+                  {hasReview ? '修改评价' : '评价设备'}
+                </Text>
               </TouchableOpacity>
             )}
           </View>
@@ -208,6 +238,8 @@ export default function BookingHistoryScreen() {
       </View>
     );
   }
+
+  const selectedReview = selectedBooking ? (reviewsMap[selectedBooking.id] ?? null) : null;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -244,9 +276,8 @@ export default function BookingHistoryScreen() {
           onClose={() => setReviewModalVisible(false)}
           bookingId={selectedBooking.id}
           assetName={selectedBooking.name}
-          onSuccess={() => {
-            fetchBookings();
-          }}
+          existingReview={selectedReview}
+          onSuccess={() => fetchBookings()}
         />
       )}
     </SafeAreaView>
@@ -341,7 +372,7 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     fontWeight: '500',
   },
-  // 操作按钮
+  // ---- 操作按钮 ----
   actionRow: {
     flexDirection: 'row',
     marginTop: 12,
@@ -349,6 +380,7 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: '#F3F4F6',
     gap: 10,
+    flexWrap: 'wrap',
   },
   actionBtn: {
     flexDirection: 'row',

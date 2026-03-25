@@ -14,15 +14,27 @@ export const signIn = async (email: string, password: string) => {
 
 /**
  * 2. 登出 (SignOut)
+ * 清除 Supabase session 并移除 middleware 用的 admin cookie
  */
 export const signOut = async () => {
+  // 清除 middleware 路由守卫 cookie
+  document.cookie = 'unigear-admin=; path=/; max-age=0';
   const { error } = await supabase.auth.signOut();
   return { error };
 };
 
 /**
+ * Set the admin session cookie used by middleware for route guarding.
+ * 设置 middleware 路由守卫用的 admin cookie（登录成功且确认为 admin 后调用）
+ */
+export const setAdminCookie = () => {
+  // 有效期 7 天，与 Supabase 默认 refresh 周期对齐
+  document.cookie = 'unigear-admin=1; path=/; max-age=604800; SameSite=Lax';
+};
+
+/**
  * 3. 获取当前登录用户 (GetCurrentUser)
- * 这是一个异步函数，用于在各个组件里判断“我是谁”
+ * 这是一个异步函数，用于在各个组件里判断”我是谁”
  */
 export const getCurrentUser = async () => {
   const { data: { user }, error } = await supabase.auth.getUser();

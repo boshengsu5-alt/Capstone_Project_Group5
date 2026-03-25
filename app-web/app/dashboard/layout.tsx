@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/layout/Sidebar';
 import Navbar from '@/components/layout/Navbar';
 import { ToastProvider } from '@/components/ui/Toast';
-import { getCurrentUser, checkAdminRole } from '@/lib/auth';
+import { getCurrentUser, checkAdminRole, setAdminCookie, signOut } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 
 export default function DashboardLayout({
@@ -28,10 +28,12 @@ export default function DashboardLayout({
         }
         const isAdmin = await checkAdminRole(user.id);
         if (!isAdmin) {
-          alert('No admin privileges. Students cannot access the admin panel.');
+          await signOut();
           router.replace('/login');
           return;
         }
+        // 刷新 middleware cookie（续期）
+        setAdminCookie();
         setAuthChecked(true);
       } catch {
         router.replace('/login');
@@ -43,6 +45,7 @@ export default function DashboardLayout({
     // 此时需要清理本地过期 session 并跳转登录页，避免控制台抛出未处理的 AuthApiError
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'SIGNED_OUT') {
+        document.cookie = 'unigear-admin=; path=/; max-age=0';
         router.replace('/login');
       }
     });

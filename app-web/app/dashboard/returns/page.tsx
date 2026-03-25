@@ -16,12 +16,12 @@ export default function ReturnsPage() {
         setIsLoading(true);
         try {
             const allBookings = await bookingService.getBookings();
-            // 筛选需要管理员验证的归还记录：
-            // - active 且学生已上传归还照片（准备归还）
-            // - returned 但尚未由管理员确认
+            // 筛选待验证的归还：active 且有归还照片，或 returned 未验证
+            // 排除已验证的（rejection_reason === 'VERIFIED'）
             const pendingReturns = allBookings.filter(b =>
-                (b.status === 'active' && b.return_photo_url) ||
-                b.status === 'returned'
+                ((b.status === 'active' && b.return_photo_url) ||
+                b.status === 'returned') &&
+                b.rejection_reason !== 'VERIFIED'
             );
 
             setReturns(pendingReturns);
@@ -37,34 +37,25 @@ export default function ReturnsPage() {
         loadReturns();
     }, []);
 
-    const [verifiedIds, setVerifiedIds] = useState<Set<string>>(new Set());
-
     const handleVerify = async (id: string, isDamaged: boolean, severity?: string, photoUrl?: string) => {
         try {
             if (isDamaged && severity) {
-                // Now includes severity and photo URL as requested
-                const result = await bookingService.createDamageReport(id, 'Item reported damaged during return verification', severity, photoUrl);
-                
-                if (result.success) {
-                    const scoreMsg = result.scoreUpdated 
-                        ? `信用分已从 ${result.oldScore} 降至 ${result.newScore}` 
-                        : (result.oldScore === 0 ? '信用分已为 0，未再扣减' : '损坏报告已创建，但信用分未变化，请检查数据库状态');
-                    showToast(`已创建损坏报告 (${severity})。${scoreMsg}`, result.scoreUpdated ? 'success' : 'warning');
+                const success = await bookingService.createDamageReport(id, 'Item reported damaged during return verification', severity, photoUrl);
+                if (success) {
+                    showToast(`已创建损坏报告 (${severity})，资产已标记为维护中`, 'success');
                 } else {
                     showToast('损坏报告创建失败', 'error');
+                    return;
                 }
             } else {
                 await bookingService.processReturn(id, 'returned');
                 showToast('归还验证通过', 'success');
             }
 
-            // Mark as verified in current session
-            setVerifiedIds(prev => new Set(prev).add(id));
-            
-            // Note: We don't remove from returns list or nullify selectedId immediately 
-            // to allow the "Completed" state to be visible.
-            // Items with rejection_reason === 'VERIFIED' will be persistent.
-
+            // 从列表中移除已验证项，并刷新数据
+            setReturns(prev => prev.filter(r => r.id !== id));
+            if (selectedId === id) setSelectedId(null);
+            await loadReturns();
         } catch (error) {
             console.error('Verification failed', error);
             showToast('验证操作失败，网络连接异常', 'error');
@@ -134,16 +125,8 @@ export default function ReturnsPage() {
                                         </div>
                                     </div>
                                     </div>
-                                    <div className="text-sm font-medium">
-                                        {verifiedIds.has(booking.id) || booking.rejection_reason === 'VERIFIED' ? (
-                                            <span className="text-green-600 flex items-center gap-1 font-semibold">
-                                                <CheckCircle2 className="w-4 h-4" /> Verified
-                                            </span>
-                                        ) : (
-                                            <span className="text-purple-600">
-                                                {selectedId === booking.id ? 'Hide Details' : 'Verify Now'}
-                                            </span>
-                                        )}
+                                    <div className="text-sm font-medium text-purple-600">
+                                        {selectedId === booking.id ? 'Hide Details' : 'Verify Now'}
                                     </div>
                                 </li>
                             ))}
@@ -156,7 +139,6 @@ export default function ReturnsPage() {
                             <ReturnVerify
                                 booking={returns.find(r => r.id === selectedId)!}
                                 onVerify={handleVerify}
-                                isVerified={verifiedIds.has(selectedId)}
                             />
                         </div>
                     )}

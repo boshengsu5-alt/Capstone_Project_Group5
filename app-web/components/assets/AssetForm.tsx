@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Package, Tag, Hash, DollarSign, MapPin, AlignLeft, ShieldCheck, Asterisk, Upload, X, Loader2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { authFetch } from '@/lib/authFetch';
 import { useToast } from '@/components/ui/Toast';
 
 interface EditingAsset {
@@ -135,7 +136,7 @@ export default function AssetForm({ onCancel, onSuccess, editingAsset }: AssetFo
 
       if (editingAsset) {
         // Update existing asset
-        const res = await fetch(`/api/assets?id=${editingAsset.id}`, {
+        const res = await authFetch(`/api/assets?id=${editingAsset.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -151,7 +152,7 @@ export default function AssetForm({ onCancel, onSuccess, editingAsset }: AssetFo
         showToast('资产更新成功！', 'success');
       } else {
         // Create new asset
-        const res = await fetch('/api/assets', {
+        const res = await authFetch('/api/assets', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

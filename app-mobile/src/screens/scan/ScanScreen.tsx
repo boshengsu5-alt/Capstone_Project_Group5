@@ -6,7 +6,7 @@ import { useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 import QRScanner from '../../components/QRScanner';
 import ErrorBoundary from '../../components/ErrorBoundary';
-import { getAssetByQrCode } from '../../services/assetService';
+import { getAssetByQrCode, getAssetBySerialNumber } from '../../services/assetService';
 import { findApprovedBookingForAsset, findPendingBookingForAsset, activateBooking } from '../../services/bookingService';
 import { theme } from '../../theme';
 
@@ -156,12 +156,29 @@ export default function ScanScreen() {
     setManualId('');
   };
 
-  const handleManualSubmit = () => {
+  const handleManualSubmit = async () => {
     if (!manualId.trim()) {
       alertManager.alert('提示', '请输入设备编号');
       return;
     }
-    handleScan(manualId.trim());
+
+    setIsProcessing(true);
+    try {
+      // 手动输入按序列号查找，再复用扫码后的业务逻辑
+      const asset = await getAssetBySerialNumber(manualId.trim());
+      if (!asset) {
+        alertManager.alert('未找到设备', `找不到序列号为「${manualId.trim()}」的设备，请检查编号是否正确。`);
+        setIsProcessing(false);
+        return;
+      }
+      // 找到后走与扫码相同的流程（用 qr_code 触发 handleScan）
+      setIsProcessing(false);
+      handleScan(asset.qr_code ?? asset.id);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : '查询失败，请重试';
+      alertManager.alert('查询失败', msg);
+      setIsProcessing(false);
+    }
   };
 
   // 极其严密的权限判定：只要 status 为 denied，即视为拒绝

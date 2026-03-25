@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import type { Asset, Category } from '../../../database/types/supabase';
+import type { Asset, Category, ReviewReply } from '../../../database/types/supabase';
 
 // 手写 Database 类型与 Supabase 客户端泛型不完全兼容，
 // 用 db 别名统一绕过类型推断问题，运行时行为不受影响
@@ -76,6 +76,25 @@ export async function getAssetByQrCode(qrCode: string): Promise<Asset | null> {
 }
 
 /**
+ * Get asset by serial number (for manual input flow).
+ * 根据序列号查找资产（手动输入编号流程）
+ *
+ * @param serialNumber - Asset serial number string. 资产序列号字符串
+ * @returns Matching asset or null. 匹配的资产或 null
+ */
+export async function getAssetBySerialNumber(serialNumber: string): Promise<Asset | null> {
+  const { data, error } = await db
+    .from('assets')
+    .select('*')
+    .ilike('serial_number', serialNumber)
+    .single();
+
+  // PGRST116 = no rows found，不是错误，返回 null
+  if (error && error.code !== 'PGRST116') throw error;
+  return (data as unknown as Asset) ?? null;
+}
+
+/**
  * Get all asset categories.
  * 获取所有资产分类
  *
@@ -107,6 +126,132 @@ export async function searchAssets(keyword: string): Promise<(Asset & { categori
 
   if (error) throw error;
   return (data ?? []) as unknown as (Asset & { categories: Category })[];
+}
+
+/**
+ * Get all reviews for an asset (via its bookings).
+ * 获取某资产的全部评价（通过关联的借用记录）
+ *
+ * @param assetId - Asset UUID. 资产 ID
+ * @returns Reviews with reviewer info. 含评价人信息的评价列表
+ */
+export async function getReviewsByAssetId(assetId: string) {
+  // 先获取该资产的所有 bookingId
+  const { data: bookings, error: bErr } = await db
+    .from('bookings')
+    .select('id')
+    .eq('asset_id', assetId);
+
+  if (bErr) throw bErr;
+  if (!bookings || bookings.length === 0) return [];
+
+  const bookingIds = (bookings as { id: string }[]).map(b => b.id);
+
+  // 同时 join profiles 获取 full_name 作为显示名
+  const { data, error } = await db
+    .from('reviews')
+    .select('*, profiles!reviewer_id(full_name, email)')
+    .in('booking_id', bookingIds)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  // 优先用 full_name，无则截取邮箱前缀
+  return ((data ?? []) as unknown as (import('../../../database/types/supabase').Review & {
+    profiles: { full_name: string | null; email: string } | null;
+  })[]).map(r => ({
+    ...r,
+    reviewer_name: r.profiles?.full_name ?? r.profiles?.email?.split('@')[0] ?? '匿名用户',
+  }));
+}
+
+/**
+ * Get replies for a review.
+ * 获取某条评价的所有回复
+ *
+ * @param reviewId - Review UUID. 评价 ID
+ * @returns Replies ordered by creation time. 按时间排序的回复列表
+ */
+export async function getReviewReplies(reviewId: string): Promise<(ReviewReply & { author_name: string })[]> {
+  // Step 1: 先拿回复列表（不做 FK join，因为 author_id FK 指向 auth.users 而非 profiles）
+  const { data: replies, error } = await db
+    .from('review_replies')
+    .select('*')
+    .eq('review_id', reviewId)
+    .order('created_at', { ascending: true });
+
+  if (error) throw error;
+  if (!replies || replies.length === 0) return [];
+
+  // Step 2: 批量拉取所有涉及的 author 显示名
+  const authorIds = [...new Set((replies as ReviewReply[]).map(r => r.author_id))];
+  const { data: profiles } = await db
+    .from('profiles')
+    .select('id, full_name, email')
+    .in('id', authorIds);
+
+  const profileMap = new Map(
+    ((profiles ?? []) as { id: string; full_name: string | null; email: string }[])
+      .map(p => [p.id, p.full_name ?? p.email?.split('@')[0] ?? '用户'])
+  );
+
+  return (replies as ReviewReply[]).map(r => ({
+    ...r,
+    author_name: profileMap.get(r.author_id) ?? '用户',
+  }));
+}
+
+/**
+ * Post a reply to a review.
+ * 向某条评价发布回复
+ *
+ * @param reviewId - Review UUID. 评价 ID
+ * @param content - Reply text (1-500 chars). 回复内容
+ */
+export async function postReviewReply(reviewId: string, content: string): Promise<ReviewReply> {
+  const { data: { user }, error: authErr } = await supabase.auth.getUser();
+  if (authErr || !user) throw new Error('请先登录');
+
+  const { data, error } = await db
+    .from('review_replies')
+    .insert({ review_id: reviewId, author_id: user.id, content })
+    .select()
+    .single();
+
+  if (error) throw error;
+
+  // 发通知给评价原作者（不给自己发）
+  try {
+    const { data: review } = await db
+      .from('reviews')
+      .select('reviewer_id')
+      .eq('id', reviewId)
+      .single();
+
+    if (review && review.reviewer_id !== user.id) {
+      // 获取回复者显示名
+      const { data: profile } = await db
+        .from('profiles')
+        .select('full_name, email')
+        .eq('id', user.id)
+        .single();
+      const replierName = (profile as { full_name: string | null; email: string } | null)
+        ?.full_name ?? (profile as { full_name: string | null; email: string } | null)
+        ?.email?.split('@')[0] ?? '有人';
+
+      await db.from('notifications').insert({
+        user_id: (review as { reviewer_id: string }).reviewer_id,
+        type: 'review_reply',
+        title: '有人回复了你的评价',
+        message: `${replierName} 追问：${content.slice(0, 50)}${content.length > 50 ? '...' : ''}`,
+        is_read: false,
+        metadata: { review_id: reviewId, reply_author_id: user.id },
+      });
+    }
+  } catch {
+    // 通知发送失败不影响主流程
+  }
+
+  return data as unknown as ReviewReply;
 }
 
 /**

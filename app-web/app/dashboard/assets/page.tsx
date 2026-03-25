@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { Asset, Category } from '@/types/database';
 import { useToast } from '@/components/ui/Toast';
 import { exportToExcel } from '@/lib/exportUtils';
+import { authFetch } from '@/lib/authFetch';
 import { Download } from 'lucide-react';
 
 /** Asset row with joined category info from API response. API 响应中带分类信息的资产行 */
@@ -29,7 +30,7 @@ export default function AssetsPage() {
   const fetchAssets = async () => {
     try {
       setIsLoading(true);
-      const res = await fetch('/api/assets');
+      const res = await authFetch('/api/assets');
       if (res.ok) {
         const data = await res.json();
         setAssets(data);
@@ -62,7 +63,7 @@ export default function AssetsPage() {
   const handleDelete = async (asset: AssetWithCategory) => {
     if (!confirm(`确定要删除资产 "${asset.name}" 吗？此操作不可撤销。`)) return;
     try {
-      const res = await fetch(`/api/assets?id=${asset.id}`, { method: 'DELETE' });
+      const res = await authFetch(`/api/assets?id=${asset.id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Delete failed');
       showToast('资产已删除', 'success');
       fetchAssets();

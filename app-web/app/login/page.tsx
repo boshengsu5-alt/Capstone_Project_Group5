@@ -2,8 +2,9 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { signIn } from '@/lib/auth';
+import { signIn, checkAdminRole, setAdminCookie } from '@/lib/auth';
 import { LayoutDashboard, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -19,12 +20,30 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const { error } = await signIn(email, password);
+      const { data, error } = await signIn(email, password);
       if (error) {
         setError(error.message || 'Login failed. Please check your credentials.');
-      } else {
-        router.push('/dashboard');
+        return;
       }
+
+      // 登录成功后立即检查是否为 admin，非 admin 不允许进入管理后台
+      const userId = data.user?.id;
+      if (!userId) {
+        setError('Login succeeded but user data is missing.');
+        return;
+      }
+
+      const isAdmin = await checkAdminRole(userId);
+      if (!isAdmin) {
+        // 非管理员：登出并提示
+        await supabase.auth.signOut();
+        setError('Access denied. This portal is for admin and staff only. 仅管理员可登录此面板。');
+        return;
+      }
+
+      // 管理员：设置 middleware cookie 并跳转
+      setAdminCookie();
+      router.push('/dashboard');
     } catch (err) {
       setError('An unexpected error occurred. Please try again.');
     } finally {

@@ -252,10 +252,10 @@ export async function checkOverdueBookings() {
 /**
  * Submit a review for a completed booking.
  * 为已完成的借用提交评价
- * 
- * @param bookingId - The booking ID to review.
- * @param rating - Star rating (1-5).
- * @param comment - Review text.
+ *
+ * @param bookingId - The booking ID to review. 借用 ID
+ * @param rating - Star rating (1-5). 星级评分
+ * @param comment - Review text. 评价内容
  */
 export async function submitReview(bookingId: string, rating: number, comment: string) {
   const user = await getCurrentUser();
@@ -268,6 +268,45 @@ export async function submitReview(bookingId: string, rating: number, comment: s
       rating,
       comment,
     })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Get the existing review for a booking, if any.
+ * 获取某借用的已有评价（若存在）
+ *
+ * @param bookingId - Booking UUID. 借用 ID
+ * @returns Review or null. 评价对象或 null
+ */
+export async function getReviewByBookingId(bookingId: string) {
+  const { data, error } = await db
+    .from('reviews')
+    .select('*')
+    .eq('booking_id', bookingId)
+    .single();
+
+  // PGRST116 = no rows found，不是错误
+  if (error && error.code !== 'PGRST116') throw error;
+  return data ?? null;
+}
+
+/**
+ * Update an existing review (rating and/or comment).
+ * 更新已有评价的星级或内容
+ *
+ * @param reviewId - Review UUID. 评价 ID
+ * @param rating - New star rating. 新星级
+ * @param comment - New comment text. 新评价内容
+ */
+export async function updateReview(reviewId: string, rating: number, comment: string) {
+  const { data, error } = await db
+    .from('reviews')
+    .update({ rating, comment })
+    .eq('id', reviewId)
     .select()
     .single();
 

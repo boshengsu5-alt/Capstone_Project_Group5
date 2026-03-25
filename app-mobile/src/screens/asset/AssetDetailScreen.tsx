@@ -4,8 +4,10 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { HomeStackParamList } from '../../navigation/HomeStackNavigator';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../theme';
-import { getAssetById } from '../../services/assetService';
+import { getAssetById, getReviewsByAssetId } from '../../services/assetService';
 import type { Asset, Category } from '../../../../database/types/supabase';
+import ReviewCard, { ReviewWithMeta } from '../../components/ReviewCard';
+import { supabase } from '../../services/supabase';
 import CalendarView from '../../components/CalendarView';
 import ErrorView from '../../components/ErrorView';
 import SafeImage from '../../components/SafeImage';
@@ -21,6 +23,8 @@ export default function AssetDetailScreen({ route, navigation }: Props) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedDates, setSelectedDates] = useState<{ startDate: string, endDate: string } | null>(null);
+  const [reviews, setReviews] = useState<ReviewWithMeta[]>([]);
+  const [currentUserId, setCurrentUserId] = useState<string | undefined>();
 
   const fetchAssetDetails = useCallback(async () => {
     if (!assetId) {
@@ -32,15 +36,20 @@ export default function AssetDetailScreen({ route, navigation }: Props) {
     setLoading(true);
     setError(null);
     try {
-      const data = await getAssetById(assetId);
+      const [data, reviewsData, { data: { user } }] = await Promise.all([
+        getAssetById(assetId),
+        getReviewsByAssetId(assetId).catch(() => []),
+        supabase.auth.getUser(),
+      ]);
       if (data) {
         setAsset(data);
+        setReviews(reviewsData as ReviewWithMeta[]);
+        setCurrentUserId(user?.id);
       } else {
         setError('找不到该设备');
       }
-    } catch (err: any) {
-      // console.error('Error fetching asset details:', err);
-      setError(err.message || '获取设备详情失败');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : '获取设备详情失败');
     } finally {
       setLoading(false);
     }
@@ -144,6 +153,24 @@ export default function AssetDetailScreen({ route, navigation }: Props) {
               assetId={asset.id}
               onDateChange={handleDateChange}
             />
+          </View>
+
+          {/* Reviews Section */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>
+              用户评价 {reviews.length > 0 ? `(${reviews.length})` : ''}
+            </Text>
+            {reviews.length === 0 ? (
+              <Text style={styles.noReviews}>暂无评价，成为第一个评价者吧！</Text>
+            ) : (
+              reviews.map(review => (
+                <ReviewCard
+                  key={review.id}
+                  review={review}
+                  currentUserId={currentUserId}
+                />
+              ))
+            )}
           </View>
 
         </View>
@@ -311,5 +338,11 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 18,
     fontWeight: 'bold',
-  }
+  },
+  noReviews: {
+    fontSize: 14,
+    color: theme.colors.gray,
+    textAlign: 'center',
+    paddingVertical: 16,
+  },
 });

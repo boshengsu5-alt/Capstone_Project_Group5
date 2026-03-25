@@ -1,33 +1,23 @@
 'use client';
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { BookingWithDetails } from '@/lib/bookingService';
 import { CheckCircle, AlertOctagon, ExternalLink } from 'lucide-react';
 
 interface ReturnVerifyProps {
     booking: BookingWithDetails;
     onVerify: (id: string, isDamaged: boolean, severity?: string, photoUrl?: string) => Promise<void>;
-    isVerified?: boolean;
 }
 
-export default function ReturnVerify({ booking, onVerify, isVerified = false }: ReturnVerifyProps) {
+export default function ReturnVerify({ booking, onVerify }: ReturnVerifyProps) {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showSeverityModal, setShowSeverityModal] = useState(false);
-    const [isCompleted, setIsCompleted] = useState(isVerified || booking.rejection_reason === 'VERIFIED');
-
-    // Sync with prop changes
-    React.useEffect(() => {
-        setIsCompleted(isVerified || booking.rejection_reason === 'VERIFIED');
-    }, [isVerified, booking.rejection_reason]);
 
     const handleAction = async (isDamaged: boolean, severity?: string) => {
         setIsSubmitting(true);
         try {
             const returnPhoto = booking.return_photo_url || '';
             await onVerify(booking.id, isDamaged, severity, returnPhoto);
-            if (!isDamaged || severity) {
-                setIsCompleted(true);
-            }
         } catch (error) {
             console.error('Failed to verify return', error);
         } finally {
@@ -43,13 +33,13 @@ export default function ReturnVerify({ booking, onVerify, isVerified = false }: 
 
     return (
         <div className="bg-white border text-card-foreground shadow-sm rounded-xl overflow-hidden mt-6 relative">
-            {/* Severity Selection Selection Modal */}
+            {/* Severity Selection Modal */}
             {showSeverityModal && (
                 <div className="absolute inset-0 z-50 bg-white/95 backdrop-blur-sm flex items-center justify-center p-6 animate-in fade-in duration-200">
                     <div className="max-w-md w-full bg-white rounded-xl shadow-2xl border p-6 space-y-6">
                         <div className="text-center">
                             <h4 className="text-xl font-bold text-gray-900">Select Damage Severity</h4>
-                            <p className="text-sm text-gray-500 mt-2">Deduct 20 points from borrower and create damage report.</p>
+                            <p className="text-sm text-gray-500 mt-2">选择损坏程度，创建损坏报告。信用分将在报告处理完成后扣减。</p>
                         </div>
                         <div className="grid grid-cols-1 gap-3">
                             <button
@@ -58,7 +48,7 @@ export default function ReturnVerify({ booking, onVerify, isVerified = false }: 
                                 className="w-full py-3 px-4 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg font-medium hover:bg-amber-100 transition-colors flex justify-between items-center"
                             >
                                 <span>Minor Wear (轻微磨损)</span>
-                                <span className="bg-amber-200/50 px-2 py-0.5 rounded text-xs">-20 pts</span>
+                                <span className="bg-amber-200/50 px-2 py-0.5 rounded text-xs">-10 pts</span>
                             </button>
                             <button
                                 onClick={() => handleAction(true, 'moderate')}
@@ -74,7 +64,7 @@ export default function ReturnVerify({ booking, onVerify, isVerified = false }: 
                                 className="w-full py-3 px-4 bg-red-50 text-red-700 border border-red-200 rounded-lg font-medium hover:bg-red-100 transition-colors flex justify-between items-center"
                             >
                                 <span>Severe Damage (严重损坏)</span>
-                                <span className="bg-red-200/50 px-2 py-0.5 rounded text-xs">-20 pts</span>
+                                <span className="bg-red-200/50 px-2 py-0.5 rounded text-xs">-50 pts</span>
                             </button>
                         </div>
                         <button
@@ -88,42 +78,33 @@ export default function ReturnVerify({ booking, onVerify, isVerified = false }: 
             )}
 
             <div className="p-6 border-b bg-gray-50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                        <div className="flex flex-col">
-                            <h2 className="text-xl font-bold text-gray-900 dark:text-white">Return Verification</h2>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">
-                                Asset: <span className="font-semibold">{booking.assets?.name} ({booking.assets?.qr_code})</span>
-                            </p>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">
-                                Borrower: <span className="font-semibold text-purple-600">{booking.profiles?.full_name}</span> 
-                                <span className="text-xs ml-1 text-gray-400">(ID: {booking.borrower_id})</span>
-                            </p>
-                        </div>
+                <div className="flex flex-col">
+                    <h2 className="text-xl font-bold text-gray-900 dark:text-white">Return Verification</h2>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                        Asset: <span className="font-semibold">{booking.assets?.name} ({booking.assets?.qr_code})</span>
+                    </p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                        Borrower: <span className="font-semibold text-purple-600">{booking.profiles?.full_name}</span>
+                        <span className="text-xs ml-1 text-gray-400">({booking.profiles?.student_id})</span>
+                    </p>
+                </div>
                 <div className="flex gap-3">
-                    {isCompleted ? (
-                        <div className="flex items-center gap-2 px-4 py-2 bg-green-50 text-green-700 border border-green-100 rounded-md font-semibold">
-                            <CheckCircle className="w-5 h-5" />
-                            已完成 (Completed)
-                        </div>
-                    ) : (
-                        <>
-                            <button
-                                onClick={() => setShowSeverityModal(true)}
-                                disabled={isSubmitting}
-                                className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium transition-colors bg-white border border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 rounded-md disabled:opacity-50"
-                            >
-                                <AlertOctagon className="w-4 h-4" />
-                                Report Damage
-                            </button>
-                            <button
-                                onClick={() => handleAction(false)}
-                                disabled={isSubmitting}
-                                className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium transition-colors bg-green-600 text-white hover:bg-green-700 rounded-md disabled:opacity-50 shadow-sm"
-                            >
-                                <CheckCircle className="w-4 h-4" />
-                                Verify Intact
-                            </button>
-                        </>
-                    )}
+                    <button
+                        onClick={() => setShowSeverityModal(true)}
+                        disabled={isSubmitting}
+                        className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium transition-colors bg-white border border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 rounded-md disabled:opacity-50"
+                    >
+                        <AlertOctagon className="w-4 h-4" />
+                        Report Damage
+                    </button>
+                    <button
+                        onClick={() => handleAction(false)}
+                        disabled={isSubmitting}
+                        className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium transition-colors bg-green-600 text-white hover:bg-green-700 rounded-md disabled:opacity-50 shadow-sm"
+                    >
+                        <CheckCircle className="w-4 h-4" />
+                        Verify Intact
+                    </button>
                 </div>
             </div>
 

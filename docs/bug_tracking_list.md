@@ -19,4 +19,7 @@
 | 012 | Web/Bookings | BookingTable 缺少 overdue/cancelled 状态标签 | Bosheng | Bosheng | Fixed | Day 9 修复，补充两种状态颜色 |
 | 013 | Web/Dashboard | Dashboard 缺少 KPI 统计卡片 | Bosheng | Bosheng | Fixed | Day 9 修复，新增 4 个计数卡 |
 | 014 | Mobile/BookingForm | 提交前缺少日期有效性前端校验 | Bosheng | Bosheng | Fixed | Day 9 修复，补充空日期和倒序检测 |
+| 015 | Web/API | `/api/assets` 路由无鉴权，任何人可增删改查资产 (Critical) | Bosheng | Bosheng | Fixed | Day 3 交叉测试发现。新增 `serverAuth.ts` + `authFetch.ts`，API 路由验证 admin token |
+| 016 | Web/Middleware | 无 middleware.ts，dashboard 路由保护完全依赖客户端 JS | Bosheng | Bosheng | Fixed | Day 3 交叉测试发现。新增 `middleware.ts`，cookie 机制拦截未登录访问 |
+| 017 | Web/Login | student 账号可成功登录 Web 端，只在 dashboard 层才被拦截 | Bosheng | Bosheng | Fixed | Day 3 交叉测试发现。login 页登录后立即检查 admin 角色，非 admin 显示错误 |
 | | | | | | | |

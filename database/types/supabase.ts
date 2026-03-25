@@ -48,6 +48,7 @@ export type NotificationType =
     | 'return_reminder'
     | 'overdue_alert'
     | 'damage_reported'
+    | 'review_reply'
     | 'system';
 
 // ============================================================
@@ -155,6 +156,15 @@ export interface Review {
     created_at: string;
 }
 
+/** Review reply row. 评价回复行 */
+export interface ReviewReply {
+    id: string;
+    review_id: string;
+    author_id: string;
+    content: string;
+    created_at: string;
+}
+
 /** Audit log row. 审计日志行 */
 export interface AuditLog {
     id: string;
@@ -180,6 +190,7 @@ export type BookingInsert = Omit<Booking, 'id' | 'created_at' | 'updated_at' | '
 export type DamageReportInsert = Omit<DamageReport, 'id' | 'created_at' | 'updated_at' | 'status' | 'resolution_notes'>;
 export type NotificationInsert = Omit<Notification, 'id' | 'created_at' | 'is_read'>;
 export type ReviewInsert = Omit<Review, 'id' | 'created_at'>;
+export type ReviewReplyInsert = Omit<ReviewReply, 'id' | 'created_at'>;
 export type AuditLogInsert = Omit<AuditLog, 'id' | 'created_at'>;
 
 // ============================================================
@@ -241,6 +252,12 @@ export interface Database {
                 Row: Review;
                 Insert: ReviewInsert;
                 Update: ReviewUpdate;
+                Relationships: [];
+            };
+            review_replies: {
+                Row: ReviewReply;
+                Insert: ReviewReplyInsert;
+                Update: never;
                 Relationships: [];
             };
             audit_logs: {

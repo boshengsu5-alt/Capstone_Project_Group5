@@ -11,6 +11,7 @@ const TYPE_CONFIG: Record<NotificationType, { icon: string; color: string }> = {
   return_reminder: { icon: 'time', color: '#f59e0b' },
   overdue_alert: { icon: 'alert-circle', color: theme.colors.danger },
   damage_reported: { icon: 'warning', color: '#f97316' },
+  review_reply: { icon: 'chatbubbles', color: '#8b5cf6' },
   system: { icon: 'information-circle', color: theme.colors.primary },
 };
 

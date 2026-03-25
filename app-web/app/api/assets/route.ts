@@ -1,8 +1,14 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { getAssets, createAsset, updateAsset, deleteAsset } from '@/lib/assetService';
+import { verifyAdmin } from '@/lib/serverAuth';
 
-export async function GET() {
+const UNAUTHORIZED = NextResponse.json({ error: 'Unauthorized. Admin access required.' }, { status: 401 });
+
+export async function GET(request: Request) {
   try {
+    const admin = await verifyAdmin(request);
+    if (!admin) return UNAUTHORIZED;
+
     const assets = await getAssets();
     return NextResponse.json(assets);
   } catch (error: any) {
@@ -16,6 +22,9 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    const admin = await verifyAdmin(request);
+    if (!admin) return UNAUTHORIZED;
+
     const body = await request.json();
 
     if (!body.name) {
@@ -36,6 +45,9 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: NextRequest) {
   try {
+    const admin = await verifyAdmin(request);
+    if (!admin) return UNAUTHORIZED;
+
     const id = request.nextUrl.searchParams.get('id');
     if (!id) {
       return NextResponse.json({ error: 'Asset ID is required' }, { status: 400 });
@@ -55,6 +67,9 @@ export async function PATCH(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
+    const admin = await verifyAdmin(request);
+    if (!admin) return UNAUTHORIZED;
+
     const id = request.nextUrl.searchParams.get('id');
     if (!id) {
       return NextResponse.json({ error: 'Asset ID is required' }, { status: 400 });

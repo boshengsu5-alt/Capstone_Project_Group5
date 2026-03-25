@@ -195,11 +195,13 @@ export const bookingService = {
             return false;
         }
 
+        // 标记归还已验证（借用 rejection_reason 字段，因当前 schema 无 verified 状态）
+        // TODO: 建议新增 BookingStatus 'completed' 替代此 hack
         const { error } = await (supabase as any)
             .from('bookings')
-            .update({ 
+            .update({
                 status,
-                rejection_reason: 'VERIFIED' 
+                rejection_reason: 'VERIFIED'
             })
             .eq('id', bookingId);
 
@@ -230,8 +232,7 @@ export const bookingService = {
      * Create a damage report from return verification (admin-initiated).
      * 管理员在归还验证时创建损坏报告
      */
-    async createDamageReport(bookingId: string, description: string, severity: string, photoUrl?: string): Promise<{ success: boolean; scoreUpdated: boolean; oldScore?: number; newScore?: number }> {
-        // 使用星号选择以确保获取所有原始字段
+    async createDamageReport(bookingId: string, description: string, severity: string, photoUrl?: string): Promise<boolean> {
         const { data: booking, error: bookingError } = await supabase
             .from('bookings')
             .select(`
@@ -243,24 +244,13 @@ export const bookingService = {
 
         if (bookingError || !booking) {
             console.error('Booking not found for damage report', bookingError);
-            return { success: false, scoreUpdated: false };
+            return false;
         }
 
         const borrowerId = (booking as any).borrower_id;
-        console.log(`DEBUG: Found borrower ID: ${borrowerId} for booking: ${bookingId}`);
-
-        // 获取当前分数（用于验证）
-        const { data: profileBefore } = await supabase
-            .from('profiles')
-            .select('credit_score')
-            .eq('id', borrowerId)
-            .single();
-        const oldScore = (profileBefore as any)?.credit_score;
-        console.log(`DEBUG: Old score for ${borrowerId} is ${oldScore}`);
-
         const { data: { user } } = await supabase.auth.getUser();
 
-        // 插入损坏报告
+        // 插入损坏报告（信用分扣减在 updateDamageReportStatus resolved 时统一处理，避免双重扣减）
         const { error: reportError } = await (supabase as any)
             .from('damage_reports')
             .insert({
@@ -274,34 +264,10 @@ export const bookingService = {
 
         if (reportError) {
             console.error('Error creating damage report:', reportError);
-            return { success: false, scoreUpdated: false };
+            return false;
         }
 
-        // 扣除 20 积分
-        console.log(`DEBUG: Calling RPC update_credit_score with p_delta: -20`);
-        const { error: rpcError } = await (supabase as any).rpc('update_credit_score', {
-            p_user_id: borrowerId,
-            p_delta: -20,
-            p_reason: `damage_report_${severity}`
-        });
-
-        if (rpcError) {
-            console.error('DEBUG: RPC Error:', rpcError);
-        }
-
-        // 稍等 500ms 确保数据库完成更新（应对极致同步延迟）
-        await new Promise(resolve => setTimeout(resolve, 500));
-
-        // 再次获取分数
-        const { data: profileAfter } = await supabase
-            .from('profiles')
-            .select('credit_score')
-            .eq('id', borrowerId)
-            .single();
-        const newScore = (profileAfter as any)?.credit_score;
-        console.log(`DEBUG: New score for ${borrowerId} is ${newScore}`);
-
-        // 更新状态标记
+        // 标记归还已验证（借用 rejection_reason 字段，因当前 schema 无 verified 状态）
         await (supabase as any)
             .from('bookings')
             .update({ status: 'returned', rejection_reason: 'VERIFIED' })
@@ -319,15 +285,10 @@ export const bookingService = {
             resource_type: 'booking',
             resource_id: bookingId,
             resource_name: (booking as any).assets?.name,
-            change_description: `Admin reported damage (${severity}). Score change: ${oldScore} -> ${newScore}. ID: ${borrowerId}`
+            change_description: `Admin reported damage (${severity}). Borrower: ${borrowerId}`
         });
 
-        return { 
-            success: true, 
-            scoreUpdated: oldScore !== newScore,
-            oldScore,
-            newScore
-        };
+        return true;
     },
 
     /**
