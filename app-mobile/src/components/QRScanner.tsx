@@ -3,6 +3,7 @@ import { View, StyleSheet, Text, TouchableOpacity, Dimensions, Animated, Activit
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../theme';
+import { useTranslation } from 'react-i18next';
 
 const { width } = Dimensions.get('window');
 const SCAN_BOX_SIZE = width * 0.7;
@@ -13,6 +14,7 @@ interface QRScannerProps {
 }
 
 export default function QRScanner({ onScan, isScanning }: QRScannerProps) {
+  const { t } = useTranslation();
   const [permission, requestPermission] = useCameraPermissions();
   const scanLineAnim = useRef(new Animated.Value(0)).current;
 
@@ -99,7 +101,7 @@ export default function QRScanner({ onScan, isScanning }: QRScannerProps) {
           {/* Bottom dark area */}
           <View style={[styles.unfocusedArea, styles.bottomArea]}>
             <Text style={styles.scanText}>
-              {!isScanning ? "处理中..." : "将二维码对准框内，即可自动识别"}
+              {!isScanning ? t('scan.processing') : t('scan.prompt')}
             </Text>
           </View>
         </View>

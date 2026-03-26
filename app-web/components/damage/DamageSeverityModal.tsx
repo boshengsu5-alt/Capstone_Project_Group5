@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { ShieldAlert, X } from 'lucide-react';
 import type { BookingWithDetails } from '@/lib/bookingService';
 
@@ -73,8 +74,13 @@ const SEVERITY_OPTIONS = [
 export default function DamageSeverityModal({ isOpen, booking, onSelect, onClose }: DamageSeverityModalProps) {
     const [description, setDescription] = useState('');
     const [showError, setShowError] = useState(false);
+    const [mounted, setMounted] = useState(false);
 
-    if (!isOpen || !booking) return null;
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
+    if (!isOpen || !booking || !mounted) return null;
 
     const depr = getDepreciationInfo(booking.assets?.purchase_date ?? null);
     const price = booking.assets?.purchase_price ?? null;
@@ -97,10 +103,10 @@ export default function DamageSeverityModal({ isOpen, booking, onSelect, onClose
         onClose();
     };
 
-    return (
+    return createPortal(
         // 遮罩层
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={handleClose}>
-            <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={handleClose} />
 
             {/* 弹窗主体 */}
             <div
@@ -199,6 +205,7 @@ export default function DamageSeverityModal({ isOpen, booking, onSelect, onClose
                     </button>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 }
