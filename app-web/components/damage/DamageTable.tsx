@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import type { DamageReportWithDetails } from '@/lib/bookingService';
+import DamageUpdateModal from './DamageUpdateModal';
 
 interface DamageTableProps {
     reports: DamageReportWithDetails[];
@@ -12,9 +13,8 @@ interface DamageTableProps {
  * Dark-themed table for displaying and managing damage reports.
  */
 export default function DamageTable({ reports, onUpdateStatus }: DamageTableProps) {
-    const [editingId, setEditingId] = useState<string | null>(null);
-    const [editNotes, setEditNotes] = useState('');
-    const [editStatus, setEditStatus] = useState('');
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [selectedReport, setSelectedReport] = useState<DamageReportWithDetails | null>(null);
 
     const getStatusBadge = (status: string) => {
         switch (status) {
@@ -81,14 +81,13 @@ export default function DamageTable({ reports, onUpdateStatus }: DamageTableProp
     };
 
     const handleEdit = (report: DamageReportWithDetails) => {
-        setEditingId(report.id);
-        setEditStatus(report.status);
-        setEditNotes(report.resolution_notes || '');
+        setSelectedReport(report);
+        setIsModalOpen(true);
     };
 
-    const handleSave = (id: string) => {
-        onUpdateStatus(id, editStatus, editNotes);
-        setEditingId(null);
+    const handleSave = (id: string, status: string, notes: string) => {
+        onUpdateStatus(id, status, notes);
+        setIsModalOpen(false);
     };
 
     if (reports.length === 0) {
@@ -113,8 +112,8 @@ export default function DamageTable({ reports, onUpdateStatus }: DamageTableProp
                             <th className="px-3 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Description</th>
                             <th className="px-3 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Status</th>
                             <th className="px-3 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Date</th>
-                            <th className="relative py-4 pl-3 pr-6">
-                                <span className="sr-only">Actions</span>
+                            <th className="relative py-4 pl-3 pr-6 text-right">
+                                <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Actions</span>
                             </th>
                         </tr>
                     </thead>
@@ -155,61 +154,31 @@ export default function DamageTable({ reports, onUpdateStatus }: DamageTableProp
                                     {report.description}
                                 </td>
                                 <td className="whitespace-nowrap px-3 py-4 text-sm">
-                                    {editingId === report.id ? (
-                                        <select
-                                            value={editStatus}
-                                            onChange={(e) => setEditStatus(e.target.value)}
-                                            className="block w-full rounded-lg border border-white/10 bg-gray-800 py-1.5 text-sm text-gray-200 focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 outline-none"
-                                        >
-                                            <option value="open">Open</option>
-                                            <option value="investigating">Investigating</option>
-                                            <option value="resolved">Resolved</option>
-                                            <option value="dismissed">Dismissed</option>
-                                        </select>
-                                    ) : (
-                                        getStatusBadge(report.status)
-                                    )}
+                                    {getStatusBadge(report.status)}
                                 </td>
                                 <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                                     {new Date(report.created_at).toLocaleDateString()}
                                 </td>
-                                <td className="relative whitespace-nowrap py-4 pl-3 pr-6 text-right text-sm font-medium">
-                                    {editingId === report.id ? (
-                                        <div className="flex gap-2 justify-end items-center">
-                                            <input
-                                                type="text"
-                                                value={editNotes}
-                                                onChange={(e) => setEditNotes(e.target.value)}
-                                                placeholder="Resolution notes..."
-                                                className="block w-40 rounded-lg border border-white/10 bg-gray-800 py-1 px-2 text-sm text-gray-200 placeholder:text-gray-600 focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 outline-none"
-                                            />
-                                            <button
-                                                onClick={() => handleSave(report.id)}
-                                                className="text-sm font-semibold text-emerald-400 hover:text-emerald-300 transition-colors"
-                                            >
-                                                Save
-                                            </button>
-                                            <button
-                                                onClick={() => setEditingId(null)}
-                                                className="text-sm text-gray-500 hover:text-gray-300 transition-colors"
-                                            >
-                                                Cancel
-                                            </button>
-                                        </div>
-                                    ) : (
-                                        <button
-                                            onClick={() => handleEdit(report)}
-                                            className="text-sm font-semibold text-purple-400 hover:text-purple-300 transition-colors"
-                                        >
-                                            Update
-                                        </button>
-                                    )}
+                                <td className="whitespace-nowrap py-4 pl-3 pr-6 text-right text-sm font-medium">
+                                    <button
+                                        onClick={() => handleEdit(report)}
+                                        className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-bold text-purple-400 bg-purple-500/5 border border-purple-500/10 hover:bg-purple-500/20 hover:border-purple-500/30 transition-all duration-200"
+                                    >
+                                        Update
+                                    </button>
                                 </td>
                             </tr>
                         ))}
                     </tbody>
                 </table>
             </div>
+
+            <DamageUpdateModal
+                isOpen={isModalOpen}
+                report={selectedReport}
+                onSave={handleSave}
+                onClose={() => setIsModalOpen(false)}
+            />
         </div>
     );
 }
