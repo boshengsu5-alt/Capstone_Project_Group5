@@ -1,9 +1,10 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Package, Tag, Hash, DollarSign, MapPin, AlignLeft, ShieldCheck, Asterisk, Upload, X, Loader2, Activity, Thermometer } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/components/ui/Toast';
 import { createAsset, updateAsset } from '@/lib/assetService';
-import { Asset } from '@/types/database';
+import { getCategories } from '@/lib/categoryService';
+import { Asset, Category } from '@/types/database';
 
 interface AssetFormProps {
   onCancel: () => void;
@@ -18,7 +19,29 @@ export default function AssetForm({ onCancel, onSuccess, asset }: AssetFormProps
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [images, setImages] = useState<string[]>(asset?.images ?? []);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [isFetchingCategories, setIsFetchingCategories] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    async function loadCategories() {
+      try {
+        setIsFetchingCategories(true);
+        const data = await getCategories();
+        setCategories(data);
+        
+        // If creating a new asset and no category is set, default to first category
+        if (!asset && data.length > 0 && !formData.category_id) {
+          setFormData(prev => ({ ...prev, category_id: data[0].id }));
+        }
+      } catch (err) {
+        console.error('Failed to load categories', err);
+      } finally {
+        setIsFetchingCategories(false);
+      }
+    }
+    loadCategories();
+  }, [asset]);
 
   const [formData, setFormData] = useState({
     name: asset?.name || '',
@@ -210,24 +233,39 @@ export default function AssetForm({ onCancel, onSuccess, asset }: AssetFormProps
               </p>
             </div>
 
-            {/* Category ID */}
+            {/* Category selection */}
             <div className="sm:col-span-3">
               <label htmlFor="category_id" className="block text-sm font-semibold leading-6 text-gray-900 dark:text-gray-100">
-                Category Reference
+                Asset Category <Asterisk className="w-3 h-3 text-rose-500 ml-1 inline" />
               </label>
               <div className="mt-2.5 relative rounded-xl shadow-sm">
                 <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
                   <Tag className="h-5 w-5 text-gray-400 dark:text-gray-500" />
                 </div>
-                <input
-                  type="text"
+                <select
                   name="category_id"
                   id="category_id"
+                  required
                   value={formData.category_id}
-                  onChange={handleInputChange}
-                  className="block w-full rounded-xl border-0 py-3.5 pl-12 pr-4 text-gray-900 dark:text-white ring-1 ring-inset ring-gray-300 dark:ring-gray-700 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 bg-white/50 dark:bg-black/50 backdrop-blur-sm transition-all shadow-sm"
-                  placeholder="UUID or leave auto"
-                />
+                  onChange={(e) => setFormData(prev => ({ ...prev, category_id: e.target.value }))}
+                  disabled={isFetchingCategories}
+                  className="block w-full rounded-xl border-0 py-3.5 pl-12 pr-10 text-gray-900 dark:text-white ring-1 ring-inset ring-gray-300 dark:ring-gray-700 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 bg-white/50 dark:bg-black/50 backdrop-blur-sm transition-all shadow-sm appearance-none cursor-pointer"
+                >
+                  {isFetchingCategories ? (
+                    <option>Loading categories...</option>
+                  ) : categories.length === 0 ? (
+                    <option value="">No categories available</option>
+                  ) : (
+                    categories.map((cat) => (
+                      <option key={cat.id} value={cat.id}>
+                        {cat.name} {cat.name_zh ? `(${cat.name_zh})` : ''}
+                      </option>
+                    ))
+                  )}
+                </select>
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4">
+                  <Package className="h-4 w-4 text-gray-400" />
+                </div>
               </div>
             </div>
 
