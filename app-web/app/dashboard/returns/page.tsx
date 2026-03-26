@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { bookingService, BookingWithDetails } from '@/lib/bookingService';
 import ReturnVerify from '@/components/returns/ReturnVerify';
+import DamageSeverityModal from '@/components/damage/DamageSeverityModal';
 import { AlertCircle, CheckCircle2, RefreshCw, RotateCcw } from 'lucide-react';
 import { useToast } from '@/components/ui/Toast';
 import { useLanguage } from '@/components/providers/LanguageProvider';
@@ -13,6 +14,9 @@ export default function ReturnsPage() {
     const [returns, setReturns] = useState<BookingWithDetails[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedId, setSelectedId] = useState<string | null>(null);
+
+    // 损坏程度弹窗：等待管理员选择严重程度
+    const [damageTargetBooking, setDamageTargetBooking] = useState<BookingWithDetails | null>(null);
 
     const loadReturns = async () => {
         setIsLoading(true);
@@ -39,27 +43,44 @@ export default function ReturnsPage() {
         loadReturns();
     }, []);
 
-    const handleVerify = async (id: string, isDamaged: boolean, severity?: string, photoUrl?: string) => {
-        try {
-            if (isDamaged && severity) {
-                const success = await bookingService.createDamageReport(id, 'Item reported damaged during return verification', severity, photoUrl);
-                if (success) {
-                    showToast(`Created damage report (${severity}), asset marked for maintenance`, 'success');
-                } else {
-                    showToast('Failed to create damage report', 'error');
-                    return;
-                }
-            } else {
-                await bookingService.processReturn(id, 'returned');
-                showToast('Return verification passed', 'success');
-            }
+    const handleVerify = async (id: string, isDamaged: boolean) => {
+        if (isDamaged) {
+            // 打开损坏程度选择弹窗，等待管理员选择
+            const booking = returns.find(r => r.id === id) ?? null;
+            setDamageTargetBooking(booking);
+            return;
+        }
 
-            // Remove from list and refresh
+        // 无损归还
+        try {
+            await bookingService.processReturn(id, 'returned');
+            showToast('Return verification passed', 'success');
             setReturns(prev => prev.filter(r => r.id !== id));
             if (selectedId === id) setSelectedId(null);
             await loadReturns();
         } catch (error) {
             console.error('Verification failed', error);
+            showToast('Verification failed, network error', 'error');
+        }
+    };
+
+    const handleDamageSeveritySelect = async (severity: 'minor' | 'moderate' | 'severe', description: string) => {
+        if (!damageTargetBooking) return;
+        const bookingId = damageTargetBooking.id;
+        setDamageTargetBooking(null);
+        setSelectedId(null);
+
+        try {
+            const success = await bookingService.reportDamage(bookingId, severity, description);
+            if (success) {
+                showToast(`Damage reported (${severity}). Pending review on Damage Reports page.`, 'success');
+                setReturns(prev => prev.filter(r => r.id !== bookingId));
+                await loadReturns();
+            } else {
+                showToast('Failed to create damage report', 'error');
+            }
+        } catch (error) {
+            console.error('Damage report failed', error);
             showToast('Verification failed, network error', 'error');
         }
     };
@@ -169,6 +190,14 @@ export default function ReturnsPage() {
                     </div>
                 )}
             </main>
+
+            {/* 损坏程度选择弹窗 */}
+            <DamageSeverityModal
+                isOpen={damageTargetBooking !== null}
+                booking={damageTargetBooking}
+                onSelect={handleDamageSeveritySelect}
+                onClose={() => setDamageTargetBooking(null)}
+            />
         </div>
     );
 }

@@ -127,23 +127,92 @@ export default function AssetDetailScreen({ route, navigation }: Props) {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>设备信息</Text>
 
+            {/* 存放位置 */}
             <View style={styles.infoRow}>
               <Ionicons name="location-outline" size={20} color={theme.colors.gray} style={styles.infoIcon} />
-              <View>
+              <View style={styles.infoContent}>
                 <Text style={styles.infoLabel}>存放位置</Text>
                 <Text style={styles.infoValue}>{asset.location || '校内指定位置'}</Text>
               </View>
             </View>
 
+            {/* 序列号 */}
             <View style={styles.infoRow}>
               <Ionicons name="barcode-outline" size={20} color={theme.colors.gray} style={styles.infoIcon} />
-              <View>
-                <Text style={styles.infoLabel}>状态 & 编号</Text>
-                <Text style={[styles.infoValue, { color: isAvailable ? '#10b981' : theme.colors.danger }]}>
-                  {isAvailable ? '现存可借' : '借出/不可用'} · {asset.serial_number || '无编号'}
-                </Text>
+              <View style={styles.infoContent}>
+                <Text style={styles.infoLabel}>序列号</Text>
+                <Text style={[styles.infoValue, styles.monoText]}>{asset.serial_number || '无编号'}</Text>
               </View>
             </View>
+
+            {/* 可用状态 */}
+            <View style={styles.infoRow}>
+              <Ionicons name="checkmark-circle-outline" size={20} color={theme.colors.gray} style={styles.infoIcon} />
+              <View style={styles.infoContent}>
+                <Text style={styles.infoLabel}>可用状态</Text>
+                <View style={[
+                  styles.statusBadge,
+                  asset.status === 'available' && styles.statusAvailable,
+                  asset.status === 'borrowed' && styles.statusBorrowed,
+                  asset.status === 'maintenance' && styles.statusMaintenance,
+                  asset.status === 'retired' && styles.statusRetired,
+                ]}>
+                  <Text style={[
+                    styles.statusBadgeText,
+                    asset.status === 'available' && { color: '#10b981' },
+                    asset.status === 'borrowed' && { color: '#3b82f6' },
+                    asset.status === 'maintenance' && { color: '#f59e0b' },
+                    asset.status === 'retired' && { color: theme.colors.danger },
+                  ]}>
+                    {asset.status === 'available' ? '现存可借'
+                      : asset.status === 'borrowed' ? '已借出'
+                      : asset.status === 'maintenance' ? '维护中'
+                      : '已退役'}
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            {/* 设备成色 */}
+            <View style={styles.infoRow}>
+              <Ionicons name="shield-checkmark-outline" size={20} color={theme.colors.gray} style={styles.infoIcon} />
+              <View style={styles.infoContent}>
+                <Text style={styles.infoLabel}>设备成色</Text>
+                <View style={[
+                  styles.conditionBadge,
+                  asset.condition === 'new' && styles.conditionNew,
+                  asset.condition === 'good' && styles.conditionGood,
+                  asset.condition === 'fair' && styles.conditionFair,
+                  asset.condition === 'poor' && styles.conditionPoor,
+                  asset.condition === 'damaged' && styles.conditionDamaged,
+                ]}>
+                  <Text style={[
+                    styles.conditionBadgeText,
+                    asset.condition === 'new' && { color: '#10b981' },
+                    asset.condition === 'good' && { color: '#3b82f6' },
+                    asset.condition === 'fair' && { color: '#f59e0b' },
+                    asset.condition === 'poor' && { color: '#f97316' },
+                    asset.condition === 'damaged' && { color: theme.colors.danger },
+                  ]}>
+                    {asset.condition === 'new' ? '全新'
+                      : asset.condition === 'good' ? '良好'
+                      : asset.condition === 'fair' ? '一般'
+                      : asset.condition === 'poor' ? '较差'
+                      : '损坏'}
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            {/* 设备类别 */}
+            <View style={styles.infoRow}>
+              <Ionicons name="pricetag-outline" size={20} color={theme.colors.gray} style={styles.infoIcon} />
+              <View style={styles.infoContent}>
+                <Text style={styles.infoLabel}>设备类别</Text>
+                <Text style={styles.infoValue}>{asset.categories?.name_zh || asset.categories?.name || '未分类'}</Text>
+              </View>
+            </View>
+
           </View>
 
           {/* Calendar Section */}
@@ -152,6 +221,7 @@ export default function AssetDetailScreen({ route, navigation }: Props) {
             <CalendarView
               assetId={asset.id}
               onDateChange={handleDateChange}
+              disabled={!isAvailable}
             />
           </View>
 
@@ -295,16 +365,50 @@ const styles = StyleSheet.create({
   infoIcon: {
     marginRight: theme.spacing.md,
   },
+  infoContent: {
+    flex: 1,
+  },
   infoLabel: {
     fontSize: 12,
     color: theme.colors.gray,
-    marginBottom: 2,
+    marginBottom: 4,
   },
   infoValue: {
     fontSize: 15,
     color: theme.colors.text,
     fontWeight: '500',
   },
+  monoText: {
+    fontVariant: ['tabular-nums'],
+    letterSpacing: 0.5,
+  },
+  // 状态徽章
+  statusBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderWidth: 1,
+  },
+  statusAvailable: { backgroundColor: '#d1fae5', borderColor: '#6ee7b7' },
+  statusBorrowed:  { backgroundColor: '#dbeafe', borderColor: '#93c5fd' },
+  statusMaintenance: { backgroundColor: '#fef3c7', borderColor: '#fcd34d' },
+  statusRetired:   { backgroundColor: '#fee2e2', borderColor: '#fca5a5' },
+  statusBadgeText: { fontSize: 13, fontWeight: '600' },
+  // 成色徽章
+  conditionBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderWidth: 1,
+  },
+  conditionNew:     { backgroundColor: '#d1fae5', borderColor: '#6ee7b7' },
+  conditionGood:    { backgroundColor: '#dbeafe', borderColor: '#93c5fd' },
+  conditionFair:    { backgroundColor: '#fef3c7', borderColor: '#fcd34d' },
+  conditionPoor:    { backgroundColor: '#ffedd5', borderColor: '#fdba74' },
+  conditionDamaged: { backgroundColor: '#fee2e2', borderColor: '#fca5a5' },
+  conditionBadgeText: { fontSize: 13, fontWeight: '600' },
   calendarSection: {
     marginTop: theme.spacing.sm,
   },

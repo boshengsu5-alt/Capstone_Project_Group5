@@ -30,6 +30,8 @@ const TIME_SLOTS: string[] = Array.from({ length: 29 }, (_, i) => {
 interface CalendarViewProps {
     assetId: string;
     onDateChange?: (startDate: string, endDate: string) => void;
+    /** 禁用日历交互（设备不可借用时传 true）*/
+    disabled?: boolean;
 }
 
 interface MarkedDates {
@@ -50,7 +52,7 @@ interface MarkedDates {
  * Calendar component showing asset availability with date range + time selection.
  * 日历组件，展示资产可用性并支持日期范围及精确到半小时的时间选择
  */
-const CalendarView: React.FC<CalendarViewProps> = ({ assetId, onDateChange }) => {
+const CalendarView: React.FC<CalendarViewProps> = ({ assetId, onDateChange, disabled = false }) => {
     const [loading, setLoading] = useState(true);
     const [fetchError, setFetchError] = useState(false);
     const [bookedDates, setBookedDates] = useState<MarkedDates>({});
@@ -215,6 +217,13 @@ const CalendarView: React.FC<CalendarViewProps> = ({ assetId, onDateChange }) =>
 
     return (
         <View style={styles.container}>
+            {/* 不可借用时显示遮罩，阻止所有日历交互 */}
+            {disabled && (
+                <View style={styles.disabledOverlay} pointerEvents="box-only">
+                    <Ionicons name="lock-closed-outline" size={32} color={theme.colors.gray} />
+                    <Text style={styles.disabledText}>该设备当前不可借用</Text>
+                </View>
+            )}
             <Calendar
                 minDate={format(new Date(), 'yyyy-MM-dd')}
                 markingType={'period'}
@@ -331,6 +340,21 @@ const styles = StyleSheet.create({
         shadowRadius: 4,
         elevation: 3,
         overflow: 'hidden',
+    },
+    disabledOverlay: {
+        position: 'absolute',
+        top: 0, left: 0, right: 0, bottom: 0,
+        backgroundColor: 'rgba(255,255,255,0.82)',
+        zIndex: 10,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderRadius: 12,
+        gap: 10,
+    },
+    disabledText: {
+        fontSize: 15,
+        color: theme.colors.gray,
+        fontWeight: '600',
     },
     centerContainer: {
         height: 300,

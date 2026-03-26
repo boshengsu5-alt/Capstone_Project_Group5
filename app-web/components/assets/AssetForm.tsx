@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Package, Tag, Hash, DollarSign, MapPin, AlignLeft, ShieldCheck, Asterisk, Upload, X, Loader2 } from 'lucide-react';
+import { Package, Tag, Hash, DollarSign, MapPin, AlignLeft, ShieldCheck, Asterisk, Upload, X, Loader2, Activity, Thermometer } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/components/ui/Toast';
 import { createAsset, updateAsset } from '@/lib/assetService';
@@ -27,9 +27,11 @@ export default function AssetForm({ onCancel, onSuccess, asset }: AssetFormProps
     purchase_price: asset?.purchase_price?.toString() || '',
     location: asset?.location || '',
     description: asset?.description || '',
+    condition: asset?.condition || 'good',
+    status: asset?.status || 'available',
   });
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
@@ -293,6 +295,58 @@ export default function AssetForm({ onCancel, onSuccess, asset }: AssetFormProps
                 />
               </div>
             </div>
+
+            {/* Condition — only shown in edit mode, new assets default to 'good' (编辑模式才显示设备状况选择) */}
+            {isEditMode && (
+              <div className="sm:col-span-3">
+                <label htmlFor="condition" className="block text-sm font-semibold leading-6 text-gray-900 dark:text-gray-100">
+                  Condition
+                </label>
+                <div className="mt-2.5 relative rounded-xl shadow-sm">
+                  <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
+                    <Thermometer className="h-5 w-5 text-gray-400 dark:text-gray-500" />
+                  </div>
+                  <select
+                    name="condition"
+                    id="condition"
+                    value={formData.condition}
+                    onChange={handleInputChange}
+                    className="block w-full rounded-xl border-0 py-3.5 pl-12 pr-4 text-gray-900 dark:text-white ring-1 ring-inset ring-gray-300 dark:ring-gray-700 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 bg-white/50 dark:bg-black/50 backdrop-blur-sm transition-all shadow-sm appearance-none"
+                  >
+                    <option value="new">New (全新)</option>
+                    <option value="good">Good (良好)</option>
+                    <option value="fair">Fair (一般)</option>
+                    <option value="poor">Poor (较差)</option>
+                    <option value="damaged">Damaged (损坏)</option>
+                  </select>
+                </div>
+              </div>
+            )}
+
+            {/* Status — only shown in edit mode, new assets default to 'available' (编辑模式才显示上架状态选择) */}
+            {isEditMode && (
+              <div className="sm:col-span-3">
+                <label htmlFor="status" className="block text-sm font-semibold leading-6 text-gray-900 dark:text-gray-100">
+                  Status
+                </label>
+                <div className="mt-2.5 relative rounded-xl shadow-sm">
+                  <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
+                    <Activity className="h-5 w-5 text-gray-400 dark:text-gray-500" />
+                  </div>
+                  <select
+                    name="status"
+                    id="status"
+                    value={formData.status}
+                    onChange={handleInputChange}
+                    className="block w-full rounded-xl border-0 py-3.5 pl-12 pr-4 text-gray-900 dark:text-white ring-1 ring-inset ring-gray-300 dark:ring-gray-700 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 bg-white/50 dark:bg-black/50 backdrop-blur-sm transition-all shadow-sm appearance-none"
+                  >
+                    <option value="available">Available (可借用)</option>
+                    <option value="maintenance">Maintenance (维护中)</option>
+                    <option value="retired">Retired (已退役)</option>
+                  </select>
+                </div>
+              </div>
+            )}
 
             {/* Description */}
             <div className="sm:col-span-6">

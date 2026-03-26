@@ -99,7 +99,23 @@ export const translations = {
       activeStatus: 'Authorized & Active',
       appearance: 'Appearance & UI',
       language: 'Current Language',
-    }
+      accountSettings: 'Account Settings',
+      auditLogs: 'Audit Logs',
+    },
+    auth: {
+      loggedIn: 'Signed in',
+      signingOut: 'Signing out…',
+      signOut: 'Sign Out',
+    },
+    damage: {
+      open: 'Open',
+      investigating: 'Investigating',
+      resolved: 'Resolved',
+      dismissed: 'Dismissed',
+      minor: 'Minor',
+      moderate: 'Moderate',
+      severe: 'Severe',
+    },
   },
   zh: {
     sidebar: {
@@ -199,6 +215,22 @@ export const translations = {
       activeStatus: '已授权并激活',
       appearance: '外观与界面',
       language: '当前语言',
-    }
+      accountSettings: '账号设置',
+      auditLogs: '查看日志',
+    },
+    auth: {
+      loggedIn: '已登录',
+      signingOut: '退出中…',
+      signOut: '安全退出',
+    },
+    damage: {
+      open: '待处理',
+      investigating: '调查中',
+      resolved: '已解决',
+      dismissed: '已忽略',
+      minor: '轻微',
+      moderate: '中等',
+      severe: '严重',
+    },
   }
 };

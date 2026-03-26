@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import BookingTable from '@/components/bookings/BookingTable';
 import ApprovalModal from '@/components/bookings/ApprovalModal';
+import DamageSeverityModal from '@/components/damage/DamageSeverityModal';
 import { bookingService, BookingWithDetails } from '@/lib/bookingService';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/components/ui/Toast';
@@ -27,10 +28,14 @@ export default function BookingsPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [statusFilter, setStatusFilter] = useState<'all' | BookingStatus>('all');
 
-    // Modal state
+    // Approval modal state
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedBooking, setSelectedBooking] = useState<BookingWithDetails | null>(null);
     const [newBookingId, setNewBookingId] = useState<string | null>(null);
+
+    // Damage severity modal state
+    const [isDamageModalOpen, setIsDamageModalOpen] = useState(false);
+    const [damageTargetBooking, setDamageTargetBooking] = useState<BookingWithDetails | null>(null);
 
     const loadBookings = async () => {
         setIsLoading(true);
@@ -96,6 +101,28 @@ export default function BookingsPage() {
     const handleReviewClick = (booking: BookingWithDetails) => {
         setSelectedBooking(booking);
         setIsModalOpen(true);
+    };
+
+    const handleReportDamageClick = (booking: BookingWithDetails) => {
+        setDamageTargetBooking(booking);
+        setIsDamageModalOpen(true);
+    };
+
+    const handleDamageSeveritySelect = async (severity: 'minor' | 'moderate' | 'severe', description: string) => {
+        if (!damageTargetBooking) return;
+        setIsDamageModalOpen(false);
+        setDamageTargetBooking(null);
+        try {
+            const success = await bookingService.reportDamage(damageTargetBooking.id, severity, description);
+            if (success) {
+                showToast(`Damage reported (${severity}). Pending review on Damage Reports page.`, 'success');
+                await loadBookings();
+            } else {
+                showToast('Failed to report damage. Please try again.', 'error');
+            }
+        } catch {
+            showToast('Network error, operation failed.', 'error');
+        }
     };
 
     const handleApprove = async (id: string) => {
@@ -182,18 +209,27 @@ export default function BookingsPage() {
                         <BookingTable
                             bookings={filteredBookings}
                             onReview={handleReviewClick}
+                            onReportDamage={handleReportDamageClick}
                             highlightId={newBookingId}
                         />
                     </div>
                 )}
 
-                {/* Modal */}
+                {/* Approval Modal */}
                 <ApprovalModal
                     isOpen={isModalOpen}
                     booking={selectedBooking}
                     onClose={() => { setIsModalOpen(false); setSelectedBooking(null); }}
                     onApprove={handleApprove}
                     onReject={handleReject}
+                />
+
+                {/* Damage Severity Modal */}
+                <DamageSeverityModal
+                    isOpen={isDamageModalOpen}
+                    booking={damageTargetBooking}
+                    onSelect={handleDamageSeveritySelect}
+                    onClose={() => { setIsDamageModalOpen(false); setDamageTargetBooking(null); }}
                 />
             </main>
         </div>

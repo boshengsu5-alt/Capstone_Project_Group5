@@ -107,8 +107,9 @@ export default function DamageTable({ reports, onUpdateStatus }: DamageTableProp
                     <thead className="bg-white/5">
                         <tr>
                             <th className="py-4 pl-6 pr-3 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Asset</th>
-                            <th className="px-3 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Reporter</th>
+                            <th className="px-3 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Borrower</th>
                             <th className="px-3 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Severity</th>
+                            <th className="px-3 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Condition</th>
                             <th className="px-3 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Description</th>
                             <th className="px-3 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Status</th>
                             <th className="px-3 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Date</th>
@@ -124,13 +125,31 @@ export default function DamageTable({ reports, onUpdateStatus }: DamageTableProp
                                     {report.assets?.name || 'Unknown Asset'}
                                 </td>
                                 <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-300">
-                                    {report.profiles?.full_name || 'Unknown'}
-                                    {report.profiles?.student_id && (
-                                        <span className="block text-xs text-gray-500 font-mono mt-0.5">{report.profiles.student_id}</span>
+                                    {report.bookings?.profiles?.full_name || report.profiles?.full_name || 'Unknown'}
+                                    {(report.bookings?.profiles?.student_id || report.profiles?.student_id) && (
+                                        <span className="block text-xs text-gray-500 font-mono mt-0.5">{report.bookings?.profiles?.student_id || report.profiles?.student_id}</span>
                                     )}
                                 </td>
                                 <td className="whitespace-nowrap px-3 py-4 text-sm">
                                     {getSeverityBadge(report.severity)}
+                                </td>
+                                <td className="whitespace-nowrap px-3 py-4 text-sm">
+                                    {(() => {
+                                        const condition = (report as any).assets?.condition ?? 'unknown';
+                                        const condBadge: Record<string, { color: string; label: string }> = {
+                                            new: { color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20', label: 'New' },
+                                            good: { color: 'bg-blue-500/10 text-blue-400 border-blue-500/20', label: 'Good' },
+                                            fair: { color: 'bg-amber-500/10 text-amber-400 border-amber-500/20', label: 'Fair' },
+                                            poor: { color: 'bg-orange-500/10 text-orange-400 border-orange-500/20', label: 'Poor' },
+                                            damaged: { color: 'bg-red-500/10 text-red-400 border-red-500/20', label: 'Damaged' },
+                                        };
+                                        const b = condBadge[condition] ?? { color: 'bg-gray-500/10 text-gray-400 border-gray-500/20', label: condition };
+                                        return (
+                                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold border ${b.color}`}>
+                                                {b.label}
+                                            </span>
+                                        );
+                                    })()}
                                 </td>
                                 <td className="px-3 py-4 text-sm text-gray-400 max-w-xs truncate">
                                     {report.description}

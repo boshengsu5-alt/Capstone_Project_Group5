@@ -38,6 +38,8 @@ export type {
     DamageReportUpdate,
     NotificationUpdate,
     ReviewUpdate,
+    ReviewReply,
+    ReviewReplyInsert,
     Database,
 } from '../../database/types/supabase';
 

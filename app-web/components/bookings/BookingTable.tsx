@@ -8,10 +8,11 @@ import { useLanguage } from '@/components/providers/LanguageProvider';
 interface BookingTableProps {
     bookings: BookingWithDetails[];
     onReview: (booking: BookingWithDetails) => void;
+    onReportDamage?: (booking: BookingWithDetails) => void;
     highlightId?: string | null;
 }
 
-export default function BookingTable({ bookings, onReview, highlightId }: BookingTableProps) {
+export default function BookingTable({ bookings, onReview, onReportDamage, highlightId }: BookingTableProps) {
     const { t } = useLanguage();
     const getStatusBadge = (status: string) => {
         switch (status) {
@@ -116,24 +117,35 @@ export default function BookingTable({ bookings, onReview, highlightId }: Bookin
                                     {getStatusBadge(booking.status)}
                                 </td>
                                 <td className="px-6 py-4 text-right">
-                                    {booking.status === 'pending' ? (
-                                        <button
-                                            onClick={() => onReview(booking)}
-                                            className="px-4 py-1.5 text-sm font-semibold text-white rounded-lg transition-all
-                                                       bg-gradient-to-r from-purple-600 to-indigo-600
-                                                       hover:from-purple-500 hover:to-indigo-500
-                                                       shadow-[0_0_12px_rgba(139,92,246,0.35)] hover:shadow-[0_0_18px_rgba(139,92,246,0.5)]"
-                                        >
-                                            {t('bookings.review')}
-                                        </button>
-                                    ) : (
-                                        <button
-                                            onClick={() => onReview(booking)}
-                                            className="px-4 py-1.5 text-sm font-medium text-gray-400 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 hover:text-gray-200 transition-colors"
-                                        >
-                                            {t('bookings.viewDetails')}
-                                        </button>
-                                    )}
+                                    <div className="flex items-center justify-end gap-2">
+                                        {/* 仅对 overdue / returned 状态显示，active 不显示（物品未归还无法检查损坏），且排除已核验的 (borrowing → no damage report until return) */}
+                                        {onReportDamage && ['overdue', 'returned'].includes(booking.status) && booking.rejection_reason !== 'VERIFIED' && (
+                                            <button
+                                                onClick={() => onReportDamage(booking)}
+                                                className="px-3 py-1.5 text-xs font-semibold text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-lg hover:bg-rose-500/20 hover:text-rose-300 transition-colors"
+                                            >
+                                                Report Damage
+                                            </button>
+                                        )}
+                                        {booking.status === 'pending' ? (
+                                            <button
+                                                onClick={() => onReview(booking)}
+                                                className="px-4 py-1.5 text-sm font-semibold text-white rounded-lg transition-all
+                                                           bg-gradient-to-r from-purple-600 to-indigo-600
+                                                           hover:from-purple-500 hover:to-indigo-500
+                                                           shadow-[0_0_12px_rgba(139,92,246,0.35)] hover:shadow-[0_0_18px_rgba(139,92,246,0.5)]"
+                                            >
+                                                {t('bookings.review')}
+                                            </button>
+                                        ) : (
+                                            <button
+                                                onClick={() => onReview(booking)}
+                                                className="px-4 py-1.5 text-sm font-medium text-gray-400 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 hover:text-gray-200 transition-colors"
+                                            >
+                                                {t('bookings.viewDetails')}
+                                            </button>
+                                        )}
+                                    </div>
                                 </td>
                             </tr>
                         ))}

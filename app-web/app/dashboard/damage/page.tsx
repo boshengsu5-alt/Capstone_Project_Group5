@@ -48,7 +48,7 @@ export default function DamageReportsPage() {
         const severityMap: Record<string, string> = { minor: '轻微', moderate: '中等', severe: '严重' };
         const exportData = reports.map(r => ({
             'Asset': r.assets?.name || 'N/A',
-            'Reporter': r.profiles?.full_name || 'N/A',
+            'Borrower': r.bookings?.profiles?.full_name || r.profiles?.full_name || 'N/A',
             'Severity': severityMap[r.severity] || r.severity,
             'Description': r.description,
             'Status': r.status,

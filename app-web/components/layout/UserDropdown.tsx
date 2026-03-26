@@ -60,14 +60,14 @@ export default function UserDropdown({ email }: UserDropdownProps) {
 
   const menuItems = [
     {
-      label: locale === 'zh' ? '账号设置' : 'Account Settings',
+      label: t('settings.accountSettings'),
       icon: Settings,
       action: () => { setOpen(false); router.push('/dashboard/settings'); },
       className: 'text-gray-100 hover:bg-purple-500/20',
       iconClassName: 'text-purple-400',
     },
     {
-      label: locale === 'zh' ? '查看日志' : 'Audit Logs',
+      label: t('settings.auditLogs'),
       icon: ScrollText,
       action: () => { setOpen(false); router.push('/dashboard/audit-logs'); },
       className: 'text-gray-100 hover:bg-purple-500/20',
@@ -138,7 +138,7 @@ export default function UserDropdown({ email }: UserDropdownProps) {
           {/* User info header */}
           <div className="px-4 py-3 border-b border-purple-500/20">
             <p className="text-xs font-semibold text-purple-300 uppercase tracking-widest">
-              已登录
+              {t('auth.loggedIn')}
             </p>
             <p className="mt-0.5 text-sm text-gray-200 truncate">
               {email ?? 'admin@unigear.edu'}
@@ -169,7 +169,7 @@ export default function UserDropdown({ email }: UserDropdownProps) {
               className="w-full flex items-center gap-x-3 px-4 py-2.5 text-sm font-medium text-rose-400 hover:bg-rose-500/15 transition-colors disabled:opacity-50"
             >
               <LogOut className="h-4 w-4 shrink-0" />
-              {loading ? (locale === 'zh' ? '退出中…' : 'Signing out…') : (locale === 'zh' ? '安全退出' : 'Sign Out')}
+              {loading ? t('auth.signingOut') : t('auth.signOut')}
             </button>
           </div>
         </div>
