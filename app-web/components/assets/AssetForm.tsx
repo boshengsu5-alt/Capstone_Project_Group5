@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Package, Tag, Hash, DollarSign, MapPin, AlignLeft, ShieldCheck, Asterisk, Upload, X, Loader2, Activity, Thermometer } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/components/ui/Toast';
@@ -19,6 +19,17 @@ export default function AssetForm({ onCancel, onSuccess, asset }: AssetFormProps
   const [error, setError] = useState<string | null>(null);
   const [images, setImages] = useState<string[]>(asset?.images ?? []);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
+
+  useEffect(() => {
+    (supabase as any)
+      .from('categories')
+      .select('id, name')
+      .order('name')
+      .then(({ data }: { data: { id: string; name: string }[] | null }) => {
+        if (data) setCategories(data);
+      });
+  }, []);
 
   const [formData, setFormData] = useState({
     name: asset?.name || '',
@@ -210,24 +221,27 @@ export default function AssetForm({ onCancel, onSuccess, asset }: AssetFormProps
               </p>
             </div>
 
-            {/* Category ID */}
+            {/* Category */}
             <div className="sm:col-span-3">
               <label htmlFor="category_id" className="block text-sm font-semibold leading-6 text-gray-900 dark:text-gray-100">
-                Category Reference
+                Category
               </label>
               <div className="mt-2.5 relative rounded-xl shadow-sm">
                 <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
                   <Tag className="h-5 w-5 text-gray-400 dark:text-gray-500" />
                 </div>
-                <input
-                  type="text"
+                <select
                   name="category_id"
                   id="category_id"
                   value={formData.category_id}
                   onChange={handleInputChange}
-                  className="block w-full rounded-xl border-0 py-3.5 pl-12 pr-4 text-gray-900 dark:text-white ring-1 ring-inset ring-gray-300 dark:ring-gray-700 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 bg-white/50 dark:bg-black/50 backdrop-blur-sm transition-all shadow-sm"
-                  placeholder="UUID or leave auto"
-                />
+                  className="block w-full rounded-xl border-0 py-3.5 pl-12 pr-4 text-gray-900 dark:text-white ring-1 ring-inset ring-gray-300 dark:ring-gray-700 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 bg-white/50 dark:bg-black/50 backdrop-blur-sm transition-all shadow-sm appearance-none"
+                >
+                  <option value="">-- Select category --</option>
+                  {categories.map(cat => (
+                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                  ))}
+                </select>
               </div>
             </div>
 

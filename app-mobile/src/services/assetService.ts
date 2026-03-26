@@ -21,6 +21,7 @@ export async function getAssets(categoryId?: string, page?: number, limit: numbe
   let query = db
     .from('assets')
     .select('*, categories(*)')
+    .eq('is_archived', false)
     .order('created_at', { ascending: false });
 
   if (categoryId) {
@@ -121,6 +122,7 @@ export async function searchAssets(keyword: string): Promise<(Asset & { categori
   const { data, error } = await db
     .from('assets')
     .select('*, categories(*)')
+    .eq('is_archived', false)
     .ilike('name', `%${keyword}%`)
     .order('created_at', { ascending: false });
 

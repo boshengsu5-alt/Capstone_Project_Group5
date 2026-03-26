@@ -8,19 +8,47 @@ import { auditService } from './auditService';
 
 /** Booking with joined asset and borrower details. 包含资产和借用者详情的借用记录 */
 export type BookingWithDetails = Database['public']['Tables']['bookings']['Row'] & {
-    assets: Pick<Database['public']['Tables']['assets']['Row'], 'name' | 'qr_code' | 'images'> | null;
+    assets: Pick<Database['public']['Tables']['assets']['Row'], 'name' | 'qr_code' | 'images' | 'purchase_date' | 'purchase_price'> | null;
     profiles: Pick<Database['public']['Tables']['profiles']['Row'], 'full_name' | 'student_id'> | null;
+    /** 学生端已提交的损坏报告（open/investigating 表示未处理）。 Student-submitted damage reports for this booking. */
+    damage_reports: Array<{ id: string; status: string }> | null;
 };
 
 /** Damage report with joined asset, reporter, and borrower details. 包含资产、报告者和借用者详情的损坏报告 */
 export type DamageReportWithDetails = DamageReport & {
-    assets: Pick<Database['public']['Tables']['assets']['Row'], 'name' | 'qr_code' | 'images' | 'condition' | 'status'> | null;
+    assets: Pick<Database['public']['Tables']['assets']['Row'], 'name' | 'qr_code' | 'images' | 'condition' | 'status' | 'purchase_price' | 'purchase_date'> | null;
     profiles: Pick<Database['public']['Tables']['profiles']['Row'], 'full_name' | 'student_id'> | null;
     bookings: {
         borrower_id: string;
+        /** 取货时拍摄的设备原始状态照片。Pickup condition photo taken by borrower. */
+        pickup_photo_url: string | null;
+        /** 归还时拍摄的设备状态照片。Return condition photo taken by borrower. */
+        return_photo_url: string | null;
         profiles: Pick<Database['public']['Tables']['profiles']['Row'], 'full_name' | 'student_id'> | null;
     } | null;
 };
+
+// ============================================================
+// Overdue Penalty Calculator. 逾期扣分计算器 (§7.1)
+// ============================================================
+
+/**
+ * Calculate overdue credit penalty using tiered daily rates.
+ * 按分级日费率计算逾期信用分扣减。
+ *
+ * Tiers (§7.1): 1-3d → -3/d, 4-7d → -5/d, >7d → -8/d, cap -50.
+ * 分级：1-3天 -3/天，4-7天 -5/天，>7天 -8/天，封顶 50 分。
+ *
+ * @param overdueDays - Number of days overdue. 逾期天数
+ * @returns Penalty as a positive number (caller applies as negative delta). 扣分绝对值（调用方取负）
+ */
+export function calcOverduePenalty(overdueDays: number): number {
+    if (overdueDays <= 0) return 0;
+    let penalty = Math.min(overdueDays, 3) * 3;                          // 前 3 天
+    if (overdueDays > 3) penalty += Math.min(overdueDays - 3, 4) * 5;   // 第 4-7 天
+    if (overdueDays > 7) penalty += (overdueDays - 7) * 8;              // 第 7 天以后
+    return Math.min(penalty, 50);                                         // 封顶 50
+}
 
 export const bookingService = {
     /**
@@ -32,8 +60,9 @@ export const bookingService = {
             .from('bookings')
             .select(`
                 *,
-                assets ( name, qr_code, images ),
-                profiles!borrower_id ( full_name, student_id )
+                assets ( name, qr_code, images, purchase_date, purchase_price ),
+                profiles!borrower_id ( full_name, student_id ),
+                damage_reports ( id, status )
             `)
             .order('created_at', { ascending: false });
 
@@ -50,6 +79,13 @@ export const bookingService = {
      * 审批通过借用请求
      */
     async approveBooking(id: string, approverId?: string): Promise<boolean> {
+        // 先获取 booking 详情，用于后续更新资产状态和通知
+        const { data: booking } = await supabase
+            .from('bookings')
+            .select('borrower_id, asset_id, assets(name)')
+            .eq('id', id)
+            .single();
+
         const payload: Database['public']['Tables']['bookings']['Update'] = {
             status: 'approved',
             approver_id: approverId || null
@@ -64,38 +100,31 @@ export const bookingService = {
             return false;
         }
 
-        // Audit log
-        const { data: bookingInfo } = await supabase
-            .from('bookings')
-            .select('assets(name)')
-            .eq('id', id)
-            .single();
-        
+        // 审批通过 → 资产状态同步为 borrowed，防止同一资产被重复审批
+        if (booking) {
+            await (supabase as any)
+                .from('assets')
+                .update({ status: 'borrowed' })
+                .eq('id', (booking as any).asset_id);
+        }
+
         await auditService.logAction({
             operation_type: 'APPROVE',
             resource_type: 'booking',
             resource_id: id,
-            resource_name: (bookingInfo as any)?.assets?.name,
-            change_description: `Approved booking request for ${(bookingInfo as any)?.assets?.name || 'unknown asset'}`
+            resource_name: (booking as any)?.assets?.name,
+            change_description: `Approved booking request for ${(booking as any)?.assets?.name || 'unknown asset'}. Asset status → borrowed.`
         });
 
         // 插入审批通过通知
-        if (approverId) {
-            const { data: booking } = await supabase
-                .from('bookings')
-                .select('borrower_id, assets(name)')
-                .eq('id', id)
-                .single();
-
-            if (booking) {
-                await (supabase as any).from('notifications').insert({
-                    user_id: (booking as any).borrower_id,
-                    type: 'booking_approved',
-                    title: 'Booking Approved',
-                    message: `Your booking for ${(booking as any).assets?.name ?? 'an asset'} has been approved.`,
-                    metadata: { booking_id: id }
-                });
-            }
+        if (approverId && booking) {
+            await (supabase as any).from('notifications').insert({
+                user_id: (booking as any).borrower_id,
+                type: 'booking_approved',
+                title: 'Booking Approved',
+                message: `Your booking for ${(booking as any).assets?.name ?? 'an asset'} has been approved.`,
+                metadata: { booking_id: id }
+            });
         }
 
         return true;
@@ -169,9 +198,9 @@ export const bookingService = {
             .from('damage_reports')
             .select(`
                 *,
-                assets ( name, qr_code, images, condition, status ),
+                assets ( name, qr_code, images, condition, status, purchase_price, purchase_date ),
                 profiles!reporter_id ( full_name, student_id ),
-                bookings ( borrower_id, profiles!borrower_id ( full_name, student_id ) )
+                bookings ( borrower_id, pickup_photo_url, return_photo_url, profiles!borrower_id ( full_name, student_id ) )
             `)
             .order('created_at', { ascending: false });
 
@@ -188,10 +217,10 @@ export const bookingService = {
      * 处理归还验证（管理员确认归还完成）
      */
     async processReturn(bookingId: string, status: string): Promise<boolean> {
-        // 同时获取 asset_id 以便更新资产状态
+        // 获取 asset_id、借用者 ID 和日期信息，用于资产状态同步和逾期扣分
         const { data: booking, error: bookingFetchError } = await supabase
             .from('bookings')
-            .select('asset_id, assets(name)')
+            .select('asset_id, borrower_id, end_date, actual_return_date, assets(name)')
             .eq('id', bookingId)
             .single();
 
@@ -221,77 +250,163 @@ export const bookingService = {
             .update({ status: 'available' })
             .eq('id', (booking as any).asset_id);
 
-        // Add Audit Log
+        // ── 逾期扣分（§7.1）──────────────────────────────────────
+        const endDate = (booking as any).end_date as string | null;
+        const actualReturn = (booking as any).actual_return_date as string | null;
+        const borrowerId = (booking as any).borrower_id as string | null;
+        const assetName = (booking as any).assets?.name ?? 'an asset';
+
+        if (endDate && actualReturn && borrowerId) {
+            const overdueDays = Math.round(
+                (new Date(actualReturn).getTime() - new Date(endDate).getTime()) / (1000 * 60 * 60 * 24)
+            );
+            const penalty = calcOverduePenalty(overdueDays);
+
+            if (penalty > 0) {
+                const delta = -penalty;
+
+                // 优先使用 RPC；若 RPC 不存在则直接更新字段
+                const { error: rpcErr } = await (supabase as any).rpc('update_credit_score', {
+                    p_user_id: borrowerId,
+                    p_delta: delta,
+                    p_reason: `overdue_${overdueDays}d`,
+                });
+
+                if (rpcErr) {
+                    const { data: profile } = await supabase
+                        .from('profiles')
+                        .select('credit_score')
+                        .eq('id', borrowerId)
+                        .single();
+                    if (profile) {
+                        const newScore = Math.max(0, Math.min(200, (profile as any).credit_score + delta));
+                        await (supabase as any)
+                            .from('profiles')
+                            .update({ credit_score: newScore })
+                            .eq('id', borrowerId);
+                    }
+                }
+
+                // 发逾期扣分通知给借用者
+                await (supabase as any).from('notifications').insert({
+                    user_id: borrowerId,
+                    type: 'overdue_alert',
+                    title: '逾期归还扣分通知',
+                    message: `您借用的「${assetName}」逾期 ${overdueDays} 天归还，已扣减信用分 ${penalty} 分。请按时归还设备，避免信用分持续降低。`,
+                    metadata: { booking_id: bookingId, overdue_days: overdueDays, penalty },
+                });
+            }
+        }
+        // ─────────────────────────────────────────────────────────
+
         await auditService.logAction({
             operation_type: 'VERIFY',
             resource_type: 'booking',
             resource_id: bookingId,
             resource_name: (booking as any).assets?.name,
-            change_description: 'Admin verified the return as intact. Asset status set to available.'
+            change_description: (() => {
+                const end = (booking as any).end_date as string | null;
+                const actual = (booking as any).actual_return_date as string | null;
+                if (end && actual) {
+                    const days = Math.round(
+                        (new Date(actual).getTime() - new Date(end).getTime()) / (1000 * 60 * 60 * 24)
+                    );
+                    const pen = calcOverduePenalty(days);
+                    if (pen > 0) return `Admin verified the return (overdue ${days}d). Asset → available. Credit -${pen}.`;
+                }
+                return 'Admin verified the return as intact. Asset status set to available.';
+            })(),
         });
 
         return true;
     },
 
     /**
-     * Create a damage report from return verification (admin-initiated).
-     * 管理员在归还验证时创建损坏报告
+     * Acknowledge a return where the student already submitted a damage report.
+     * 确认归还：学生已在手机端提交损坏报告，管理员仅需核验归还，不重复创建报告。
+     *
+     * Differences from processReturn():
+     * - Asset stays in 'maintenance' (not set to 'available', damage report already exists)
+     * - No new damage report is created
+     * - Overdue penalty still applies if applicable
+     *
+     * @param bookingId - Booking UUID to acknowledge. 要确认的借用 UUID
+     * @returns true on success. 成功返回 true
      */
-    async createDamageReport(bookingId: string, description: string, severity: string, photoUrl?: string): Promise<boolean> {
-        const { data: booking, error: bookingError } = await supabase
+    async acknowledgeReturnWithExistingDamage(bookingId: string): Promise<boolean> {
+        const { data: booking, error: fetchErr } = await supabase
             .from('bookings')
-            .select(`
-                *,
-                assets ( name )
-            `)
+            .select('asset_id, borrower_id, end_date, actual_return_date, assets(name)')
             .eq('id', bookingId)
             .single();
 
-        if (bookingError || !booking) {
-            console.error('Booking not found for damage report', bookingError);
-            return false;
-        }
+        if (fetchErr || !booking) return false;
 
-        const borrowerId = (booking as any).borrower_id;
-        const { data: { user } } = await supabase.auth.getUser();
-
-        // 插入损坏报告（信用分扣减在 updateDamageReportStatus resolved 时统一处理，避免双重扣减）
-        const { error: reportError } = await (supabase as any)
-            .from('damage_reports')
-            .insert({
-                booking_id: bookingId,
-                asset_id: (booking as any).asset_id,
-                reporter_id: user?.id ?? borrowerId,
-                description,
-                severity,
-                photo_urls: photoUrl ? [photoUrl] : [],
-            });
-
-        if (reportError) {
-            console.error('Error creating damage report:', reportError);
-            return false;
-        }
-
-        // 标记归还已验证（借用 rejection_reason 字段，因当前 schema 无 verified 状态）
-        await (supabase as any)
+        // 标记借用已核验（booking → returned + VERIFIED）
+        const { error } = await (supabase as any)
             .from('bookings')
             .update({ status: 'returned', rejection_reason: 'VERIFIED' })
             .eq('id', bookingId);
 
-        // 归还验证时报告损坏：资产进入维护状态，同时更新 condition (minor→fair, moderate→poor, severe→damaged)
-        const conditionMap: Record<string, string> = { minor: 'fair', moderate: 'poor', severe: 'damaged' };
+        if (error) return false;
+
+        // 资产保持 maintenance 状态，等待损坏报告审核完成后由管理员手动重新上架
+        // (Asset stays in maintenance; admin re-lists from Assets page after repair)
         await (supabase as any)
             .from('assets')
-            .update({ status: 'maintenance', condition: conditionMap[severity] ?? 'poor' })
+            .update({ status: 'maintenance' })
             .eq('id', (booking as any).asset_id);
 
-        // 审计日志
+        // 逾期扣分逻辑与 processReturn 相同
+        const endDate = (booking as any).end_date as string | null;
+        const actualReturn = (booking as any).actual_return_date as string | null;
+        const borrowerId = (booking as any).borrower_id as string | null;
+        const assetName = (booking as any).assets?.name ?? 'an asset';
+
+        if (endDate && actualReturn && borrowerId) {
+            const overdueDays = Math.round(
+                (new Date(actualReturn).getTime() - new Date(endDate).getTime()) / (1000 * 60 * 60 * 24)
+            );
+            const penalty = calcOverduePenalty(overdueDays);
+
+            if (penalty > 0) {
+                const { error: rpcErr } = await (supabase as any).rpc('update_credit_score', {
+                    p_user_id: borrowerId,
+                    p_delta: -penalty,
+                    p_reason: `overdue_${overdueDays}d`,
+                });
+
+                if (rpcErr) {
+                    const { data: profile } = await supabase
+                        .from('profiles')
+                        .select('credit_score')
+                        .eq('id', borrowerId)
+                        .single();
+                    if (profile) {
+                        const newScore = Math.max(0, Math.min(200, (profile as any).credit_score - penalty));
+                        await (supabase as any)
+                            .from('profiles')
+                            .update({ credit_score: newScore })
+                            .eq('id', borrowerId);
+                    }
+                }
+
+                await (supabase as any).from('notifications').insert({
+                    user_id: borrowerId,
+                    type: 'overdue_alert',
+                    title: '逾期归还扣分通知',
+                    message: `您借用的「${assetName}」逾期 ${overdueDays} 天归还，已扣减信用分 ${penalty} 分。`,
+                    metadata: { booking_id: bookingId, overdue_days: overdueDays, penalty },
+                });
+            }
+        }
+
         await auditService.logAction({
             operation_type: 'VERIFY',
             resource_type: 'booking',
             resource_id: bookingId,
             resource_name: (booking as any).assets?.name,
-            change_description: `Admin reported damage (${severity}). Borrower: ${borrowerId}`
+            change_description: 'Admin acknowledged return with pre-existing student damage report. Asset remains in maintenance.',
         });
 
         return true;
@@ -361,42 +476,172 @@ export const bookingService = {
             .update({ status: 'maintenance', condition: conditionMap[severity] ?? 'poor' })
             .eq('id', assetId);
 
+        // ── 暂停未来预约（suspended 维修保留）────────────────────────
+        // 找出该设备所有 pending/approved 且 start_date > now 的预约，改为 suspended
+        // rejection_reason 设为 ASSET_MAINTENANCE 以便 restoreMaintenanceBookings 识别
+        const now = new Date().toISOString();
+        const { data: futureBookings } = await (supabase as any)
+            .from('bookings')
+            .select('id, borrower_id, start_date, assets(name)')
+            .eq('asset_id', assetId)
+            .in('status', ['pending', 'approved'])
+            .gt('start_date', now);
+
+        if (futureBookings && futureBookings.length > 0) {
+            const futureIds = futureBookings.map((b: any) => b.id);
+            await (supabase as any)
+                .from('bookings')
+                .update({ status: 'suspended', rejection_reason: 'ASSET_MAINTENANCE' })
+                .in('id', futureIds);
+
+            // 逐条发送暂停通知给受影响用户
+            for (const fb of futureBookings) {
+                await (supabase as any).from('notifications').insert({
+                    user_id: fb.borrower_id,
+                    type: 'booking_suspended',
+                    title: '预约已暂停 — 设备维修中',
+                    message: `您预约的「${(booking as any).assets?.name ?? '设备'}」因归还时发现损坏，已进入维修流程，您的预约（取货日：${new Date(fb.start_date).toLocaleDateString('en-CA')}）已暂时挂起。维修完成重新上架后将自动恢复，您也可以选择直接取消。`,
+                    metadata: { booking_id: fb.id, asset_id: assetId },
+                });
+            }
+        }
+        // ─────────────────────────────────────────────────────────
+
         await auditService.logAction({
             operation_type: 'CREATE',
             resource_type: 'damage_report',
             resource_id: bookingId,
             resource_name: (booking as any).assets?.name,
-            change_description: `Admin reported damage (${severity}). Asset set to maintenance. Pending review on Damage Reports page.`,
+            change_description: `Admin reported damage (${severity}). Asset set to maintenance. ${futureBookings?.length ?? 0} future booking(s) suspended. Pending review on Damage Reports page.`,
         });
 
         return true;
     },
 
+    // ============================================================
+    // Maintenance Booking Restore. 维修完成后恢复暂停预约
+    // ============================================================
+
     /**
-     * Update damage report status with resolution notes.
-     * 更新损坏报告状态和处理备注。
-     * 当状态变为 resolved 时，根据严重程度扣减学生信用分。
+     * Restore or auto-cancel suspended bookings when an asset is re-listed.
+     * 资产重新上架时，恢复或自动取消 ASSET_MAINTENANCE 暂停的预约。
+     *
+     * - start_date > now → restore to 'pending' (等待重新审批)
+     * - start_date ≤ now → auto-cancel (取货日已过，无需等待)
+     *
+     * @param assetId - Asset UUID being re-listed. 重新上架的资产 UUID
      */
-    async updateDamageReportStatus(id: string, status: string, notes: string): Promise<boolean> {
-        // 先获取报告详情（含当前状态），用于判断是否需要扣减信用分
+    /**
+     * Check if an asset has any unresolved (open/investigating) damage reports.
+     * 检查资产是否存在未处理的损坏报告（open/investigating）。
+     *
+     * Used to block re-listing until all damage claims are resolved.
+     * 用于在损坏报告处理完毕前阻止重新上架。
+     *
+     * @param assetId - Asset UUID to check. 要检查的资产 UUID
+     * @returns true if there are pending reports. 有未处理报告时返回 true
+     */
+    async hasPendingDamageReports(assetId: string): Promise<boolean> {
+        const { data } = await (supabase as any)
+            .from('damage_reports')
+            .select('id')
+            .eq('asset_id', assetId)
+            .in('status', ['open', 'investigating'])
+            .limit(1);
+        return !!(data && data.length > 0);
+    },
+
+    async restoreMaintenanceBookings(assetId: string): Promise<void> {
+        const now = new Date().toISOString();
+
+        const { data: suspendedBookings } = await (supabase as any)
+            .from('bookings')
+            .select('id, borrower_id, start_date, assets(name)')
+            .eq('asset_id', assetId)
+            .eq('status', 'suspended')
+            .eq('rejection_reason', 'ASSET_MAINTENANCE');
+
+        if (!suspendedBookings || suspendedBookings.length === 0) return;
+
+        const { data: assetData } = await supabase
+            .from('assets')
+            .select('name')
+            .eq('id', assetId)
+            .single();
+        const assetName = (assetData as any)?.name ?? '设备';
+
+        for (const sb of suspendedBookings) {
+            const isFuture = sb.start_date > now;
+
+            if (isFuture) {
+                // 取货日未到 → 恢复为 pending，清空 ASSET_MAINTENANCE 标记
+                await (supabase as any)
+                    .from('bookings')
+                    .update({ status: 'pending', rejection_reason: '' })
+                    .eq('id', sb.id);
+
+                await (supabase as any).from('notifications').insert({
+                    user_id: sb.borrower_id,
+                    type: 'booking_restored',
+                    title: '好消息！设备已修好，预约已恢复',
+                    message: `您暂停中的「${assetName}」预约（取货日：${new Date(sb.start_date).toLocaleDateString('en-CA')}）已自动恢复为待审批状态，请等待管理员重新审批。`,
+                    metadata: { booking_id: sb.id, asset_id: assetId },
+                });
+            } else {
+                // 取货日已过 → 自动取消，告知用户
+                await (supabase as any)
+                    .from('bookings')
+                    .update({ status: 'cancelled', rejection_reason: 'ASSET_MAINTENANCE_EXPIRED' })
+                    .eq('id', sb.id);
+
+                await (supabase as any).from('notifications').insert({
+                    user_id: sb.borrower_id,
+                    type: 'booking_cancelled',
+                    title: '预约已自动取消',
+                    message: `您预约的「${assetName}」取货日（${new Date(sb.start_date).toLocaleDateString('en-CA')}）已过，因设备维修期间无法履约，预约已自动取消。如需借用请重新预约。`,
+                    metadata: { booking_id: sb.id, asset_id: assetId },
+                });
+            }
+        }
+    },
+
+    /**
+     * Update damage report status, notes, and severity. Enforces one-way state flow.
+     * 更新损坏报告状态、备注和严重程度。强制单向状态流转，防止终态回退重复扣分。
+     *
+     * State machine: open → investigating → resolved ✅ (terminal)
+     *                open/investigating → dismissed  ✅ (terminal)
+     * resolved/dismissed are terminal — any update attempt is rejected.
+     *
+     * @param id - Damage report UUID. 损坏报告 UUID
+     * @param status - Target status. 目标状态
+     * @param notes - Resolution notes. 处理备注
+     * @param severity - Final severity (admin may adjust). 最终损坏程度（管理员可调整）
+     */
+    async updateDamageReportStatus(id: string, status: string, notes: string, severity: string): Promise<boolean> {
         const { data: report } = await supabase
             .from('damage_reports')
             .select('severity, booking_id, status, asset_id')
             .eq('id', id)
             .single();
 
-        if (!report) {
-            console.error('Damage report not found:', id);
+        if (!report) return false;
+
+        const previousStatus = (report as any).status as string;
+
+        // 终态守卫：resolved/dismissed 不允许任何修改，防止重复扣分
+        if (previousStatus === 'resolved' || previousStatus === 'dismissed') {
+            console.warn(`[DamageReport] Rejected update: report ${id} is already in terminal state (${previousStatus})`);
             return false;
         }
 
-        const previousStatus = (report as any).status;
-
+        // 同时更新状态、备注和最终 severity（管理员审核后可修正学生申报的程度）
         const { error } = await (supabase as any)
             .from('damage_reports')
             .update({
                 status: status as DamageReportStatus,
                 resolution_notes: notes,
+                severity,
             })
             .eq('id', id);
 
@@ -405,19 +650,15 @@ export const bookingService = {
             return false;
         }
 
-        // 仅当状态从 非resolved 变为 resolved 时才扣减信用分，防止双重扣分
-        if (status === 'resolved' && previousStatus !== 'resolved') {
-            // 统一扣分标准：与 reportDamageAndDeduct 保持一致 (minor:-10, moderate:-20, severe:-30)
-            const severityMap: Record<string, number> = {
-                minor: -10,
-                moderate: -20,
-                severe: -30,
-            };
-            const delta = severityMap[(report as any).severity] ?? -10;
+        // 仅 investigating → resolved 时扣减信用分，确保只扣一次
+        if (status === 'resolved' && previousStatus === 'investigating') {
+            // 扣分标准 §5.3：minor -5, moderate -15, severe -30（使用最终 severity）
+            const severityMap: Record<string, number> = { minor: -5, moderate: -15, severe: -30 };
+            const delta = severityMap[severity] ?? -10;
 
             const { data: booking } = await supabase
                 .from('bookings')
-                .select('borrower_id, assets ( name )')
+                .select('borrower_id, assets ( name, purchase_price, purchase_date )')
                 .eq('id', (report as any).booking_id)
                 .single();
 
@@ -425,11 +666,10 @@ export const bookingService = {
                 const { error: rpcErr } = await (supabase as any).rpc('update_credit_score', {
                     p_user_id: (booking as any).borrower_id,
                     p_delta: delta,
-                    p_reason: `damage_${(report as any).severity}`,
+                    p_reason: `damage_${severity}`,
                 });
 
                 if (rpcErr) {
-                    // 回退方案：管理员身份直接更新信用分
                     const { data: profile } = await supabase
                         .from('profiles')
                         .select('credit_score')
@@ -444,22 +684,70 @@ export const bookingService = {
                     }
                 }
 
-                // 给借用者发送扣分通知
-                const severityLabel: Record<string, string> = { minor: 'Minor', moderate: 'Moderate', severe: 'Severe' };
+                // 计算赔偿金额（复用折旧公式 §5.2）并写入通知
+                const price = (booking as any).assets?.purchase_price as number | null;
+                const purchaseDate = (booking as any).assets?.purchase_date as string | null;
+                let compensation: number | null = null;
+                if (price != null) {
+                    const years = purchaseDate
+                        ? (Date.now() - new Date(purchaseDate).getTime()) / (1000 * 60 * 60 * 24 * 365.25)
+                        : 2;
+                    const depRatio = years <= 1 ? 1.0 : years <= 3 ? 0.8 : years <= 5 ? 0.5 : 0.2;
+                    const coef = { minor: 0.2, moderate: 0.5, severe: 1.0 }[severity] ?? 0.5;
+                    compensation = Math.round(price * depRatio * coef);
+                }
+
+                const severityLabel: Record<string, string> = { minor: '轻微损坏', moderate: '中度损坏', severe: '严重损坏' };
+                const assetName = (booking as any).assets?.name ?? '设备';
                 await (supabase as any).from('notifications').insert({
                     user_id: (booking as any).borrower_id,
                     type: 'damage_reported',
-                    title: 'Credit Score Deducted — Damage Resolved',
-                    message: `Damage report for "${(booking as any).assets?.name ?? 'an asset'}" has been resolved (${severityLabel[(report as any).severity] ?? (report as any).severity}). ${Math.abs(delta)} credit points have been deducted.`,
-                    metadata: { booking_id: (report as any).booking_id, severity: (report as any).severity, delta },
+                    title: '损坏赔偿通知',
+                    message: `您借用的「${assetName}」损坏报告已核实处理。\n损坏等级：${severityLabel[severity] ?? severity}\n信用分扣除：${Math.abs(delta)} 分${compensation != null ? `\n应赔偿金额：¥${compensation.toLocaleString()}（请联系管理员完成线下赔偿）` : ''}`,
+                    metadata: {
+                        booking_id: (report as any).booking_id,
+                        severity,
+                        credit_delta: delta,
+                        compensation,
+                    },
                 });
             }
         }
 
-        // resolved 仅代表"损坏报告已处理/信用分已扣减"，不代表资产已修好。
-        // 资产仍保持 maintenance 状态，管理员确认修复后需在 Assets 页面手动改回 available。
-        // (Resolved = claim processed & credit deducted. Asset stays in maintenance
-        //  until admin manually restores it from the Assets page after actual repair.)
+        // ── 审计日志：记录损坏报告每次状态变更 ──────────────────────
+        const { data: assetData } = await (supabase as any)
+            .from('assets')
+            .select('name')
+            .eq('id', (report as any).asset_id)
+            .single();
+
+        const statusLabels: Record<string, string> = {
+            open: 'Open',
+            investigating: 'Investigating',
+            resolved: 'Resolved',
+            dismissed: 'Dismissed',
+        };
+        const severityMapAudit: Record<string, number> = { minor: -5, moderate: -15, severe: -30 };
+        let auditDesc = `Damage report status: ${statusLabels[previousStatus] ?? previousStatus} → ${statusLabels[status] ?? status}. Severity: ${severity}.`;
+        if (status === 'resolved' && previousStatus === 'investigating') {
+            auditDesc += ` Credit delta: ${severityMapAudit[severity] ?? -10}.`;
+        }
+        if (notes) auditDesc += ` Notes: ${notes}`;
+
+        await auditService.logAction({
+            operation_type: 'UPDATE',
+            resource_type: 'damage_report',
+            resource_id: id,
+            resource_name: (assetData as any)?.name,
+            change_description: auditDesc,
+            metadata: {
+                previous_status: previousStatus,
+                new_status: status,
+                severity,
+                ...(notes ? { notes } : {}),
+            },
+        });
+        // ─────────────────────────────────────────────────────────
 
         return true;
     }

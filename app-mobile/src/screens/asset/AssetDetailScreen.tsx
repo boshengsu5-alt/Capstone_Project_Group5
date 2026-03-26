@@ -15,6 +15,31 @@ import SafeImage from '../../components/SafeImage';
 type Props = NativeStackScreenProps<HomeStackParamList, 'AssetDetailScreen'>;
 type FullAsset = Asset & { categories: Category };
 
+// 损坏赔偿系数，与 Web 端 DamageTable 保持一致 (§5.2)
+const DAMAGE_ROWS = [
+  { label: '轻微磨损', coef: 0.2, color: '#f59e0b' },
+  { label: '中度损坏', coef: 0.5, color: '#f97316' },
+  { label: '严重损坏', coef: 1.0, color: '#ef4444' },
+];
+
+/**
+ * Compute asset age label and depreciation ratio from purchase date.
+ * 根据购置日期计算设备年龄和折旧比例。
+ */
+function getDepreciationInfo(purchaseDate: string | null): { ratio: number; ageLabel: string; rateLabel: string } {
+  if (!purchaseDate) return { ratio: 0.5, ageLabel: '未知', rateLabel: '50%' };
+  const ms = Date.now() - new Date(purchaseDate).getTime();
+  const years = ms / (1000 * 60 * 60 * 24 * 365.25);
+  const totalMonths = Math.floor(ms / (1000 * 60 * 60 * 24 * 30.44));
+  const y = Math.floor(totalMonths / 12);
+  const m = totalMonths % 12;
+  const ageLabel = y === 0 ? `${m}个月` : m === 0 ? `${y}年` : `${y}年${m}个月`;
+  if (years <= 1) return { ratio: 1.0, ageLabel, rateLabel: '100%' };
+  if (years <= 3) return { ratio: 0.8, ageLabel, rateLabel: '80%' };
+  if (years <= 5) return { ratio: 0.5, ageLabel, rateLabel: '50%' };
+  return { ratio: 0.2, ageLabel, rateLabel: '20%' };
+}
+
 const { width } = Dimensions.get('window');
 
 export default function AssetDetailScreen({ route, navigation }: Props) {
@@ -89,7 +114,8 @@ export default function AssetDetailScreen({ route, navigation }: Props) {
     );
   }
 
-  const isAvailable = asset.status === 'available';
+  // maintenance / retired 才是真正无法预约；borrowed 只是当前有人借，未来日期仍可预约
+  const isBookable = asset.status === 'available' || asset.status === 'borrowed';
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -215,13 +241,46 @@ export default function AssetDetailScreen({ route, navigation }: Props) {
 
           </View>
 
+          {/* 损坏赔偿说明 — 仅在有购置价时显示 */}
+          {asset.purchase_price != null && (() => {
+            const depr = getDepreciationInfo(asset.purchase_date);
+            const p = asset.purchase_price!;
+            return (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>损坏赔偿说明</Text>
+                <View style={styles.compensationBox}>
+                  <Text style={styles.compensationMeta}>
+                    使用年限：{depr.ageLabel}　·　折旧率：{depr.rateLabel}
+                  </Text>
+                  {DAMAGE_ROWS.map(({ label, coef, color }, idx) => (
+                    <View
+                      key={label}
+                      style={[
+                        styles.compensationRow,
+                        idx === DAMAGE_ROWS.length - 1 && { borderBottomWidth: 0 },
+                      ]}
+                    >
+                      <Text style={[styles.compensationLabel, { color }]}>{label}</Text>
+                      <Text style={styles.compensationAmount}>
+                        ¥{Math.round(p * depr.ratio * coef)}
+                      </Text>
+                    </View>
+                  ))}
+                  <Text style={styles.compensationNote}>
+                    赔偿金额 = 购置价 × 折旧率 × 损坏系数
+                  </Text>
+                </View>
+              </View>
+            );
+          })()}
+
           {/* Calendar Section */}
           <View style={styles.calendarSection}>
             <Text style={styles.sectionTitle}>选择租期</Text>
             <CalendarView
               assetId={asset.id}
               onDateChange={handleDateChange}
-              disabled={!isAvailable}
+              disabled={!isBookable}
             />
           </View>
 
@@ -251,10 +310,10 @@ export default function AssetDetailScreen({ route, navigation }: Props) {
         <TouchableOpacity
           style={[
             styles.bookButton,
-            (!selectedDates || !isAvailable) && styles.bookButtonDisabled
+            (!selectedDates || !isBookable) && styles.bookButtonDisabled
           ]}
           onPress={() => {
-            if (selectedDates && isAvailable) {
+            if (selectedDates && isBookable) {
               navigation.navigate('BookingFormScreen', {
                 assetId: asset.id,
                 startDate: selectedDates.startDate,
@@ -262,10 +321,10 @@ export default function AssetDetailScreen({ route, navigation }: Props) {
               });
             }
           }}
-          disabled={!selectedDates || !isAvailable}
+          disabled={!selectedDates || !isBookable}
         >
           <Text style={styles.bookButtonText}>
-            {!isAvailable ? '不可借用' : (selectedDates ? '立即预约' : '请先选择日期')}
+            {!isBookable ? '不可借用' : (selectedDates ? '立即预约' : '请先选择日期')}
           </Text>
         </TouchableOpacity>
       </View>
@@ -448,5 +507,40 @@ const styles = StyleSheet.create({
     color: theme.colors.gray,
     textAlign: 'center',
     paddingVertical: 16,
+  },
+  compensationBox: {
+    backgroundColor: '#fff8f0',
+    borderRadius: 8,
+    padding: theme.spacing.md,
+    borderLeftWidth: 3,
+    borderLeftColor: '#f97316',
+  },
+  compensationMeta: {
+    fontSize: 12,
+    color: theme.colors.gray,
+    marginBottom: theme.spacing.sm,
+  },
+  compensationRow: {
+    flexDirection: 'row' as const,
+    justifyContent: 'space-between' as const,
+    alignItems: 'center' as const,
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: '#fed7aa',
+  },
+  compensationLabel: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+  },
+  compensationAmount: {
+    fontSize: 14,
+    fontWeight: 'bold' as const,
+    color: '#1f2937',
+  },
+  compensationNote: {
+    fontSize: 11,
+    color: theme.colors.gray,
+    marginTop: theme.spacing.sm,
+    textAlign: 'center' as const,
   },
 });

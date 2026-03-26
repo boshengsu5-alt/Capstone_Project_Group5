@@ -11,12 +11,34 @@ interface DamageSeverityModalProps {
     onClose: () => void;
 }
 
+// 损坏系数，与 DamageTable.tsx 保持一致 (§5.2)
+const DAMAGE_COEFFICIENT: Record<string, number> = { minor: 0.2, moderate: 0.5, severe: 1.0 };
+
+/**
+ * Compute asset age label and depreciation rate from purchase date.
+ * 根据购置日期计算设备年龄描述和折旧比例。
+ */
+function getDepreciationInfo(purchaseDate: string | null): { ratio: number; ageLabel: string; rateLabel: string } {
+    if (!purchaseDate) return { ratio: 0.5, ageLabel: '未知', rateLabel: '50%' };
+    const ms = Date.now() - new Date(purchaseDate).getTime();
+    const years = ms / (1000 * 60 * 60 * 24 * 365.25);
+    const totalMonths = Math.floor(ms / (1000 * 60 * 60 * 24 * 30.44));
+    const y = Math.floor(totalMonths / 12);
+    const m = totalMonths % 12;
+    const ageLabel = y === 0 ? `${m}个月` : m === 0 ? `${y}年` : `${y}年${m}个月`;
+    if (years <= 1) return { ratio: 1.0, ageLabel, rateLabel: '100%' };
+    if (years <= 3) return { ratio: 0.8, ageLabel, rateLabel: '80%' };
+    if (years <= 5) return { ratio: 0.5, ageLabel, rateLabel: '50%' };
+    return { ratio: 0.2, ageLabel, rateLabel: '20%' };
+}
+
+// 信用分扣减标准参照 §5.3 (minor:-5, moderate:-15, severe:-30)
 const SEVERITY_OPTIONS = [
     {
         value: 'minor' as const,
         label: 'Minor Wear',
         labelCn: '轻微磨损',
-        points: -10,
+        points: -5,
         color: 'text-yellow-400',
         border: 'border-yellow-500/30',
         bg: 'bg-yellow-500/5 hover:bg-yellow-500/15',
@@ -26,7 +48,7 @@ const SEVERITY_OPTIONS = [
         value: 'moderate' as const,
         label: 'Moderate Damage',
         labelCn: '中度损坏',
-        points: -20,
+        points: -15,
         color: 'text-orange-400',
         border: 'border-orange-500/30',
         bg: 'bg-orange-500/5 hover:bg-orange-500/15',
@@ -53,6 +75,10 @@ export default function DamageSeverityModal({ isOpen, booking, onSelect, onClose
     const [showError, setShowError] = useState(false);
 
     if (!isOpen || !booking) return null;
+
+    const depr = getDepreciationInfo(booking.assets?.purchase_date ?? null);
+    const price = booking.assets?.purchase_price ?? null;
+    const getCompensation = (coef: number) => price != null ? `¥${Math.round(price * depr.ratio * coef)}` : null;
 
     const handleSelect = (severity: 'minor' | 'moderate' | 'severe') => {
         // 描述为必填项
@@ -110,6 +136,15 @@ export default function DamageSeverityModal({ isOpen, booking, onSelect, onClose
                             <span className="ml-1.5 font-mono text-gray-500">({booking.profiles.student_id})</span>
                         )}
                     </p>
+                    {/* 设备年龄与折旧率，方便管理员评估赔偿 */}
+                    <p className="text-xs text-gray-500 mt-1.5">
+                        使用年限：<span className="text-gray-400">{depr.ageLabel}</span>
+                        <span className="mx-1.5 text-gray-700">·</span>
+                        折旧率：<span className="text-gray-400">{depr.rateLabel}</span>
+                        {price != null && (
+                            <span className="ml-1.5 text-gray-600">· 购置价 ¥{price}</span>
+                        )}
+                    </p>
                 </div>
 
                 {/* 备注输入（必填） */}
@@ -140,9 +175,16 @@ export default function DamageSeverityModal({ isOpen, booking, onSelect, onClose
                                     {opt.label} <span className="font-normal text-gray-400">({opt.labelCn})</span>
                                 </span>
                             </div>
-                            <span className={`rounded-lg px-2.5 py-1 text-xs font-bold ${opt.badgeBg}`}>
-                                {opt.points} pts
-                            </span>
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                                {getCompensation(DAMAGE_COEFFICIENT[opt.value]) && (
+                                    <span className="text-xs text-gray-400 font-mono">
+                                        {getCompensation(DAMAGE_COEFFICIENT[opt.value])}
+                                    </span>
+                                )}
+                                <span className={`rounded-lg px-2.5 py-1 text-xs font-bold ${opt.badgeBg}`}>
+                                    {opt.points} pts
+                                </span>
+                            </div>
                         </button>
                     ))}
                 </div>

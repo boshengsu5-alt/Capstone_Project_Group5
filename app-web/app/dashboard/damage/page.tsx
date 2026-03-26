@@ -29,9 +29,9 @@ export default function DamageReportsPage() {
         loadReports();
     }, []);
 
-    const handleUpdateStatus = async (id: string, status: string, notes: string) => {
+    const handleUpdateStatus = async (id: string, status: string, notes: string, severity: string) => {
         try {
-            await bookingService.updateDamageReportStatus(id, status, notes);
+            await bookingService.updateDamageReportStatus(id, status, notes, severity);
             showToast('Report status updated', 'success');
             await loadReports();
         } catch (error) {

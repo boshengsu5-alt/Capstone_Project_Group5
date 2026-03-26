@@ -102,8 +102,21 @@ export default function BookingTable({ bookings, onReview, onReportDamage, highl
                                 )}
                             >
                                 <td className="px-6 py-4">
-                                    <div className="font-medium text-white">{booking.assets?.name ?? 'Unknown Asset'}</div>
-                                    <div className="text-gray-500 text-xs mt-1 font-mono">{booking.assets?.qr_code ?? 'N/A'}</div>
+                                    <div className="flex items-center gap-3">
+                                        {booking.assets?.images?.[0] ? (
+                                            <img
+                                                src={booking.assets.images[0]}
+                                                alt=""
+                                                className="w-10 h-10 rounded-lg object-cover flex-shrink-0 border border-white/10"
+                                            />
+                                        ) : (
+                                            <div className="w-10 h-10 rounded-lg bg-gray-800 flex-shrink-0 border border-white/10" />
+                                        )}
+                                        <div>
+                                            <div className="font-medium text-white">{booking.assets?.name ?? 'Unknown Asset'}</div>
+                                            <div className="text-gray-500 text-xs mt-1 font-mono">{booking.assets?.qr_code ?? 'N/A'}</div>
+                                        </div>
+                                    </div>
                                 </td>
                                 <td className="px-6 py-4">
                                     <div className="text-gray-200">{booking.profiles?.full_name ?? 'Unknown'}</div>
@@ -118,8 +131,11 @@ export default function BookingTable({ bookings, onReview, onReportDamage, highl
                                 </td>
                                 <td className="px-6 py-4 text-right">
                                     <div className="flex items-center justify-end gap-2">
-                                        {/* 仅对 overdue / returned 状态显示，active 不显示（物品未归还无法检查损坏），且排除已核验的 (borrowing → no damage report until return) */}
-                                        {onReportDamage && ['overdue', 'returned'].includes(booking.status) && booking.rejection_reason !== 'VERIFIED' && (
+                                        {/* 仅对 overdue / returned 状态显示；已核验(VERIFIED)或已有未处理损坏报告时隐藏，避免重复提交 */}
+                                        {onReportDamage &&
+                                            ['overdue', 'returned'].includes(booking.status) &&
+                                            booking.rejection_reason !== 'VERIFIED' &&
+                                            !booking.damage_reports?.some(r => r.status === 'open' || r.status === 'investigating') && (
                                             <button
                                                 onClick={() => onReportDamage(booking)}
                                                 className="px-3 py-1.5 text-xs font-semibold text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-lg hover:bg-rose-500/20 hover:text-rose-300 transition-colors"

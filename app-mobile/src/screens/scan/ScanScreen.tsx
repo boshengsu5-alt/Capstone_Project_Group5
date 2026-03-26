@@ -7,7 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import QRScanner from '../../components/QRScanner';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import { getAssetByQrCode, getAssetBySerialNumber } from '../../services/assetService';
-import { findApprovedBookingForAsset, findPendingBookingForAsset, activateBooking } from '../../services/bookingService';
+import { findApprovedBookingForAsset, findPendingBookingForAsset, findSuspendedBookingForAsset, activateBooking } from '../../services/bookingService';
 import { theme } from '../../theme';
 
 export default function ScanScreen() {
@@ -112,7 +112,29 @@ export default function ScanScreen() {
           );
         }
       } else {
-        // 没有 approved 借用 → 再查是否有 pending 借用，避免重复预约
+        // 没有 approved 借用 → 先查 suspended（设备维修暂停），再查 pending
+        const suspendedBooking = await findSuspendedBookingForAsset(asset.id);
+        if (suspendedBooking) {
+          setIsProcessing(false);
+          alertManager.alert(
+            '预约已暂停',
+            `您对「${asset.name}」的预约因设备进入维护状态已被暂停。\n\n设备维修完成后管理员将通知您，届时预约将自动恢复；若超过开始日期则系统会自动取消。`,
+            [
+              {
+                text: '查看我的预约',
+                onPress: () => { navigation.navigate('BookingsTab', { screen: 'BookingHistory' }); },
+              },
+              {
+                text: '好的',
+                style: 'cancel',
+                onPress: () => { setIsScanning(true); },
+              },
+            ]
+          );
+          return;
+        }
+
+        // 没有 suspended → 再查 pending，避免重复预约
         const pendingBooking = await findPendingBookingForAsset(asset.id);
         setIsProcessing(false);
 

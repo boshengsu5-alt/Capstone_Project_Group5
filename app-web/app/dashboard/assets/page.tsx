@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Header from '@/components/layout/Header';
 import { Plus, Search, Filter, QrCode, ClipboardList, Pencil, CheckCircle2, AlertCircle, Clock, Package, Eye, Trash2, Download } from 'lucide-react';
 import { getAssets, deleteAsset, updateAsset } from '@/lib/assetService';
+import { bookingService } from '@/lib/bookingService';
 import RelistModal from '@/components/assets/RelistModal';
 import AssetForm from '@/components/assets/AssetForm';
 import AssetReviewsModal from '@/components/assets/AssetReviewsModal';
@@ -91,12 +92,24 @@ export default function AssetsPage() {
     setShowForm(true);
   };
 
-  // Re-list handler: update asset status→available & condition to admin's selection (重新上架处理)
+  // 点击 Re-list 按钮前先检查是否有未处理的损坏报告，有则阻止并提示
+  const handleRelistClick = async (asset: AssetWithCategory) => {
+    const hasPending = await bookingService.hasPendingDamageReports(asset.id);
+    if (hasPending) {
+      showToast('Cannot re-list: this asset still has open damage reports. Please resolve all damage reports first.', 'warning');
+      return;
+    }
+    setAssetToRelist(asset);
+  };
+
+  // Re-list handler: update asset status→available & condition, then restore suspended bookings (重新上架处理)
   const handleRelist = async (condition: string) => {
     if (!assetToRelist) return;
     try {
       setIsRelisting(true);
       await updateAsset(assetToRelist.id, { status: 'available', condition: condition as Asset['condition'] });
+      // 资产重新上架后，恢复/自动取消因维修暂停的预约并通知用户
+      await bookingService.restoreMaintenanceBookings(assetToRelist.id);
       showToast(`"${assetToRelist.name}" has been re-listed as available (${condition}).`, 'success');
       setAssetToRelist(null);
       fetchAssets();
@@ -126,7 +139,6 @@ export default function AssetsPage() {
       'Category': asset.categories?.name || 'Uncategorized',
       'Status': statusMap[asset.status] || asset.status,
       'Serial Number': asset.serial_number || 'N/A',
-      'Price': asset.purchase_price ?? 0,
       'Location': asset.location || 'N/A',
       'Purchase Date': asset.purchase_date ? new Date(asset.purchase_date).toLocaleDateString() : 'N/A',
     }));
@@ -229,7 +241,6 @@ export default function AssetsPage() {
                           <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 dark:text-white sm:pl-6">{t('tables.name')}</th>
                           <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">{t('tables.serial')}</th>
                           <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">{t('tables.qrCode')}</th>
-                          <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">{t('tables.price')}</th>
                           <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">{t('tables.location')}</th>
                           <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">{t('tables.category')}</th>
                           <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">{t('tables.condition')}</th>
@@ -242,11 +253,11 @@ export default function AssetsPage() {
                       <tbody className="divide-y divide-gray-200 dark:divide-gray-800 bg-white dark:bg-gray-900">
                         {isLoading ? (
                           <tr>
-                            <td colSpan={9} className="text-center py-10 text-gray-500">Loading assets...</td>
+                            <td colSpan={8} className="text-center py-10 text-gray-500">Loading assets...</td>
                           </tr>
                         ) : filteredAssets.length === 0 ? (
                           <tr>
-                            <td colSpan={9} className="text-center py-10 text-gray-500">
+                            <td colSpan={8} className="text-center py-10 text-gray-500">
                               {assets.length === 0 ? 'No assets found. Click "Add new asset" to track your first item.' : 'No matching assets found'}
                             </td>
                           </tr>
@@ -262,7 +273,23 @@ export default function AssetsPage() {
                                       <Package className="w-5 h-5 text-gray-400" />
                                     </div>
                                   )}
-                                  <span>{asset.name}</span>
+                                  <div>
+                                    <span>{asset.name}</span>
+                                    {asset.purchase_date && (() => {
+                                      const ms = Date.now() - new Date(asset.purchase_date).getTime();
+                                      const years = ms / (1000 * 60 * 60 * 24 * 365.25);
+                                      const totalMonths = Math.floor(ms / (1000 * 60 * 60 * 24 * 30.44));
+                                      const y = Math.floor(totalMonths / 12);
+                                      const m = totalMonths % 12;
+                                      const ageLabel = y === 0 ? `${m}个月` : m === 0 ? `${y}年` : `${y}年${m}个月`;
+                                      const deprLabel = years <= 1 ? '100%' : years <= 3 ? '80%' : years <= 5 ? '50%' : '20%';
+                                      return (
+                                        <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+                                          {ageLabel} · 折旧 {deprLabel}
+                                        </p>
+                                      );
+                                    })()}
+                                  </div>
                                 </div>
                               </td>
                               <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400 font-mono text-xs uppercase">{asset.serial_number || 'N/A'}</td>
@@ -281,7 +308,6 @@ export default function AssetsPage() {
                                   </div>
                                 ) : 'N/A'}
                               </td>
-                              <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">${asset.purchase_price ?? '0.00'}</td>
                               <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">{asset.location || '-'}</td>
                               <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">{asset.categories?.name || '-'}</td>
                               <td className="whitespace-nowrap px-3 py-4 text-sm">
@@ -318,7 +344,7 @@ export default function AssetsPage() {
                                 {/* maintenance 资产显示重新上架按钮，让管理员修好设备后恢复 available (Re-list after repair) */}
                                 {asset.status === 'maintenance' && (
                                   <button
-                                    onClick={() => setAssetToRelist(asset)}
+                                    onClick={() => handleRelistClick(asset)}
                                     className="text-emerald-600 hover:text-emerald-900 dark:text-emerald-400 dark:hover:text-emerald-300 font-semibold"
                                   >
                                     Re-list

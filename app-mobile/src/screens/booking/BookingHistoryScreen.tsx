@@ -12,6 +12,7 @@ import {
 import { alertManager } from '../../utils/alertManager';
 import { useNavigation, NavigationProp, ParamListBase } from '@react-navigation/native';
 import { getMyBookings, cancelBooking, getReviewByBookingId } from '../../services/bookingService';
+import { checkAndSendReturnReminders, checkSuspendedBookingsExpiring, checkExpiredPendingBookings } from '../../services/notificationService';
 import { supabase } from '../../services/supabase';
 import type { Booking, Asset, BookingStatus, Review } from '../../../../database/types/supabase';
 import SafeImage from '../../components/SafeImage';
@@ -34,6 +35,7 @@ const getStatusLabel = (status: BookingStatus) => {
     case 'approved': return '已通过';
     case 'rejected': return '已拒绝';
     case 'cancelled': return '已取消';
+    case 'suspended': return '暂停中';
     default: return status;
   }
 };
@@ -45,6 +47,7 @@ const getStatusColor = (status: BookingStatus) => {
     case 'returned': return theme.colors.success;
     case 'approved': return theme.colors.authPrimary;
     case 'pending': return theme.colors.gray;
+    case 'suspended': return theme.colors.amber;
     default: return theme.colors.gray;
   }
 };
@@ -67,6 +70,9 @@ export default function BookingHistoryScreen() {
   const fetchBookings = async (isRefreshing = false) => {
     if (!isRefreshing) setLoading(true);
     try {
+      // 先自动取消过期的 pending 预约，再拉数据，确保列表状态是最新的
+      await checkExpiredPendingBookings().catch(() => {});
+
       const [data, { data: { user } }] = await Promise.all([
         getMyBookings(),
         supabase.auth.getUser(),
@@ -96,6 +102,10 @@ export default function BookingHistoryScreen() {
 
   useEffect(() => {
     fetchBookings();
+    // 静默检查快到期的借用并发提醒（fire-and-forget）
+    checkAndSendReturnReminders().catch(() => {});
+    // 检查距取货日 12h 内仍暂停的预约，发紧急通知并自动取消
+    checkSuspendedBookingsExpiring().catch(() => {});
   }, []);
 
   const onRefresh = () => {
@@ -130,7 +140,8 @@ export default function BookingHistoryScreen() {
 
     const canReturn = item.status === 'active' || item.status === 'overdue';
     const canPickUp = item.status === 'approved';
-    const canCancel = item.status === 'pending' || item.status === 'approved';
+    // suspended 状态允许用户主动取消，不想等设备修好可直接放弃
+    const canCancel = item.status === 'pending' || item.status === 'approved' || item.status === 'suspended';
     const isReturned = item.status === 'returned';
     const existingReview = isReturned ? reviewsMap[item.id] : undefined;
     const hasReview = !!existingReview;

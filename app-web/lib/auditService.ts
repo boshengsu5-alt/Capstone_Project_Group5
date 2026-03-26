@@ -1,6 +1,9 @@
 import { supabase } from '@/lib/supabase';
-import type { AuditLogInsert } from '@/types/database';
+import type { AuditLog, AuditLogInsert } from '@/types/database';
 import { getCurrentUser } from './auth';
+
+/** AuditLog enriched with a resolved asset thumbnail. 附带资产缩略图的审计日志 */
+export type AuditLogWithMeta = AuditLog & { _image_url: string | null };
 
 /**
  * Audit Service to handle system-wide activity logging.
@@ -62,10 +65,15 @@ export const auditService = {
   },
 
   /**
-   * Fetch audit logs ordered by creation time (newest first).
-   * 获取按创建时间排序（最新優先）的审计日志。
+   * Fetch audit logs ordered by creation time (newest first), enriched with asset thumbnails.
+   * 获取按创建时间排序（最新优先）的审计日志，并附带对应的资产缩略图。
+   *
+   * Two extra queries are issued in batch:
+   * 1. asset-type logs → assets(images) by resource_id
+   * 2. booking/damage_report-type logs → bookings → assets(images) by resource_id
+   * 两次批量查询附加图片，不影响日志本身的数据结构。
    */
-  async getLogs() {
+  async getLogs(): Promise<AuditLogWithMeta[]> {
     const { data, error } = await (supabase as any)
       .from('audit_logs')
       .select('*')
@@ -75,6 +83,43 @@ export const auditService = {
       console.error('Error fetching audit logs:', error);
       return [];
     }
-    return data || [];
+
+    const logs: AuditLog[] = data || [];
+    const imageMap: Record<string, string | null> = {};
+
+    // Collect unique resource IDs by type
+    const assetIds = [...new Set(
+      logs.filter(l => l.resource_type?.toLowerCase() === 'asset' && l.resource_id).map(l => l.resource_id!)
+    )];
+    const bookingIds = [...new Set(
+      logs.filter(l => ['booking', 'damage_report'].includes(l.resource_type?.toLowerCase() ?? '') && l.resource_id).map(l => l.resource_id!)
+    )];
+
+    // Batch 1: asset-type → direct image lookup
+    if (assetIds.length > 0) {
+      const { data: assets } = await (supabase as any)
+        .from('assets')
+        .select('id, images')
+        .in('id', assetIds);
+      (assets ?? []).forEach((a: { id: string; images: string[] | null }) => {
+        imageMap[a.id] = a.images?.[0] ?? null;
+      });
+    }
+
+    // Batch 2: booking/damage_report → booking → asset image
+    if (bookingIds.length > 0) {
+      const { data: bookings } = await (supabase as any)
+        .from('bookings')
+        .select('id, assets(images)')
+        .in('id', bookingIds);
+      (bookings ?? []).forEach((b: { id: string; assets: { images: string[] | null } | null }) => {
+        imageMap[b.id] = b.assets?.images?.[0] ?? null;
+      });
+    }
+
+    return logs.map(l => ({
+      ...l,
+      _image_url: l.resource_id ? (imageMap[l.resource_id] ?? null) : null,
+    }));
   }
 };

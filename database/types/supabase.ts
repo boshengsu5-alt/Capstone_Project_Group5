@@ -33,7 +33,8 @@ export type BookingStatus =
     | 'active'
     | 'returned'
     | 'overdue'
-    | 'cancelled';
+    | 'cancelled'
+    | 'suspended';
 
 /** Damage severity level. 损坏严重程度 */
 export type DamageSeverity = 'minor' | 'moderate' | 'severe';

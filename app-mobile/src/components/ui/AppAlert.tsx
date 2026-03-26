@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Modal,
   View,
@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   Animated,
+  Platform,
 } from 'react-native';
 import { alertManager, AlertConfig, AlertButton } from '../../utils/alertManager';
 import { theme } from '../../theme';
@@ -18,6 +19,8 @@ export default function AppAlert() {
   const [visible, setVisible] = useState(false);
   const [config, setConfig] = useState<AlertConfig>({ title: '' });
   const scaleAnim = useState(new Animated.Value(0.88))[0];
+  // 存储待执行的 onPress，等 Modal 完全消失后再调用（避免 iOS 相机冲突）
+  const pendingPress = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     alertManager.register((newConfig) => {
@@ -33,9 +36,24 @@ export default function AppAlert() {
   }, []);
 
   const handleButton = (btn?: AlertButton) => {
+    pendingPress.current = btn?.onPress ?? null;
     setVisible(false);
     scaleAnim.setValue(0.88);
-    btn?.onPress?.();
+    // Android 无 onDismiss，用 setTimeout 兜底；iOS 由 onDismiss 接管
+    if (Platform.OS === 'android' && btn?.onPress) {
+      setTimeout(() => {
+        pendingPress.current?.();
+        pendingPress.current = null;
+      }, 350);
+    }
+  };
+
+  // iOS 专属：Modal 视图完全从层级移除后触发，此时可安全打开原生相机/相册
+  const handleDismiss = () => {
+    if (pendingPress.current) {
+      pendingPress.current();
+      pendingPress.current = null;
+    }
   };
 
   const buttons: AlertButton[] = config.buttons?.length
@@ -47,7 +65,7 @@ export default function AppAlert() {
   const actionBtns = buttons.filter(b => b.style !== 'cancel');
 
   return (
-    <Modal transparent visible={visible} animationType="fade" onRequestClose={() => handleButton(cancelBtn)}>
+    <Modal transparent visible={visible} animationType="fade" onRequestClose={() => handleButton(cancelBtn)} onDismiss={handleDismiss}>
       <View style={styles.overlay}>
         <Animated.View style={[styles.dialog, { transform: [{ scale: scaleAnim }] }]}>
 

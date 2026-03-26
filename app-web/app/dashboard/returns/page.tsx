@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { bookingService, BookingWithDetails } from '@/lib/bookingService';
+import { bookingService, BookingWithDetails, calcOverduePenalty } from '@/lib/bookingService';
 import ReturnVerify from '@/components/returns/ReturnVerify';
 import DamageSeverityModal from '@/components/damage/DamageSeverityModal';
 import { AlertCircle, CheckCircle2, RefreshCw, RotateCcw } from 'lucide-react';
@@ -17,6 +17,9 @@ export default function ReturnsPage() {
 
     // 损坏程度弹窗：等待管理员选择严重程度
     const [damageTargetBooking, setDamageTargetBooking] = useState<BookingWithDetails | null>(null);
+
+    // 逾期确认弹窗：逾期归还时展示扣分预警，等待管理员二次确认
+    const [overdueConfirm, setOverdueConfirm] = useState<{ booking: BookingWithDetails; penalty: number; days: number } | null>(null);
 
     const loadReturns = async () => {
         setIsLoading(true);
@@ -51,7 +54,26 @@ export default function ReturnsPage() {
             return;
         }
 
-        // 无损归还
+        // 无损归还 — 检查是否逾期，逾期则先弹确认框
+        const booking = returns.find(r => r.id === id) ?? null;
+        if (booking?.end_date && booking?.actual_return_date) {
+            const overdueDays = Math.round(
+                (new Date(booking.actual_return_date).getTime() - new Date(booking.end_date).getTime()) / (1000 * 60 * 60 * 24)
+            );
+            const penalty = calcOverduePenalty(overdueDays);
+            if (penalty > 0) {
+                // 逾期：暂存待确认，弹出提示
+                setOverdueConfirm({ booking, penalty, days: overdueDays });
+                return;
+            }
+        }
+
+        // 按时归还，直接处理
+        await executeReturn(id);
+    };
+
+    // 实际执行归还（无论是否逾期，均走此处）
+    const executeReturn = async (id: string) => {
         try {
             await bookingService.processReturn(id, 'returned');
             showToast('Return verification passed', 'success');
@@ -62,6 +84,30 @@ export default function ReturnsPage() {
             console.error('Verification failed', error);
             showToast('Verification failed, network error', 'error');
         }
+    };
+
+    // 学生已提交损坏报告时，管理员确认归还（不重新报告损坏，资产保持 maintenance）
+    const handleAcknowledgeWithDamage = async (id: string) => {
+        try {
+            const success = await bookingService.acknowledgeReturnWithExistingDamage(id);
+            if (success) {
+                showToast('Return acknowledged. Asset remains in maintenance pending damage review.', 'success');
+                setReturns(prev => prev.filter(r => r.id !== id));
+                if (selectedId === id) setSelectedId(null);
+            } else {
+                showToast('Failed to acknowledge return', 'error');
+            }
+        } catch (error) {
+            showToast('Network error, please try again', 'error');
+        }
+    };
+
+    // 管理员在逾期弹窗中点击「确认扣分并归还」
+    const handleOverdueConfirm = async () => {
+        if (!overdueConfirm) return;
+        const id = overdueConfirm.booking.id;
+        setOverdueConfirm(null);
+        await executeReturn(id);
     };
 
     const handleDamageSeveritySelect = async (severity: 'minor' | 'moderate' | 'severe', description: string) => {
@@ -184,6 +230,7 @@ export default function ReturnsPage() {
                                 <ReturnVerify
                                     booking={returns.find(r => r.id === selectedId)!}
                                     onVerify={handleVerify}
+                                    onAcknowledgeWithDamage={handleAcknowledgeWithDamage}
                                 />
                             </div>
                         )}
@@ -198,6 +245,52 @@ export default function ReturnsPage() {
                 onSelect={handleDamageSeveritySelect}
                 onClose={() => setDamageTargetBooking(null)}
             />
+
+            {/* 逾期归还确认弹窗 */}
+            {overdueConfirm && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setOverdueConfirm(null)}>
+                    <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+                    <div
+                        className="relative z-10 w-full max-w-sm rounded-2xl border border-white/10 bg-[#111111] shadow-2xl shadow-black/60 p-6"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/10 flex-shrink-0">
+                                <AlertCircle className="h-5 w-5 text-amber-400" />
+                            </div>
+                            <div>
+                                <h2 className="text-base font-bold text-white">逾期归还 — 信用分扣减</h2>
+                                <p className="text-xs text-gray-500 mt-0.5">确认前请核查逾期天数</p>
+                            </div>
+                        </div>
+
+                        <div className="rounded-xl border border-white/5 bg-white/5 px-4 py-3 mb-5 space-y-1.5">
+                            <p className="text-sm text-gray-200 font-medium">{overdueConfirm.booking.assets?.name ?? 'Unknown Asset'}</p>
+                            <p className="text-xs text-gray-400">
+                                借用人：{overdueConfirm.booking.profiles?.full_name ?? 'Unknown'}
+                            </p>
+                            <p className="text-xs text-amber-400 font-semibold mt-1">
+                                逾期 {overdueConfirm.days} 天 · 将扣减 {overdueConfirm.penalty} 信用分
+                            </p>
+                        </div>
+
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setOverdueConfirm(null)}
+                                className="flex-1 rounded-xl border border-white/10 py-2.5 text-sm text-gray-400 hover:bg-white/5 transition-colors"
+                            >
+                                取消
+                            </button>
+                            <button
+                                onClick={handleOverdueConfirm}
+                                className="flex-1 rounded-xl bg-amber-500/20 border border-amber-500/30 py-2.5 text-sm font-semibold text-amber-300 hover:bg-amber-500/30 transition-colors"
+                            >
+                                确认扣分并归还
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

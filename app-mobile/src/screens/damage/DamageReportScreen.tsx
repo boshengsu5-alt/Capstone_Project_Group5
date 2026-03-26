@@ -41,6 +41,8 @@ export default function DamageReportScreen() {
   const [submitting, setSubmitting] = useState(false);
 
   // 选择照片（相册 or 相机）
+  // AppAlert 现已通过 onDismiss（iOS）/ setTimeout（Android）确保 Modal 完全消失后
+  // 再调用 onPress，可安全唤起原生相机/相册，无需再用原生 Alert.alert。
   const handleAddPhoto = () => {
     alertManager.alert('添加损坏照片', '请选择来源', [
       {
@@ -48,7 +50,7 @@ export default function DamageReportScreen() {
         onPress: async () => {
           const { status } = await ImagePicker.requestCameraPermissionsAsync();
           if (status !== 'granted') {
-            alertManager.alert('权限不足', '需要相机权限才能拍照');
+            alertManager.alert('权限不足', '需要相机权限才能拍照，请在系统设置中开启');
             return;
           }
           const result = await ImagePicker.launchCameraAsync({
@@ -66,7 +68,7 @@ export default function DamageReportScreen() {
         onPress: async () => {
           const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
           if (status !== 'granted') {
-            alertManager.alert('权限不足', '需要相册权限才能选取照片');
+            alertManager.alert('权限不足', '需要相册权限才能选取照片，请在系统设置中开启');
             return;
           }
           const result = await ImagePicker.launchImageLibraryAsync({

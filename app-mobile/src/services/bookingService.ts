@@ -241,6 +241,30 @@ export async function findPendingBookingForAsset(assetId: string) {
 }
 
 /**
+ * Find user's suspended booking for an asset (device under maintenance).
+ * 查找用户对某资产的已暂停借用（设备进入维修状态时触发）
+ *
+ * @param assetId - Asset scanned via QR code. 扫码识别的资产 ID
+ * @returns Suspended booking if exists, null otherwise. 暂停中的借用记录或 null
+ */
+export async function findSuspendedBookingForAsset(assetId: string) {
+  const user = await getCurrentUser();
+
+  const { data, error } = await db
+    .from('bookings')
+    .select('*')
+    .eq('asset_id', assetId)
+    .eq('borrower_id', user.id)
+    .eq('status', 'suspended')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}
+
+/**
  * Trigger overdue booking detection via RPC (fallback for pg_cron).
  * 触发逾期检测 RPC 函数（pg_cron 免费版不可用时的兜底方案）
  */

@@ -27,6 +27,21 @@ const TIME_SLOTS: string[] = Array.from({ length: 29 }, (_, i) => {
     return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 });
 
+/**
+ * Compute the earliest selectable start time for today (rounded up to next half-hour).
+ * 计算今天最早可选时间（当前时间向上取整到下一个半小时）
+ */
+function getMinTimeForToday(): string {
+    const now = new Date();
+    const h = now.getHours();
+    const m = now.getMinutes();
+    if (m === 0) return `${String(h).padStart(2, '0')}:00`;
+    if (m <= 30) return `${String(h).padStart(2, '0')}:30`;
+    const nextH = h + 1;
+    if (nextH > 22) return '22:00';
+    return `${String(nextH).padStart(2, '0')}:00`;
+}
+
 interface CalendarViewProps {
     assetId: string;
     onDateChange?: (startDate: string, endDate: string) => void;
@@ -78,6 +93,14 @@ const CalendarView: React.FC<CalendarViewProps> = ({ assetId, onDateChange, disa
             );
         }
     }, [selectionStart, selectionEnd, startTime, endTime]);
+
+    // 选中今天时，若默认取借时间已过期则自动修正到最近半小时槽
+    useEffect(() => {
+        if (selectionStart === format(new Date(), 'yyyy-MM-dd')) {
+            const minTime = getMinTimeForToday();
+            if (startTime < minTime) setStartTime(minTime);
+        }
+    }, [selectionStart]);
 
     const fetchBookings = async () => {
         try {
@@ -293,7 +316,12 @@ const CalendarView: React.FC<CalendarViewProps> = ({ assetId, onDateChange, disa
                         {timePickerTarget === 'start' ? '选择取借时间' : '选择归还时间'}
                     </Text>
                     <FlatList
-                        data={TIME_SLOTS}
+                        data={
+                            // 取借时间 + 今天 → 只显示未来时间槽，防止预约过去
+                            timePickerTarget === 'start' && selectionStart === format(new Date(), 'yyyy-MM-dd')
+                                ? TIME_SLOTS.filter(s => s >= getMinTimeForToday())
+                                : TIME_SLOTS
+                        }
                         keyExtractor={(item) => item}
                         showsVerticalScrollIndicator={false}
                         renderItem={({ item }) => {

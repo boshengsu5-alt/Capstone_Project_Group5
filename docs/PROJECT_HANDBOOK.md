@@ -1050,6 +1050,17 @@ Day 3 你在别人模块发现的问题，今天确认修好了没：
 | 🟡 P1 | Assets 页显示 Price 列 | 校园借用系统，学生不需要看设备原价 |
 | 🟢 P2 | 无赔偿金额估算 | 管理员处理损坏时无参考金额 |
 
+#### 6.1.1 执行前审查修正（2026-03-26 实际落地时发现）
+
+在执行上述计划时，代码审查发现以下偏差，已在实现中同步修正：
+
+| # | 原计划描述 | 实际情况 | 修正措施 |
+|---|-----------|---------|---------|
+| 1 | P0：`getDamageReports()` 不查 `photo_urls` | **不成立**。`select(*)` 已包含 `photo_urls`（它是 `damage_reports` 表自身字段）。真正缺失的是 `assets` 子查询里的 `purchase_price`、`purchase_date` | 将此 P0 降级；改为在 assets select 中补查 `purchase_price`、`purchase_date` |
+| 2 | 信用分扣减标准混乱 | 代码中 `updateDamageReportStatus()` 使用 minor:-10 / moderate:-20 / severe:-30，但 §5.3 文档标准为 minor:-5 / moderate:-15 / severe:-30；`DamageSeverityModal` 显示的也是 -10/-20/-30 | 全部统一为 §5.3 标准：**minor:-5 / moderate:-15 / severe:-30** |
+| 3 | `createDamageReport()` 方法 | 与 `reportDamage()` 功能高度重复，且项目中无任何调用方 | 已删除，避免维护歧义 |
+| 4 | `lib/authFetch.ts` 文件 | 导出函数从未被任何文件 import，属于遗留死代码 | 已删除 |
+
 ---
 
 ### 6.2 改动一：`bookingService.ts` — 数据一致性修复（Bosheng/Linpeng）
@@ -1247,14 +1258,16 @@ bookingService.approveBooking()
 
 ---
 
-### 6.7 改动文件速查表
+### 6.7 改动文件速查表（含审查修正）
 
-| 文件 | 改动内容 | 负责人 |
-|------|---------|--------|
-| `app-web/lib/bookingService.ts` | `approveBooking()` 加 asset 状态同步；`getDamageReports()` select 补 `photo_urls`、`purchase_price`、`purchase_date`；类型定义同步更新 | Bosheng / Linpeng |
-| `app-web/components/returns/ReturnVerify.tsx` | Info bar 新增借用期、实际归还日、逾期天数 | Linpeng |
-| `app-web/components/damage/DamageTable.tsx` | 行展开显示损坏照片；Update 改为弹窗；新增赔偿估算 | Linpeng |
-| `app-web/app/dashboard/assets/page.tsx` | 删除 Price 列和导出中的 Price 字段 | Letao |
+| 文件 | 改动内容 | 状态 |
+|------|---------|------|
+| `app-web/lib/bookingService.ts` | `approveBooking()` 加 asset 状态同步为 `borrowed`；`getDamageReports()` assets select 补 `purchase_price`、`purchase_date`；`DamageReportWithDetails` 类型同步更新；信用分标准统一为 §5.3（minor:-5 / moderate:-15 / severe:-30）；删除重复的 `createDamageReport()` 方法 | ✅ 已完成 |
+| `app-web/components/returns/ReturnVerify.tsx` | Info bar 新增借用期（start_date → end_date）、实际归还日、逾期天数（红色 badge）/ 按时归还（绿色 badge） | ✅ 已完成 |
+| `app-web/components/damage/DamageTable.tsx` | 行可展开显示损坏照片（含全屏预览）、完整描述、赔偿估算；Update 改为弹窗（含借用者信息、状态下拉、扣分提示、赔偿估算、多行备注）；新增赔偿公式 `purchase_price × 折旧比例 × 损坏系数` | ✅ 已完成 |
+| `app-web/components/damage/DamageSeverityModal.tsx` | 信用分显示从 -10/-20/-30 修正为 -5/-15/-30，与 §5.3 一致 | ✅ 已完成 |
+| `app-web/app/dashboard/assets/page.tsx` | 删除 Price 列（表头、行数据）、导出字段去除 Price、colSpan 9→8 | ✅ 已完成 |
+| `app-web/lib/authFetch.ts` | 死代码，从未被 import，已删除 | ✅ 已删除 |
 
 ---
 
@@ -1317,12 +1330,18 @@ bookingService.approveBooking()
 | 行为 | 扣分 | 备注 |
 |-----|------|------|
 | 按时归还，无损坏 | 0 | 正常，不变化 |
-| 逾期归还（每天） | -2 | 每逾期一天扣 2 分，上限扣 30 分 |
+| 逾期 1–3 天（每天） | **-3** | 共最多 -9 分 |
+| 逾期 4–7 天（每天） | **-5** | 在前段基础上叠加 |
+| 逾期超 7 天（每天） | **-8** | 封顶合计 **-50 分** |
 | 归还时轻微损坏 | -5 | 对应 `minor` 等级 |
 | 归还时中度损坏 | -15 | 对应 `moderate` 等级 |
 | 归还时严重损坏 | -30 | 对应 `severe` 等级 |
 | 设备丢失 | -50 | 直接大幅扣分 |
 | 故意破坏（管理员认定） | -100 | 直接归零，触发封禁 |
+
+> **逾期与损坏可叠加扣分**：同一笔借用既逾期又损坏，两项独立计算后合并扣减，下限为 0 分。
+>
+> 逾期扣分由管理员在 **归还验证页** 点击「确认归还」时系统自动触发，无需手动操作。
 
 #### 信用分门槛与借用权限
 
@@ -1410,3 +1429,256 @@ bookingService.approveBooking()
 | University of Houston Libraries — Laptop Borrowing Policies | 累计违规次数触发制 |
 | Florida State University — Equipment Loss & Damage Fund | 免赔额制度、故意破坏认定标准 |
 | Ohio State University Libraries — Fines, Fees, and Appeals | 欠款触发冻结账户机制 |
+
+---
+
+## 七、逾期扣分机制实现方案（2026-03-26 补充）
+
+> **背景**：归还验证页已能检测并显示"Overdue X days"，但点击「Confirm Return」时系统不会自动扣分。本章记录将逾期检测与信用分扣减打通的完整实现计划。
+
+---
+
+### 7.1 扣分规则（分级制）
+
+| 逾期天数区间 | 每天扣分 | 示例 |
+|------------|---------|------|
+| 1–3 天 | -3 分/天 | 逾期 3 天 → -9 分 |
+| 4–7 天 | -5 分/天 | 逾期 5 天 → -9 + (-5×2) = -19 分 |
+| > 7 天 | -8 分/天 | 封顶合计 **-50 分** |
+
+**计算公式（伪代码）：**
+
+```
+function calcOverduePenalty(overdueDays):
+  if overdueDays <= 0: return 0
+  penalty = 0
+  penalty += min(overdueDays, 3) × 3          // 前 3 天
+  if overdueDays > 3:
+    penalty += min(overdueDays - 3, 4) × 5    // 第 4-7 天
+  if overdueDays > 7:
+    penalty += (overdueDays - 7) × 8          // 第 7 天以后
+  return min(penalty, 50)                      // 封顶 -50
+```
+
+---
+
+### 7.2 触发时机
+
+**触发点：管理员在「归还验证」页点击「Confirm Return (No Damage)」**
+
+选择此触发点的原因：
+- 逾期扣分属于"归还行为结束时的系统后果"，与验证动作绑定最自然
+- 不需要定时任务（cron job），减少系统复杂度
+- 管理员可在确认前看到预警，避免误操作
+
+若该归还**既逾期又损坏**（点「Report Damage」路径）：
+- 逾期扣分：在 `processReturn()` 中执行（归还时）
+- 损坏扣分：在 `updateDamageReportStatus()` → resolved 时执行（审核时）
+- 两者独立扣减，互不影响
+
+---
+
+### 7.3 改动文件清单
+
+| 文件 | 改动内容 | 负责人 |
+|------|---------|-------|
+| `app-web/lib/bookingService.ts` | `processReturn()` 内新增：计算 `overdueDays`、按分级规则算 `penalty`、调用已有 `update_credit_score` RPC、发送 `overdue_alert` 通知 | Bosheng / Linpeng |
+| `app-web/app/dashboard/returns/page.tsx` | `handleVerify()` 无损归还分支：若逾期则弹二次确认框（显示"将扣 X 分，是否确认？"），确认后再调 `processReturn()` | Linpeng |
+| `app-web/components/returns/ReturnVerify.tsx` | 逾期时在 badge 旁追加预估扣分提示（如 `Overdue 3 days · 预计扣 -9 分`），管理员点按钮前即可知晓后果 | Linpeng |
+
+**无需新增数据库字段**：逾期天数由 `actual_return_date - end_date` 动态计算，扣分通过已有 `update_credit_score(user_id, delta, reason)` RPC 执行。
+
+---
+
+### 7.4 UI 交互流程
+
+```
+管理员打开归还验证页
+        │
+        ▼
+看到「Overdue 3 days · 预计扣 -9 分」红色 badge
+        │
+        ▼
+点击「Confirm Return (No Damage)」
+        │
+        ▼
+弹出确认框：
+  "此借用逾期 3 天，将自动扣减 9 信用分。确认归还？"
+  [取消]  [确认扣分并归还]
+        │
+        ▼ 确认
+系统执行：
+  1. booking.status → returned
+  2. asset.status → available
+  3. credit_score -= 9（通过 update_credit_score RPC）
+  4. 发送通知给借用者："您的借用逾期 3 天，已扣减 9 信用分"
+        │
+        ▼
+归还卡片从列表消失，Toast 提示成功
+```
+
+---
+
+### 7.5 通知内容模板
+
+```
+标题：逾期归还扣分通知
+正文：您借用的「{设备名}」逾期 {X} 天归还，
+      已扣减信用分 {Y} 分。
+      当前信用分：{当前分数}。
+      请按时归还设备，避免信用分持续降低。
+通知类型：overdue_alert
+```
+
+---
+
+### 7.6 与现有损坏扣分系统的对比
+
+| 维度 | 损坏扣分（已实现） | 逾期扣分（本章新增） |
+|------|-----------------|------------------|
+| 触发方式 | 管理员手动确认损坏等级 | 系统自动（归还时计算） |
+| 触发时机 | `updateDamageReportStatus` → resolved | `processReturn()` 调用时 |
+| 扣分标准 | 固定值（-5/-15/-30） | 按天数分级（-3/-5/-8/天） |
+| 上限 | -30（severe） | -50 |
+| 二次确认 | 选择等级即为确认 | 弹窗确认（显示具体扣分数） |
+| 通知类型 | 损坏报告通知 | `overdue_alert` |
+
+---
+
+## 八、损坏归还冲突处理 — suspended 预约暂停机制（2026-03-26 补充）
+
+> **背景**：当借用者归还设备时发现损坏，设备进入维修状态（`maintenance`）。若此时已有其他用户预约了未来日期，这些预约既不能立刻取消（设备可能很快修好），也不能继续有效（设备不可用）。本章记录"暂停 + 自动恢复/取消"的完整设计方案。
+
+---
+
+### 8.1 核心设计思路
+
+采用 **suspended（暂停）** 中间状态，而非立刻取消：
+
+```
+归还时发现损坏
+      │
+      ▼
+设备 → maintenance
+未来预约 pending/approved → suspended（保留，不销毁）
+      │
+      ├─── 管理员重新上架
+      │         │
+      │    start_date > 现在  → 恢复为 pending（重新审批）→ 通知用户"已恢复"
+      │    start_date ≤ 现在  → 自动 cancelled              → 通知用户"已过期取消"
+      │
+      └─── 取货日前 12 小时设备仍在维修
+                │
+                ▼
+           自动 cancelled → 通知用户"紧急：已自动取消"
+```
+
+**用户（学生）权利**：在 `suspended` 状态下，用户可随时主动取消，无需等待设备修复。
+
+---
+
+### 8.2 新增数据库枚举值
+
+**迁移文件**：`database/migrations/014_add_suspended_booking_status.sql`
+
+```sql
+-- 新增枚举值
+ALTER TYPE booking_status ADD VALUE IF NOT EXISTS 'suspended';
+
+-- create_booking RPC：suspended 预约也纳入日期冲突检测（占位）
+-- restrict_booking_update 触发器：允许学生取消自己的 suspended 预约
+```
+
+> ⚠️ **需手动在 Supabase SQL Editor 执行此迁移文件**，Postgres 枚举值新增无法回滚。
+
+---
+
+### 8.3 `rejection_reason` 字段复用约定
+
+| 值 | 含义 |
+|----|------|
+| `ASSET_MAINTENANCE` | 因设备维修被暂停（`suspended`）的预约，用于 `restoreMaintenanceBookings()` 识别 |
+| `ASSET_MAINTENANCE_EXPIRED` | 因维修期内取货日已过被自动取消的预约 |
+| `VERIFIED` | 归还已核验（无损或损坏报告已创建） |
+
+---
+
+### 8.4 改动文件清单
+
+| 文件 | 改动内容 |
+|------|---------|
+| `database/migrations/014_add_suspended_booking_status.sql` | 新增；添加 `suspended` 枚举；更新 `create_booking` RPC 冲突检测；更新 `restrict_booking_update` 触发器 |
+| `database/types/supabase.ts` | `BookingStatus` 添加 `'suspended'` |
+| `app-web/lib/bookingService.ts` | `BookingWithDetails` 类型扩展 `purchase_date/price`；`reportDamage()` 新增：批量将未来预约改为 `suspended` + 逐用户发通知；新增 `restoreMaintenanceBookings(assetId)` 函数 |
+| `app-web/app/dashboard/assets/page.tsx` | 引入 `bookingService`；`handleRelist()` 完成上架后调用 `restoreMaintenanceBookings()` |
+| `app-mobile/src/screens/booking/BookingHistoryScreen.tsx` | `getStatusLabel` 添加 `'suspended' → '暂停中'`；`getStatusColor` 添加 `suspended → amber`；`canCancel` 条件添加 `suspended`；`useEffect` 中调用 `checkSuspendedBookingsExpiring()` |
+| `app-mobile/src/services/notificationService.ts` | 新增 `checkSuspendedBookingsExpiring()`：检测 12h 内到期仍暂停的预约，发紧急通知并自动取消 |
+
+---
+
+### 8.5 通知类型及内容模板
+
+| 场景 | `type` | 标题 | 接收方 |
+|------|--------|------|--------|
+| 预约被暂停 | `booking_suspended` | 预约已暂停 — 设备维修中 | 受影响用户 |
+| 预约恢复 | `booking_restored` | 好消息！设备已修好，预约已恢复 | 受影响用户 |
+| 取货日过期自动取消 | `booking_cancelled` | 预约已自动取消 | 受影响用户 |
+| 12h 内仍维修紧急取消 | `booking_cancelled` | 紧急通知：预约即将自动取消 | 受影响用户 |
+
+**暂停通知示例：**
+```
+标题：预约已暂停 — 设备维修中
+正文：您预约的「{设备名}」因归还时发现损坏，已进入维修流程，
+      您的预约（取货日：{日期}）已暂时挂起。
+      维修完成重新上架后将自动恢复，您也可以选择直接取消。
+```
+
+**恢复通知示例：**
+```
+标题：好消息！设备已修好，预约已恢复
+正文：您暂停中的「{设备名}」预约（取货日：{日期}）已自动恢复
+      为待审批状态，请等待管理员重新审批。
+```
+
+---
+
+### 8.6 完整状态流转图
+
+```
+学生提交预约
+      │
+      ▼
+  pending ──(管理员审批通过)──→ approved ──(扫码取货)──→ active
+      │                            │                        │
+  (拒绝)                       (学生取消)              (归还)  (逾期)
+      ▼                            ▼                   ▼       ▼
+  rejected                    cancelled            returned  overdue
+                                                              │
+                                                         (最终归还)
+                                                              ▼
+                                                          returned
+
+────── suspended 分支 ──────────────────────────────────────────
+
+  pending/approved
+      │
+  (归还时发现损坏)
+      ▼
+  suspended ──(设备修好重新上架, start_date > now)──→ pending（重新流转）
+      │
+      ├─ (设备修好但 start_date 已过) ──→ cancelled
+      │
+      ├─ (取货日前 12h 设备仍维修) ──→ cancelled（自动）
+      │
+      └─ (学生主动取消) ──→ cancelled
+```
+
+---
+
+### 8.7 与其他机制的关系
+
+| 机制 | 相互独立 | 说明 |
+|------|---------|------|
+| 逾期扣分（第七章） | ✅ 独立 | `suspended` 仅影响未来预约，不影响已完成的归还流程 |
+| 损坏赔偿（第五章） | ✅ 独立 | 损坏报告在 Damage Reports 页面单独处理 |
+| 通知系统 | 复用 | `booking_suspended/restored/cancelled` 均写入 `notifications` 表 |
