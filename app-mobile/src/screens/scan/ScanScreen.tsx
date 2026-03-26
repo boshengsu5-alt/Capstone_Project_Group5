@@ -119,15 +119,15 @@ export default function ScanScreen() {
         if (suspendedBooking) {
           setIsProcessing(false);
           alertManager.alert(
-            '预约已暂停',
-            `您对「${asset.name}」的预约因设备进入维护状态已被暂停。\n\n设备维修完成后管理员将通知您，届时预约将自动恢复；若超过开始日期则系统会自动取消。`,
+            t('scan.suspendedBooking'),
+            t('scan.suspendedBookingMsg', { asset: asset.name }),
             [
               {
-                text: '查看我的预约',
+                text: t('scan.viewMyBookings'),
                 onPress: () => { navigation.navigate('BookingsTab', { screen: 'BookingHistory' }); },
               },
               {
-                text: '好的',
+                text: t('scan.ok'),
                 style: 'cancel',
                 onPress: () => { setIsScanning(true); },
               },

@@ -36,7 +36,8 @@
       "pending": "待审批",
       "approved": "已通过",
       "rejected": "已拒绝",
-      "cancelled": "已取消"
+      "cancelled": "已取消",
+      "suspended": "暂停中"
     },
     "loadFailed": "加载失败",
     "loadFailedMessage": "获取借用记录失败，请下拉刷新重试",
@@ -92,6 +93,8 @@
     "pickUpFailedTryAgain": "激活失败，请重试",
     "pendingBooking": "预约审批中",
     "pendingBookingMsg": "您对「{{asset}}」的借用申请正在等待管理员审批，请耐心等待。\n\n审批通过后再次扫码即可取货。",
+    "suspendedBooking": "预约已暂停",
+    "suspendedBookingMsg": "您对「{{asset}}」的预约因设备进入维护状态已被暂停。\n\n设备维修完成后管理员将通知您，届时预约将自动恢复；若超过开始日期则系统会自动取消。",
     "viewMyBookings": "查看我的预约",
     "enterDeviceId": "请输入设备编号",
     "deviceNotFound": "未找到设备",
@@ -186,7 +189,21 @@
     "noReviews": "暂无评价，成为第一个评价者吧！",
     "bookNow": "立即预约",
     "notAvailable": "不可借用",
-    "selectDateFirst": "请先选择日期"
+    "selectDateFirst": "请先选择日期",
+    "compensationTitle": "损坏赔偿说明",
+    "compensationMeta": "使用年限：{{age}}　·　折旧率：{{rate}}",
+    "compensationNote": "赔偿金额 = 购置价 × 折旧率 × 损坏系数",
+    "deprAgeLabels": {
+      "months": "{{m}}个月",
+      "years": "{{y}}年",
+      "yearsAndMonths": "{{y}}年{{m}}个月",
+      "unknown": "未知"
+    },
+    "damageLabels": {
+      "minor": "轻微磨损",
+      "moderate": "中度损坏",
+      "severe": "严重损坏"
+    }
   },
   "calendar": {
     "loading": "加载预订信息...",

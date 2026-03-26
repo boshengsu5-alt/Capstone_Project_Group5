@@ -36,7 +36,8 @@
       "pending": "Pending",
       "approved": "Approved",
       "rejected": "Rejected",
-      "cancelled": "Cancelled"
+      "cancelled": "Cancelled",
+      "suspended": "Suspended"
     },
     "loadFailed": "Load Failed",
     "loadFailedMessage": "Failed to fetch bookings. Pull down to refresh.",
@@ -92,6 +93,8 @@
     "pickUpFailedTryAgain": "Activation failed, please try again",
     "pendingBooking": "Booking pending",
     "pendingBookingMsg": "Your booking for「{{asset}}」is waiting for admin approval.\n\nYou can pick it up by scanning after it's approved.",
+    "suspendedBooking": "Booking Suspended",
+    "suspendedBookingMsg": "Your booking for「{{asset}}」has been suspended due to device maintenance.\n\nOnce the maintenance is complete, the admin will notify you and the booking will automatically resume. If it passes the start date, the system will cancel it automatically.",
     "viewMyBookings": "View my bookings",
     "enterDeviceId": "Please enter device ID",
     "deviceNotFound": "Device not found",
@@ -186,7 +189,21 @@
     "noReviews": "No reviews yet. Be the first to review!",
     "bookNow": "Book Now",
     "notAvailable": "Not Available",
-    "selectDateFirst": "Please select dates"
+    "selectDateFirst": "Please select dates",
+    "compensationTitle": "Damage Compensation Guide",
+    "compensationMeta": "Service Life: {{age}}　·　Depr. Rate: {{rate}}",
+    "compensationNote": "Compensation = Purchase Price × Depr. Rate × Severity Coefficient",
+    "deprAgeLabels": {
+      "months": "{{m}} months",
+      "years": "{{y}} year(s)",
+      "yearsAndMonths": "{{y}} yr {{m}} mo",
+      "unknown": "Unknown"
+    },
+    "damageLabels": {
+      "minor": "Minor Wear",
+      "moderate": "Moderate Damage",
+      "severe": "Severe Damage"
+    }
   },
   "calendar": {
     "loading": "Loading booking schedule...",

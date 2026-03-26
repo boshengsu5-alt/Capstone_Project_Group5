@@ -26,7 +26,7 @@ type Props = {
 };
 
 export default function ProfileScreen({ navigation }: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -128,6 +128,18 @@ export default function ProfileScreen({ navigation }: Props) {
           </View>
           <Text style={styles.menuText}>{t('profile.notifications')}</Text>
           <Ionicons name="chevron-forward" size={20} color={theme.colors.gray} />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.menuItem}
+          onPress={() => {
+            const nextLang = i18n.language === 'zh' ? 'en' : 'zh';
+            i18n.changeLanguage(nextLang);
+          }}
+        >
+          <Ionicons name="language-outline" size={22} color={theme.colors.text} />
+          <Text style={styles.menuText}>{i18n.language === 'zh' ? 'English' : '中文'}</Text>
+          <Ionicons name="swap-horizontal" size={20} color={theme.colors.gray} />
         </TouchableOpacity>
 
         <TouchableOpacity

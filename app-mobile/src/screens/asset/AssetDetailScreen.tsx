@@ -11,29 +11,30 @@ import { supabase } from '../../services/supabase';
 import CalendarView from '../../components/CalendarView';
 import ErrorView from '../../components/ErrorView';
 import SafeImage from '../../components/SafeImage';
+import { useTranslation } from 'react-i18next';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'AssetDetailScreen'>;
 type FullAsset = Asset & { categories: Category };
 
 // 损坏赔偿系数，与 Web 端 DamageTable 保持一致 (§5.2)
 const DAMAGE_ROWS = [
-  { label: '轻微磨损', coef: 0.2, color: '#f59e0b' },
-  { label: '中度损坏', coef: 0.5, color: '#f97316' },
-  { label: '严重损坏', coef: 1.0, color: '#ef4444' },
+  { id: 'minor', coef: 0.2, color: '#f59e0b' },
+  { id: 'moderate', coef: 0.5, color: '#f97316' },
+  { id: 'severe', coef: 1.0, color: '#ef4444' },
 ];
 
 /**
  * Compute asset age label and depreciation ratio from purchase date.
  * 根据购置日期计算设备年龄和折旧比例。
  */
-function getDepreciationInfo(purchaseDate: string | null): { ratio: number; ageLabel: string; rateLabel: string } {
-  if (!purchaseDate) return { ratio: 0.5, ageLabel: '未知', rateLabel: '50%' };
+function getDepreciationInfo(purchaseDate: string | null, t: any): { ratio: number; ageLabel: string; rateLabel: string } {
+  if (!purchaseDate) return { ratio: 0.5, ageLabel: t('assetDetail.deprAgeLabels.unknown'), rateLabel: '50%' };
   const ms = Date.now() - new Date(purchaseDate).getTime();
   const years = ms / (1000 * 60 * 60 * 24 * 365.25);
   const totalMonths = Math.floor(ms / (1000 * 60 * 60 * 24 * 30.44));
   const y = Math.floor(totalMonths / 12);
   const m = totalMonths % 12;
-  const ageLabel = y === 0 ? `${m}个月` : m === 0 ? `${y}年` : `${y}年${m}个月`;
+  const ageLabel = y === 0 ? t('assetDetail.deprAgeLabels.months', { m }) : m === 0 ? t('assetDetail.deprAgeLabels.years', { y }) : t('assetDetail.deprAgeLabels.yearsAndMonths', { y, m });
   if (years <= 1) return { ratio: 1.0, ageLabel, rateLabel: '100%' };
   if (years <= 3) return { ratio: 0.8, ageLabel, rateLabel: '80%' };
   if (years <= 5) return { ratio: 0.5, ageLabel, rateLabel: '50%' };
@@ -43,6 +44,7 @@ function getDepreciationInfo(purchaseDate: string | null): { ratio: number; ageL
 const { width } = Dimensions.get('window');
 
 export default function AssetDetailScreen({ route, navigation }: Props) {
+  const { t, i18n } = useTranslation();
   const assetId = route.params?.id || '';
   const [asset, setAsset] = useState<FullAsset | null>(null);
   const [loading, setLoading] = useState(true);
@@ -53,7 +55,7 @@ export default function AssetDetailScreen({ route, navigation }: Props) {
 
   const fetchAssetDetails = useCallback(async () => {
     if (!assetId) {
-      setError('未提供设备 ID');
+      setError(t('assetDetail.noId'));
       setLoading(false);
       return;
     }
@@ -71,10 +73,10 @@ export default function AssetDetailScreen({ route, navigation }: Props) {
         setReviews(reviewsData as ReviewWithMeta[]);
         setCurrentUserId(user?.id);
       } else {
-        setError('找不到该设备');
+        setError(t('assetDetail.notFound'));
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : '获取设备详情失败');
+      setError(err instanceof Error ? err.message : t('assetDetail.fetchFailed'));
     } finally {
       setLoading(false);
     }
@@ -92,7 +94,7 @@ export default function AssetDetailScreen({ route, navigation }: Props) {
     return (
       <View style={styles.centerContainer}>
         <ActivityIndicator size="large" color={theme.colors.primary} />
-        <Text style={{ marginTop: 10, color: theme.colors.gray }}>正在加载设备详情...</Text>
+        <Text style={{ marginTop: 10, color: theme.colors.gray }}>{t('assetDetail.loading')}</Text>
       </View>
     );
   }
@@ -101,14 +103,14 @@ export default function AssetDetailScreen({ route, navigation }: Props) {
     return (
       <SafeAreaView style={styles.safeArea}>
         <ErrorView 
-          message={error || "获取设备详情失败"} 
+          message={error || t("assetDetail.fetchFailed")} 
           onRetry={fetchAssetDetails} 
         />
         <TouchableOpacity 
           style={[styles.bookButton, { margin: 20, paddingHorizontal: 30 }]}
           onPress={() => navigation.goBack()}
         >
-          <Text style={styles.bookButtonText}>返回</Text>
+          <Text style={styles.bookButtonText}>{t('assetDetail.back')}</Text>
         </TouchableOpacity>
       </SafeAreaView>
     );
@@ -137,28 +139,28 @@ export default function AssetDetailScreen({ route, navigation }: Props) {
             <View style={styles.titleInfo}>
               <Text style={styles.title}>{asset.name}</Text>
               <View style={styles.categoryBadge}>
-                <Text style={styles.categoryText}>{asset.categories?.name_zh || asset.categories?.name || '未分类'}</Text>
+                <Text style={styles.categoryText}>{i18n.language === 'zh' ? (asset.categories?.name_zh || asset.categories?.name || t('assetDetail.uncategorized')) : (asset.categories?.name || t('assetDetail.uncategorized'))}</Text>
               </View>
             </View>
-            <Text style={styles.price}>¥{asset.purchase_price ?? '面议'}/天</Text>
+            <Text style={styles.price}>¥{asset.purchase_price ?? t('assetDetail.negotiable')}{t('assetDetail.perDay')}</Text>
           </View>
 
           {/* Description */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>商品简介</Text>
-            <Text style={styles.descriptionText}>{asset.description || '暂无详细描述。'}</Text>
+            <Text style={styles.sectionTitle}>{t('assetDetail.descTitle')}</Text>
+            <Text style={styles.descriptionText}>{asset.description || t('assetDetail.noDesc')}</Text>
           </View>
 
           {/* Details/Specs */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>设备信息</Text>
+            <Text style={styles.sectionTitle}>{t('assetDetail.infoTitle')}</Text>
 
             {/* 存放位置 */}
             <View style={styles.infoRow}>
               <Ionicons name="location-outline" size={20} color={theme.colors.gray} style={styles.infoIcon} />
               <View style={styles.infoContent}>
-                <Text style={styles.infoLabel}>存放位置</Text>
-                <Text style={styles.infoValue}>{asset.location || '校内指定位置'}</Text>
+                <Text style={styles.infoLabel}>{t('assetDetail.location')}</Text>
+                <Text style={styles.infoValue}>{asset.location || t('assetDetail.defaultLocation')}</Text>
               </View>
             </View>
 
@@ -166,8 +168,8 @@ export default function AssetDetailScreen({ route, navigation }: Props) {
             <View style={styles.infoRow}>
               <Ionicons name="barcode-outline" size={20} color={theme.colors.gray} style={styles.infoIcon} />
               <View style={styles.infoContent}>
-                <Text style={styles.infoLabel}>序列号</Text>
-                <Text style={[styles.infoValue, styles.monoText]}>{asset.serial_number || '无编号'}</Text>
+                <Text style={styles.infoLabel}>{t('assetDetail.serialNumber')}</Text>
+                <Text style={[styles.infoValue, styles.monoText]}>{asset.serial_number || t('assetDetail.noSerial')}</Text>
               </View>
             </View>
 
@@ -175,7 +177,7 @@ export default function AssetDetailScreen({ route, navigation }: Props) {
             <View style={styles.infoRow}>
               <Ionicons name="checkmark-circle-outline" size={20} color={theme.colors.gray} style={styles.infoIcon} />
               <View style={styles.infoContent}>
-                <Text style={styles.infoLabel}>可用状态</Text>
+                <Text style={styles.infoLabel}>{t('assetDetail.statusTitle')}</Text>
                 <View style={[
                   styles.statusBadge,
                   asset.status === 'available' && styles.statusAvailable,
@@ -190,10 +192,10 @@ export default function AssetDetailScreen({ route, navigation }: Props) {
                     asset.status === 'maintenance' && { color: '#f59e0b' },
                     asset.status === 'retired' && { color: theme.colors.danger },
                   ]}>
-                    {asset.status === 'available' ? '现存可借'
-                      : asset.status === 'borrowed' ? '已借出'
-                      : asset.status === 'maintenance' ? '维护中'
-                      : '已退役'}
+                    {asset.status === 'available' ? t('assetDetail.status.available')
+                      : asset.status === 'borrowed' ? t('assetDetail.status.borrowed')
+                      : asset.status === 'maintenance' ? t('assetDetail.status.maintenance')
+                      : t('assetDetail.status.retired')}
                   </Text>
                 </View>
               </View>
@@ -203,7 +205,7 @@ export default function AssetDetailScreen({ route, navigation }: Props) {
             <View style={styles.infoRow}>
               <Ionicons name="shield-checkmark-outline" size={20} color={theme.colors.gray} style={styles.infoIcon} />
               <View style={styles.infoContent}>
-                <Text style={styles.infoLabel}>设备成色</Text>
+                <Text style={styles.infoLabel}>{t('assetDetail.conditionTitle')}</Text>
                 <View style={[
                   styles.conditionBadge,
                   asset.condition === 'new' && styles.conditionNew,
@@ -220,11 +222,11 @@ export default function AssetDetailScreen({ route, navigation }: Props) {
                     asset.condition === 'poor' && { color: '#f97316' },
                     asset.condition === 'damaged' && { color: theme.colors.danger },
                   ]}>
-                    {asset.condition === 'new' ? '全新'
-                      : asset.condition === 'good' ? '良好'
-                      : asset.condition === 'fair' ? '一般'
-                      : asset.condition === 'poor' ? '较差'
-                      : '损坏'}
+                    {asset.condition === 'new' ? t('assetDetail.condition.new')
+                      : asset.condition === 'good' ? t('assetDetail.condition.good')
+                      : asset.condition === 'fair' ? t('assetDetail.condition.fair')
+                      : asset.condition === 'poor' ? t('assetDetail.condition.poor')
+                      : t('assetDetail.condition.damaged')}
                   </Text>
                 </View>
               </View>
@@ -234,8 +236,8 @@ export default function AssetDetailScreen({ route, navigation }: Props) {
             <View style={styles.infoRow}>
               <Ionicons name="pricetag-outline" size={20} color={theme.colors.gray} style={styles.infoIcon} />
               <View style={styles.infoContent}>
-                <Text style={styles.infoLabel}>设备类别</Text>
-                <Text style={styles.infoValue}>{asset.categories?.name_zh || asset.categories?.name || '未分类'}</Text>
+                <Text style={styles.infoLabel}>{t('assetDetail.categoryTitle')}</Text>
+                <Text style={styles.infoValue}>{i18n.language === 'zh' ? (asset.categories?.name_zh || asset.categories?.name || t('assetDetail.uncategorized')) : (asset.categories?.name || t('assetDetail.uncategorized'))}</Text>
               </View>
             </View>
 
@@ -243,31 +245,31 @@ export default function AssetDetailScreen({ route, navigation }: Props) {
 
           {/* 损坏赔偿说明 — 仅在有购置价时显示 */}
           {asset.purchase_price != null && (() => {
-            const depr = getDepreciationInfo(asset.purchase_date);
+            const depr = getDepreciationInfo(asset.purchase_date, t);
             const p = asset.purchase_price!;
             return (
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>损坏赔偿说明</Text>
+                <Text style={styles.sectionTitle}>{t('assetDetail.compensationTitle')}</Text>
                 <View style={styles.compensationBox}>
                   <Text style={styles.compensationMeta}>
-                    使用年限：{depr.ageLabel}　·　折旧率：{depr.rateLabel}
+                    {t('assetDetail.compensationMeta', { age: depr.ageLabel, rate: depr.rateLabel })}
                   </Text>
-                  {DAMAGE_ROWS.map(({ label, coef, color }, idx) => (
+                  {DAMAGE_ROWS.map(({ id, coef, color }, idx) => (
                     <View
-                      key={label}
+                      key={id}
                       style={[
                         styles.compensationRow,
                         idx === DAMAGE_ROWS.length - 1 && { borderBottomWidth: 0 },
                       ]}
                     >
-                      <Text style={[styles.compensationLabel, { color }]}>{label}</Text>
+                      <Text style={[styles.compensationLabel, { color }]}>{t(`assetDetail.damageLabels.${id}`)}</Text>
                       <Text style={styles.compensationAmount}>
                         ¥{Math.round(p * depr.ratio * coef)}
                       </Text>
                     </View>
                   ))}
                   <Text style={styles.compensationNote}>
-                    赔偿金额 = 购置价 × 折旧率 × 损坏系数
+                    {t('assetDetail.compensationNote')}
                   </Text>
                 </View>
               </View>
@@ -276,7 +278,7 @@ export default function AssetDetailScreen({ route, navigation }: Props) {
 
           {/* Calendar Section */}
           <View style={styles.calendarSection}>
-            <Text style={styles.sectionTitle}>选择租期</Text>
+            <Text style={styles.sectionTitle}>{t('assetDetail.selectPeriod')}</Text>
             <CalendarView
               assetId={asset.id}
               onDateChange={handleDateChange}
@@ -287,10 +289,10 @@ export default function AssetDetailScreen({ route, navigation }: Props) {
           {/* Reviews Section */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>
-              用户评价 {reviews.length > 0 ? `(${reviews.length})` : ''}
+              {t('assetDetail.reviewsTitle')} {reviews.length > 0 ? `(${reviews.length})` : ''}
             </Text>
             {reviews.length === 0 ? (
-              <Text style={styles.noReviews}>暂无评价，成为第一个评价者吧！</Text>
+              <Text style={styles.noReviews}>{t('assetDetail.noReviews')}</Text>
             ) : (
               reviews.map(review => (
                 <ReviewCard
@@ -324,7 +326,7 @@ export default function AssetDetailScreen({ route, navigation }: Props) {
           disabled={!selectedDates || !isBookable}
         >
           <Text style={styles.bookButtonText}>
-            {!isBookable ? '不可借用' : (selectedDates ? '立即预约' : '请先选择日期')}
+            {!isBookable ? t('assetDetail.notAvailable') : (selectedDates ? t('assetDetail.bookNow') : t('assetDetail.selectDateFirst'))}
           </Text>
         </TouchableOpacity>
       </View>
