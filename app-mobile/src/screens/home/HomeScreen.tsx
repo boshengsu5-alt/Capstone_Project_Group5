@@ -23,6 +23,7 @@ import { checkOverdueBookings } from '../../services/bookingService';
 import type { Asset, Category } from '../../../../database/types/supabase';
 import ErrorView from '../../components/ErrorView';
 import SafeImage from '../../components/SafeImage';
+import { useTranslation } from 'react-i18next';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'HomeScreen'>;
 
@@ -42,15 +43,16 @@ const categoryIconMap: Record<string, string> = {
 
 const { width } = Dimensions.get('window');
 
-const AD_DATA = [
-  { id: '1', color: '#8B5CF6', text: '全新上市，全场优惠' },
-  { id: '2', color: '#C4B5FD', text: '限时折扣，不容错过' },
-  { id: '3', color: '#A78BFA', text: '优质精选，猜你喜欢' },
+const getAdData = (t: any) => [
+  { id: '1', color: '#8B5CF6', text: t('home.ad1') },
+  { id: '2', color: '#C4B5FD', text: t('home.ad2') },
+  { id: '3', color: '#A78BFA', text: t('home.ad3') },
 ];
 
 const PAGE_SIZE = 10;
 
 export default function HomeScreen({ navigation, route }: Props) {
+  const { t, i18n } = useTranslation();
   const [assets, setAssets] = useState<(Asset & { categories: Category })[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -120,7 +122,9 @@ export default function HomeScreen({ navigation, route }: Props) {
       <View style={styles.categoryHomeIcon}>
         <Ionicons name={(categoryIconMap[item.name] || 'cube-outline') as any} size={28} color={theme.colors.primary} />
       </View>
-      <Text style={styles.categoryHomeText} numberOfLines={1}>{item.name}</Text>
+      <Text style={styles.categoryHomeText} numberOfLines={1}>
+        {i18n.language?.startsWith('zh') ? item.name_zh : item.name}
+      </Text>
     </TouchableOpacity>
   );
 
@@ -135,13 +139,23 @@ export default function HomeScreen({ navigation, route }: Props) {
         placeholderSize={40} 
       />
       <Text style={styles.productTitle} numberOfLines={1}>{item.name}</Text>
-      <Text style={[styles.productPrice, { fontSize: 13, color: theme.colors.gray, fontWeight: 'normal' }]}>状态: {item.status === 'available' ? '现存' : item.status}</Text>
+      <Text style={[styles.productPrice, { fontSize: 13, color: theme.colors.gray, fontWeight: 'normal' }]}>
+        {t('home.status', { status: t(`assetDetail.status.${item.status}`) })}
+      </Text>
     </TouchableOpacity>
   );
 
   const renderHeader = () => (
     <>
       <View style={styles.header}>
+        <View style={styles.headerTopRight}>
+          <TouchableOpacity 
+            style={styles.langButton}
+            onPress={() => i18n.changeLanguage(i18n.language === 'en' ? 'zh' : 'en')}
+          >
+            <Text style={styles.langButtonText}>{i18n.language?.startsWith('en') ? '中文' : 'EN'}</Text>
+          </TouchableOpacity>
+        </View>
         <TouchableOpacity 
           style={styles.searchBar} 
           onPress={() => navigation.navigate('CategoryScreen')}
@@ -149,7 +163,7 @@ export default function HomeScreen({ navigation, route }: Props) {
           <Ionicons name="search" size={20} color={theme.colors.gray} style={styles.searchIcon} />
           <TextInput 
             style={[styles.searchInput, Platform.OS === 'web' && { outlineStyle: 'none' } as any]} 
-            placeholder="搜索热门商品..." 
+            placeholder={t('home.searchPlaceholder')} 
             placeholderTextColor={theme.colors.gray}
             editable={false} // Make it un-editable so the whole bar triggers navigation
             pointerEvents="none"
@@ -163,7 +177,7 @@ export default function HomeScreen({ navigation, route }: Props) {
           showsHorizontalScrollIndicator={false} 
           pagingEnabled
         >
-          {AD_DATA.map((ad) => (
+          {getAdData(t).map((ad) => (
             <View key={ad.id} style={[styles.adSlide, { backgroundColor: ad.color }]}>
               <Text style={styles.adText}>{ad.text}</Text>
             </View>
@@ -183,7 +197,7 @@ export default function HomeScreen({ navigation, route }: Props) {
       </View>
 
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>为你推荐</Text>
+        <Text style={styles.sectionTitle}>{t('home.recommendation')}</Text>
       </View>
     </>
   );
@@ -248,6 +262,22 @@ const styles = StyleSheet.create({
     paddingBottom: theme.spacing.lg + 10,
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
+  },
+  headerTopRight: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginBottom: 12,
+  },
+  langButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 16,
+  },
+  langButtonText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
   searchBar: {
     flexDirection: 'row',

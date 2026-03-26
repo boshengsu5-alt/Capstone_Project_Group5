@@ -3,6 +3,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import BookingHistoryScreen from '../screens/booking/BookingHistoryScreen';
 import ReturnScreen from '../screens/booking/ReturnScreen';
 import DamageReportScreen from '../screens/damage/DamageReportScreen';
+import { useTranslation } from 'react-i18next';
 
 export type BookingsStackParamList = {
   BookingHistory: undefined;
@@ -13,18 +14,19 @@ export type BookingsStackParamList = {
 const Stack = createNativeStackNavigator<BookingsStackParamList>();
 
 export default function BookingsStackNavigator() {
+  const { t } = useTranslation();
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator screenOptions={{ headerShown: false, headerBackTitle: t('nav.back') }}>
       <Stack.Screen name="BookingHistory" component={BookingHistoryScreen} />
       <Stack.Screen
         name="ReturnScreen"
         component={ReturnScreen}
-        options={{ headerShown: true, title: '归还设备' }}
+        options={{ headerShown: true, title: t('nav.returnAsset') }}
       />
       <Stack.Screen
         name="DamageReport"
         component={DamageReportScreen}
-        options={{ headerShown: true, title: '损坏报修' }}
+        options={{ headerShown: true, title: t('nav.reportDamage') }}
       />
     </Stack.Navigator>
   );

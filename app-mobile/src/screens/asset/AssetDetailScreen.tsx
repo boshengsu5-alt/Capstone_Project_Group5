@@ -11,6 +11,7 @@ import { supabase } from '../../services/supabase';
 import CalendarView from '../../components/CalendarView';
 import ErrorView from '../../components/ErrorView';
 import SafeImage from '../../components/SafeImage';
+import { useTranslation } from 'react-i18next';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'AssetDetailScreen'>;
 type FullAsset = Asset & { categories: Category };
@@ -25,6 +26,7 @@ export default function AssetDetailScreen({ route, navigation }: Props) {
   const [selectedDates, setSelectedDates] = useState<{ startDate: string, endDate: string } | null>(null);
   const [reviews, setReviews] = useState<ReviewWithMeta[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | undefined>();
+  const { t, i18n } = useTranslation();
 
   const fetchAssetDetails = useCallback(async () => {
     if (!assetId) {
@@ -46,10 +48,10 @@ export default function AssetDetailScreen({ route, navigation }: Props) {
         setReviews(reviewsData as ReviewWithMeta[]);
         setCurrentUserId(user?.id);
       } else {
-        setError('找不到该设备');
+        setError(t('assetDetail.notFound'));
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : '获取设备详情失败');
+      setError(err instanceof Error ? err.message : t('assetDetail.fetchFailed'));
     } finally {
       setLoading(false);
     }
@@ -67,7 +69,7 @@ export default function AssetDetailScreen({ route, navigation }: Props) {
     return (
       <View style={styles.centerContainer}>
         <ActivityIndicator size="large" color={theme.colors.primary} />
-        <Text style={{ marginTop: 10, color: theme.colors.gray }}>正在加载设备详情...</Text>
+        <Text style={{ marginTop: 10, color: theme.colors.gray }}>{t('assetDetail.loading')}</Text>
       </View>
     );
   }
@@ -76,14 +78,14 @@ export default function AssetDetailScreen({ route, navigation }: Props) {
     return (
       <SafeAreaView style={styles.safeArea}>
         <ErrorView 
-          message={error || "获取设备详情失败"} 
+          message={error || t('assetDetail.fetchFailed')} 
           onRetry={fetchAssetDetails} 
         />
         <TouchableOpacity 
           style={[styles.bookButton, { margin: 20, paddingHorizontal: 30 }]}
           onPress={() => navigation.goBack()}
         >
-          <Text style={styles.bookButtonText}>返回</Text>
+          <Text style={styles.bookButtonText}>{t('assetDetail.back')}</Text>
         </TouchableOpacity>
       </SafeAreaView>
     );
@@ -111,28 +113,30 @@ export default function AssetDetailScreen({ route, navigation }: Props) {
             <View style={styles.titleInfo}>
               <Text style={styles.title}>{asset.name}</Text>
               <View style={styles.categoryBadge}>
-                <Text style={styles.categoryText}>{asset.categories?.name_zh || asset.categories?.name || '未分类'}</Text>
+                <Text style={styles.categoryText}>
+                  {asset.categories ? (i18n.language?.startsWith('zh') ? asset.categories.name_zh : asset.categories.name) : t('assetDetail.uncategorized')}
+                </Text>
               </View>
             </View>
-            <Text style={styles.price}>¥{asset.purchase_price ?? '面议'}/天</Text>
+            <Text style={styles.price}>¥{asset.purchase_price ?? t('assetDetail.negotiable')}{t('assetDetail.perDay')}</Text>
           </View>
 
           {/* Description */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>商品简介</Text>
-            <Text style={styles.descriptionText}>{asset.description || '暂无详细描述。'}</Text>
+            <Text style={styles.sectionTitle}>{t('assetDetail.descTitle')}</Text>
+            <Text style={styles.descriptionText}>{asset.description || t('assetDetail.noDesc')}</Text>
           </View>
 
           {/* Details/Specs */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>设备信息</Text>
+            <Text style={styles.sectionTitle}>{t('assetDetail.infoTitle')}</Text>
 
             {/* 存放位置 */}
             <View style={styles.infoRow}>
               <Ionicons name="location-outline" size={20} color={theme.colors.gray} style={styles.infoIcon} />
               <View style={styles.infoContent}>
-                <Text style={styles.infoLabel}>存放位置</Text>
-                <Text style={styles.infoValue}>{asset.location || '校内指定位置'}</Text>
+                <Text style={styles.infoLabel}>{t('assetDetail.location')}</Text>
+                <Text style={styles.infoValue}>{asset.location || t('assetDetail.defaultLocation')}</Text>
               </View>
             </View>
 
@@ -140,8 +144,8 @@ export default function AssetDetailScreen({ route, navigation }: Props) {
             <View style={styles.infoRow}>
               <Ionicons name="barcode-outline" size={20} color={theme.colors.gray} style={styles.infoIcon} />
               <View style={styles.infoContent}>
-                <Text style={styles.infoLabel}>序列号</Text>
-                <Text style={[styles.infoValue, styles.monoText]}>{asset.serial_number || '无编号'}</Text>
+                <Text style={styles.infoLabel}>{t('assetDetail.serialNumber')}</Text>
+                <Text style={[styles.infoValue, styles.monoText]}>{asset.serial_number || t('assetDetail.noSerial')}</Text>
               </View>
             </View>
 
@@ -149,7 +153,7 @@ export default function AssetDetailScreen({ route, navigation }: Props) {
             <View style={styles.infoRow}>
               <Ionicons name="checkmark-circle-outline" size={20} color={theme.colors.gray} style={styles.infoIcon} />
               <View style={styles.infoContent}>
-                <Text style={styles.infoLabel}>可用状态</Text>
+                <Text style={styles.infoLabel}>{t('assetDetail.statusTitle')}</Text>
                 <View style={[
                   styles.statusBadge,
                   asset.status === 'available' && styles.statusAvailable,
@@ -164,10 +168,7 @@ export default function AssetDetailScreen({ route, navigation }: Props) {
                     asset.status === 'maintenance' && { color: '#f59e0b' },
                     asset.status === 'retired' && { color: theme.colors.danger },
                   ]}>
-                    {asset.status === 'available' ? '现存可借'
-                      : asset.status === 'borrowed' ? '已借出'
-                      : asset.status === 'maintenance' ? '维护中'
-                      : '已退役'}
+                    {t(`assetDetail.status.${asset.status}`)}
                   </Text>
                 </View>
               </View>
@@ -177,7 +178,7 @@ export default function AssetDetailScreen({ route, navigation }: Props) {
             <View style={styles.infoRow}>
               <Ionicons name="shield-checkmark-outline" size={20} color={theme.colors.gray} style={styles.infoIcon} />
               <View style={styles.infoContent}>
-                <Text style={styles.infoLabel}>设备成色</Text>
+                <Text style={styles.infoLabel}>{t('assetDetail.conditionTitle')}</Text>
                 <View style={[
                   styles.conditionBadge,
                   asset.condition === 'new' && styles.conditionNew,
@@ -194,11 +195,7 @@ export default function AssetDetailScreen({ route, navigation }: Props) {
                     asset.condition === 'poor' && { color: '#f97316' },
                     asset.condition === 'damaged' && { color: theme.colors.danger },
                   ]}>
-                    {asset.condition === 'new' ? '全新'
-                      : asset.condition === 'good' ? '良好'
-                      : asset.condition === 'fair' ? '一般'
-                      : asset.condition === 'poor' ? '较差'
-                      : '损坏'}
+                    {t(`assetDetail.condition.${asset.condition}`)}
                   </Text>
                 </View>
               </View>
@@ -208,8 +205,10 @@ export default function AssetDetailScreen({ route, navigation }: Props) {
             <View style={styles.infoRow}>
               <Ionicons name="pricetag-outline" size={20} color={theme.colors.gray} style={styles.infoIcon} />
               <View style={styles.infoContent}>
-                <Text style={styles.infoLabel}>设备类别</Text>
-                <Text style={styles.infoValue}>{asset.categories?.name_zh || asset.categories?.name || '未分类'}</Text>
+                <Text style={styles.infoLabel}>{t('assetDetail.categoryTitle')}</Text>
+                <Text style={styles.infoValue}>
+                  {asset.categories ? (i18n.language?.startsWith('zh') ? asset.categories.name_zh : asset.categories.name) : t('assetDetail.uncategorized')}
+                </Text>
               </View>
             </View>
 
@@ -217,7 +216,7 @@ export default function AssetDetailScreen({ route, navigation }: Props) {
 
           {/* Calendar Section */}
           <View style={styles.calendarSection}>
-            <Text style={styles.sectionTitle}>选择租期</Text>
+            <Text style={styles.sectionTitle}>{t('assetDetail.selectPeriod')}</Text>
             <CalendarView
               assetId={asset.id}
               onDateChange={handleDateChange}
@@ -228,10 +227,10 @@ export default function AssetDetailScreen({ route, navigation }: Props) {
           {/* Reviews Section */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>
-              用户评价 {reviews.length > 0 ? `(${reviews.length})` : ''}
+              {t('assetDetail.reviewsTitle')} {reviews.length > 0 ? `(${reviews.length})` : ''}
             </Text>
             {reviews.length === 0 ? (
-              <Text style={styles.noReviews}>暂无评价，成为第一个评价者吧！</Text>
+              <Text style={styles.noReviews}>{t('assetDetail.noReviews')}</Text>
             ) : (
               reviews.map(review => (
                 <ReviewCard
@@ -265,7 +264,7 @@ export default function AssetDetailScreen({ route, navigation }: Props) {
           disabled={!selectedDates || !isAvailable}
         >
           <Text style={styles.bookButtonText}>
-            {!isAvailable ? '不可借用' : (selectedDates ? '立即预约' : '请先选择日期')}
+            {!isAvailable ? t('assetDetail.notAvailable') : (selectedDates ? t('assetDetail.bookNow') : t('assetDetail.selectDateFirst'))}
           </Text>
         </TouchableOpacity>
       </View>

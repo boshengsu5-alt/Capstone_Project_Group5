@@ -1,0 +1,255 @@
+{
+  "home": {
+    "searchPlaceholder": "搜索热门商品...",
+    "recommendation": "为你推荐",
+    "status": "状态: {{status}}",
+    "statusAvailable": "现存",
+    "ad1": "全新上市，全场优惠",
+    "ad2": "限时折扣，不容错过",
+    "ad3": "优质精选，猜你喜欢"
+  },
+  "splash": {
+    "slogan": "高校领先的智能租赁仓库",
+    "loading": "系统启动中..."
+  },
+  "tabs": {
+    "home": "首页",
+    "bookings": "借用记录",
+    "scan": "扫码",
+    "profile": "我的"
+  },
+  "category": {
+    "allCategories": "全部分类",
+    "searchPlaceholder": "搜索商品名称...",
+    "cancel": "取消",
+    "searching": "搜索中...",
+    "noProductsFound": "未找到「{{query}}」相关商品",
+    "noCategories": "暂无分类数据",
+    "noItemsInCategory": "该分类下暂无商品"
+  },
+  "bookings": {
+    "title": "我的借用记录",
+    "status": {
+      "returned": "已归还",
+      "active": "已借用",
+      "overdue": "已逾期",
+      "pending": "待审批",
+      "approved": "已通过",
+      "rejected": "已拒绝",
+      "cancelled": "已取消"
+    },
+    "loadFailed": "加载失败",
+    "loadFailedMessage": "获取借用记录失败，请下拉刷新重试",
+    "cancelConfirm": "取消借用",
+    "cancelConfirmMessage": "确定要取消「{{asset}}」的借用申请吗？",
+    "thinkAgain": "再想想",
+    "confirmCancel": "确认取消",
+    "cancelSuccess": "已取消",
+    "cancelSuccessMessage": "借用申请已取消",
+    "cancelFailed": "取消失败",
+    "unknownDevice": "未知设备",
+    "period": "借用周期：",
+    "to": "至",
+    "scanToPickUp": "扫码取货",
+    "photoReturn": "拍照归还",
+    "damageReport": "损坏报修",
+    "editReview": "修改评价",
+    "leaveReview": "评价设备",
+    "noBookings": "暂无借用记录",
+    "noBookingsMessage": "您还没有借用过任何东西，快去首页逛逛吧",
+    "goHome": "去首页看看"
+  },
+  "profile": {
+    "defaultName": "用户",
+    "prompt": "提示",
+    "loadFailed": "资料加载失败，请稍后重试",
+    "settingNotReady": "设置功能正在开发中，敬请期待",
+    "logoutConfirm": "确认退出",
+    "logoutConfirmMessage": "确定要退出登录吗？",
+    "cancel": "取消",
+    "logout": "退出",
+    "logoutFailed": "退出失败",
+    "creditScore": "信用分",
+    "studentId": "学号",
+    "department": "学院",
+    "notSet": "未设置",
+    "notifications": "消息通知",
+    "settings": "设置"
+  },
+  "scan": {
+    "title": "设备扫码",
+    "prompt": "将二维码对准框内，即可自动识别",
+    "processing": "处理中...",
+    "notTimeToPickUp": "未到取货时间",
+    "notTimeToPickUpMsg": "您对「{{asset}}」的借用从 {{date}} 开始，请在当天或之后再来扫码取货。",
+    "ok": "好的",
+    "confirmPickUp": "确认取货",
+    "confirmPickUpMsg": "检测到您对「{{asset}}」有一个已审批的借用申请。\n\n确认取货后状态将变为「已借用」，借用周期开始计时。",
+    "cancel": "取消",
+    "pickUpSuccess": "取货成功",
+    "pickUpSuccessMsg": "设备「{{asset}}」已成功激活！\n请在 {{date}} 前归还。",
+    "pickUpFailed": "取货失败",
+    "pickUpFailedTryAgain": "激活失败，请重试",
+    "pendingBooking": "预约审批中",
+    "pendingBookingMsg": "您对「{{asset}}」的借用申请正在等待管理员审批，请耐心等待。\n\n审批通过后再次扫码即可取货。",
+    "viewMyBookings": "查看我的预约",
+    "enterDeviceId": "请输入设备编号",
+    "deviceNotFound": "未找到设备",
+    "deviceNotFoundMsg": "找不到序列号为「{{id}}」的设备，请检查编号是否正确。",
+    "queryFailed": "查询失败",
+    "queryFailedTryAgain": "查询失败，请重试",
+    "scannerInitError": "扫码组件初始化遇到了问题",
+    "switchToManual": "切换到手动输入",
+    "queryingAsset": "正在查询资产信息...",
+    "unrecognizedQrCode": "无法识别该二维码，或设备不存在",
+    "rescan": "重新扫描",
+    "manualInput": "手动输入",
+    "manualInputTitle": "手动输入编号",
+    "cameraRestricted": "相机权限受限",
+    "cameraRestrictedMsg": "由于您拒绝或未开启相机授权，无法使用扫码功能。\n请在下方手动输入设备 ID 以继续。",
+    "scanDifficultyMsg": "如果扫码遇到困难，请在此手动输入设备编号进行查询。",
+    "inputIdPlaceholder": "输入设备 ID (例如: ASSET-001)",
+    "queryNow": "立即查询",
+    "backToScan": "返回扫码",
+    "tryCameraAgain": "再次尝试开启相机",
+    "preparingCamera": "正在准备相机访问..."
+  },
+  "review": {
+    "editSuccess": "修改成功",
+    "editSuccessMsg": "您的评价已更新！",
+    "submitSuccess": "评价成功",
+    "submitSuccessMsg": "感谢您的反馈！",
+    "systemBusy": "系统繁忙，请稍后再试",
+    "editFailed": "修改失败",
+    "submitFailed": "评价失败",
+    "ratingLabels": ["极差", "不太理想", "中规中矩", "很好", "非常好"],
+    "editReviewTitle": "修改评价",
+    "addReviewTitle": "设备评价",
+    "editReviewSubtitle": "修改对「{{asset}}」的评价",
+    "addReviewSubtitle": "正在为「{{asset}}」进行评价",
+    "editPlaceholder": "修改您的使用感受（可选）",
+    "addPlaceholder": "写下您的使用感受（可选）",
+    "saveChanges": "保存修改",
+    "submitReview": "提交评价"
+  },
+  "errors": {
+    "prompt": "提示",
+    "network": "网络开小差了，请稍后再试",
+    "authFailed": "邮箱或密码错误，请检查后再试",
+    "accountExists": "该账号已被注册"
+  },
+  "nav": {
+    "profile": "我的",
+    "notifications": "消息通知",
+    "notificationDetail": "通知详情",
+    "category": "分类",
+    "assetDetail": "物品详情",
+    "bookingForm": "借用申请",
+    "back": "返回",
+    "returnAsset": "归还设备",
+    "reportDamage": "损坏报修"
+  },
+  "assetDetail": {
+    "loading": "正在加载设备详情...",
+    "notFound": "找不到该设备",
+    "fetchFailed": "获取设备详情失败",
+    "noId": "未提供设备 ID",
+    "back": "返回",
+    "negotiable": "面议",
+    "perDay": "/天",
+    "descTitle": "商品简介",
+    "noDesc": "暂无详细描述。",
+    "infoTitle": "设备信息",
+    "location": "存放位置",
+    "defaultLocation": "校内指定位置",
+    "serialNumber": "序列号",
+    "noSerial": "无编号",
+    "statusTitle": "可用状态",
+    "status": {
+      "available": "现存可借",
+      "borrowed": "已借出",
+      "maintenance": "维护中",
+      "retired": "已退役"
+    },
+    "conditionTitle": "设备成色",
+    "condition": {
+      "new": "全新",
+      "good": "良好",
+      "fair": "一般",
+      "poor": "较差",
+      "damaged": "损坏"
+    },
+    "categoryTitle": "设备类别",
+    "uncategorized": "未分类",
+    "selectPeriod": "选择租期",
+    "reviewsTitle": "用户评价",
+    "noReviews": "暂无评价，成为第一个评价者吧！",
+    "bookNow": "立即预约",
+    "notAvailable": "不可借用",
+    "selectDateFirst": "请先选择日期"
+  },
+  "calendar": {
+    "loading": "加载预订信息...",
+    "error": "加载预订信息失败",
+    "retry": "重试",
+    "disabledAsset": "该设备当前不可借用",
+    "selectTime": "选择时间",
+    "pickupTime": "取借时间",
+    "returnTime": "归还时间",
+    "selectPickupTime": "选择取借时间",
+    "selectReturnTime": "选择归还时间"
+  },
+  "reviewCard": {
+    "labels": [
+      "极差",
+      "不太理想",
+      "中规中矩",
+      "很好",
+      "非常好"
+    ],
+    "sendFailed": "发送失败",
+    "tryAgain": "请稍后重试",
+    "replyBtn": "追问 / 回复",
+    "viewReplies": "查看 {{count}} 条回复",
+    "replyPlaceholder": "写下你的追问或回复...",
+    "me": "我",
+    "reviewerTag": " [评价者]",
+    "collapse": "收起回复"
+  },
+  "notifications": {
+    "markAllRead": "全部已读",
+    "emptyTitle": "暂无通知",
+    "emptyMessage": "预约审核、归还提醒等通知会显示在这里",
+    "back": "返回",
+    "types": {
+      "booking_approved": {
+        "title": "预约已通过",
+        "message": "您的借用申请已被批准，请按时取货。"
+      },
+      "booking_rejected": {
+        "title": "预约被拒绝",
+        "message": "很抱歉，您的借用申请已被拒绝。"
+      },
+      "overdue_alert": {
+        "title": "逾期警告",
+        "message": "您的借用已逾期，请尽快归还设备以免影响信用分。"
+      },
+      "return_reminder": {
+        "title": "归还提醒",
+        "message": "您的借用即将到期，请准时归还。"
+      },
+      "damage_reported": {
+        "title": "损坏报修",
+        "message": "该设备的损坏报告已提交。"
+      },
+      "review_reply": {
+        "title": "评价回复",
+        "message": "您收到了一条新的评价回复。"
+      },
+      "system": {
+        "title": "系统通知",
+        "message": "设备归还成功，信用分已更新（+5）。"
+      }
+    }
+  }
+}

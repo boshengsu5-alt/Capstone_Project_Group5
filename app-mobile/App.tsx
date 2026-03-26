@@ -5,8 +5,11 @@ import RootNavigator from './src/navigation/RootNavigator';
 import { ToastProvider } from './src/context/ToastContext';
 import { NotificationProvider } from './src/context/NotificationContext';
 import AppAlert from './src/components/ui/AppAlert';
+import './src/i18n';
+import { useTranslation } from 'react-i18next';
 
 export default function App() {
+  const { t } = useTranslation();
   const [isAppReady, setIsAppReady] = useState(false);
   const fadeAnim = useState(new Animated.Value(1))[0];
 
@@ -32,8 +35,8 @@ export default function App() {
           <Text style={styles.logoText}>U</Text>
         </View>
         <Text style={styles.brandName}>UniGear</Text>
-        <Text style={styles.slogan}>高校领先的智能租赁仓库</Text>
-        <Text style={styles.loadingText}>系统启动中...</Text>
+        <Text style={styles.slogan}>{t('splash.slogan')}</Text>
+        <Text style={styles.loadingText}>{t('splash.loading')}</Text>
       </Animated.View>
     );
   }

@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { format, addDays, isBefore, isEqual, parseISO } from 'date-fns';
 import { getBookingsForAsset } from '../services/bookingService';
 import { theme } from '../theme';
+import { useTranslation } from 'react-i18next';
 
 // 配置日历中文本地化
 LocaleConfig.locales['zh'] = {
@@ -16,6 +17,13 @@ LocaleConfig.locales['zh'] = {
     dayNames: ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'],
     dayNamesShort: ['日', '一', '二', '三', '四', '五', '六'],
     today: '今天'
+};
+LocaleConfig.locales['en'] = {
+    monthNames: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
+    monthNamesShort: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+    dayNames: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+    dayNamesShort: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+    today: 'Today'
 };
 LocaleConfig.defaultLocale = 'zh';
 
@@ -58,6 +66,12 @@ const CalendarView: React.FC<CalendarViewProps> = ({ assetId, onDateChange, disa
     const [bookedDates, setBookedDates] = useState<MarkedDates>({});
     const [selectionStart, setSelectionStart] = useState<string | null>(null);
     const [selectionEnd, setSelectionEnd] = useState<string | null>(null);
+    const { t, i18n } = useTranslation();
+
+    useEffect(() => {
+        // Update day names based on language
+        LocaleConfig.defaultLocale = i18n.language?.startsWith('zh') ? 'zh' : 'en';
+    }, [i18n.language]);
 
     // 时间选择状态
     const [startTime, setStartTime] = useState<string>('09:00');
@@ -197,7 +211,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ assetId, onDateChange, disa
         return (
             <View style={styles.centerContainer}>
                 <ActivityIndicator size="large" color={theme.colors.primary} />
-                <Text style={styles.loadingText}>加载预订信息...</Text>
+                <Text style={styles.loadingText}>{t('calendar.loading')}</Text>
             </View>
         );
     }
@@ -205,9 +219,9 @@ const CalendarView: React.FC<CalendarViewProps> = ({ assetId, onDateChange, disa
     if (fetchError) {
         return (
             <View style={styles.centerContainer}>
-                <Text style={styles.errorText}>加载预订信息失败</Text>
+                <Text style={styles.errorText}>{t('calendar.error')}</Text>
                 <TouchableOpacity onPress={fetchBookings} style={styles.retryButton}>
-                    <Text style={styles.retryText}>重试</Text>
+                    <Text style={styles.retryText}>{t('calendar.retry')}</Text>
                 </TouchableOpacity>
             </View>
         );
@@ -221,7 +235,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ assetId, onDateChange, disa
             {disabled && (
                 <View style={styles.disabledOverlay} pointerEvents="box-only">
                     <Ionicons name="lock-closed-outline" size={32} color={theme.colors.gray} />
-                    <Text style={styles.disabledText}>该设备当前不可借用</Text>
+                    <Text style={styles.disabledText}>{t('calendar.disabledAsset')}</Text>
                 </View>
             )}
             <Calendar
@@ -241,7 +255,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ assetId, onDateChange, disa
             {/* 时间选择区域：只有选完日期范围后才显示 */}
             {showTimePicker && (
                 <View style={styles.timeSection}>
-                    <Text style={styles.timeSectionTitle}>选择时间</Text>
+                    <Text style={styles.timeSectionTitle}>{t('calendar.selectTime')}</Text>
 
                     <TouchableOpacity
                         style={styles.timeRow}
@@ -250,7 +264,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ assetId, onDateChange, disa
                     >
                         <View style={styles.timeRowLeft}>
                             <Ionicons name="time-outline" size={18} color={theme.colors.primary} />
-                            <Text style={styles.timeRowLabel}>取借时间</Text>
+                            <Text style={styles.timeRowLabel}>{t('calendar.pickupTime')}</Text>
                         </View>
                         <View style={styles.timeValueWrap}>
                             <Text style={styles.timeValue}>{startTime}</Text>
@@ -265,7 +279,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ assetId, onDateChange, disa
                     >
                         <View style={styles.timeRowLeft}>
                             <Ionicons name="time-outline" size={18} color={theme.colors.primary} />
-                            <Text style={styles.timeRowLabel}>归还时间</Text>
+                            <Text style={styles.timeRowLabel}>{t('calendar.returnTime')}</Text>
                         </View>
                         <View style={styles.timeValueWrap}>
                             <Text style={styles.timeValue}>{endTime}</Text>
@@ -290,7 +304,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ assetId, onDateChange, disa
                 <SafeAreaView style={styles.modalSheet}>
                     <View style={styles.modalHandle} />
                     <Text style={styles.modalTitle}>
-                        {timePickerTarget === 'start' ? '选择取借时间' : '选择归还时间'}
+                        {timePickerTarget === 'start' ? t('calendar.selectPickupTime') : t('calendar.selectReturnTime')}
                     </Text>
                     <FlatList
                         data={TIME_SLOTS}

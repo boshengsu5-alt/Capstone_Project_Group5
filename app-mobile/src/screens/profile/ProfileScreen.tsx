@@ -19,12 +19,14 @@ import { signOut, getMyProfile } from '../../services/authService';
 import { getUnreadCount } from '../../services/notificationService';
 import { handleApiError } from '../../utils/errorHandler';
 import type { Profile } from '../../../../database/types/supabase';
+import { useTranslation } from 'react-i18next';
 
 type Props = {
   navigation: NativeStackNavigationProp<ProfileStackParamList, 'ProfileMain'>;
 };
 
 export default function ProfileScreen({ navigation }: Props) {
+  const { t } = useTranslation();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -43,7 +45,7 @@ export default function ProfileScreen({ navigation }: Props) {
           const count = await getUnreadCount();
           if (!cancelled) setUnreadCount(count);
         } catch (err) {
-          if (!cancelled) alertManager.alert('提示', '资料加载失败，请稍后重试');
+          if (!cancelled) alertManager.alert(t('profile.prompt'), t('profile.loadFailed'));
         } finally {
           if (!cancelled) setLoading(false);
         }
@@ -54,10 +56,10 @@ export default function ProfileScreen({ navigation }: Props) {
   );
 
   const handleSignOut = () => {
-    alertManager.alert('确认退出', '确定要退出登录吗？', [
-      { text: '取消', style: 'cancel' },
+    alertManager.alert(t('profile.logoutConfirm'), t('profile.logoutConfirmMessage'), [
+      { text: t('profile.cancel'), style: 'cancel' },
       {
-        text: '退出',
+        text: t('profile.logout'),
         style: 'destructive',
         onPress: async () => {
           setLoggingOut(true);
@@ -65,7 +67,7 @@ export default function ProfileScreen({ navigation }: Props) {
             await signOut();
             // RootNavigator 会自动检测 session 变为 null，跳转到登录页
           } catch (err: unknown) {
-            handleApiError(err, '退出失败');
+            handleApiError(err, t('profile.logoutFailed'));
             setLoggingOut(false);
           }
         },
@@ -88,7 +90,7 @@ export default function ProfileScreen({ navigation }: Props) {
         <View style={styles.avatar}>
           <Ionicons name="person" size={40} color="#fff" />
         </View>
-        <Text style={styles.name}>{profile?.full_name ?? '用户'}</Text>
+        <Text style={styles.name}>{profile?.full_name ?? t('profile.defaultName')}</Text>
         <Text style={styles.email}>{profile?.email ?? ''}</Text>
       </View>
 
@@ -96,17 +98,17 @@ export default function ProfileScreen({ navigation }: Props) {
       <View style={styles.infoCard}>
         <View style={styles.infoItem}>
           <Text style={styles.infoValue}>{profile?.credit_score ?? 100}</Text>
-          <Text style={styles.infoLabel}>信用分</Text>
+          <Text style={styles.infoLabel}>{t('profile.creditScore')}</Text>
         </View>
         <View style={styles.infoDivider} />
         <View style={styles.infoItem}>
           <Text style={styles.infoValue}>{profile?.student_id ?? '—'}</Text>
-          <Text style={styles.infoLabel}>学号</Text>
+          <Text style={styles.infoLabel}>{t('profile.studentId')}</Text>
         </View>
         <View style={styles.infoDivider} />
         <View style={styles.infoItem}>
-          <Text style={[styles.infoValue, { fontSize: 14 }]}>{profile?.department || '未设置'}</Text>
-          <Text style={styles.infoLabel}>学院</Text>
+          <Text style={[styles.infoValue, { fontSize: 14 }]}>{profile?.department || t('profile.notSet')}</Text>
+          <Text style={styles.infoLabel}>{t('profile.department')}</Text>
         </View>
       </View>
 
@@ -124,16 +126,16 @@ export default function ProfileScreen({ navigation }: Props) {
               </View>
             )}
           </View>
-          <Text style={styles.menuText}>消息通知</Text>
+          <Text style={styles.menuText}>{t('profile.notifications')}</Text>
           <Ionicons name="chevron-forward" size={20} color={theme.colors.gray} />
         </TouchableOpacity>
 
         <TouchableOpacity
           style={styles.menuItem}
-          onPress={() => alertManager.alert('提示', '设置功能正在开发中，敬请期待')}
+          onPress={() => alertManager.alert(t('profile.prompt'), t('profile.settingNotReady'))}
         >
           <Ionicons name="settings-outline" size={22} color={theme.colors.text} />
-          <Text style={styles.menuText}>设置</Text>
+          <Text style={styles.menuText}>{t('profile.settings')}</Text>
           <Ionicons name="chevron-forward" size={20} color={theme.colors.gray} />
         </TouchableOpacity>
       </View>
@@ -148,7 +150,7 @@ export default function ProfileScreen({ navigation }: Props) {
           {loggingOut ? (
             <ActivityIndicator size="small" color="#fff" />
           ) : (
-            <Text style={styles.logoutText}>退出登录</Text>
+            <Text style={styles.logoutText}>{t('profile.logout')}</Text>
           )}
         </TouchableOpacity>
       </View>

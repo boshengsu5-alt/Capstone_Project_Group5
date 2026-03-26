@@ -17,6 +17,7 @@ import { theme } from '../../theme';
 import NotificationItem from '../../components/NotificationItem';
 import { getMyNotifications, markAsRead, markAllAsRead } from '../../services/notificationService';
 import type { Notification } from '../../../../database/types/supabase';
+import { useTranslation } from 'react-i18next';
 
 type Props = {
   navigation: NativeStackNavigationProp<ProfileStackParamList, 'Notifications'>;
@@ -38,7 +39,18 @@ function formatTime(dateStr: string): string {
   return date.toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' });
 }
 
+const getNotificationText = (t: any, type: string, origTitle: string, origMsg: string) => {
+  const tTitle = t(`notifications.types.${type}.title`);
+  const tMessage = t(`notifications.types.${type}.message`);
+  // If translation exists and is not just the key string returned by missing fallback
+  if (tTitle && tTitle !== `notifications.types.${type}.title`) {
+    return { title: tTitle, message: tMessage };
+  }
+  return { title: origTitle, message: origMsg };
+};
+
 export default function NotificationScreen({ navigation }: Props) {
+  const { t } = useTranslation();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -107,30 +119,33 @@ export default function NotificationScreen({ navigation }: Props) {
       {hasUnread && (
         <TouchableOpacity style={styles.markAllBtn} onPress={handleMarkAllRead}>
           <Ionicons name="checkmark-done" size={18} color={theme.colors.primary} />
-          <Text style={styles.markAllText}>全部已读</Text>
+          <Text style={styles.markAllText}>{t('notifications.markAllRead')}</Text>
         </TouchableOpacity>
       )}
 
       {notifications.length === 0 ? (
         <View style={styles.emptyState}>
           <Ionicons name="notifications-off-outline" size={64} color={theme.colors.gray} />
-          <Text style={styles.emptyText}>暂无通知</Text>
-          <Text style={styles.emptySubtext}>预约审核、归还提醒等通知会显示在这里</Text>
+          <Text style={styles.emptyText}>{t('notifications.emptyTitle')}</Text>
+          <Text style={styles.emptySubtext}>{t('notifications.emptyMessage')}</Text>
         </View>
       ) : (
         <FlatList
           data={notifications}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <NotificationItem
-              title={item.title}
-              message={item.message}
-              time={formatTime(item.created_at)}
-              type={item.type}
-              isRead={item.is_read}
-              onPress={() => handlePressItem(item)}
-            />
-          )}
+          renderItem={({ item }) => {
+            const { title, message } = getNotificationText(t, item.type, item.title, item.message);
+            return (
+              <NotificationItem
+                title={title}
+                message={message}
+                time={formatTime(item.created_at)}
+                type={item.type}
+                isRead={item.is_read}
+                onPress={() => handlePressItem(item)}
+              />
+            );
+          }}
           contentContainerStyle={styles.list}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={theme.colors.primary} />
