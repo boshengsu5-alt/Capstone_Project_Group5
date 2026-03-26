@@ -9,8 +9,10 @@ import ErrorBoundary from '../../components/ErrorBoundary';
 import { getAssetByQrCode, getAssetBySerialNumber } from '../../services/assetService';
 import { findApprovedBookingForAsset, findPendingBookingForAsset, activateBooking } from '../../services/bookingService';
 import { theme } from '../../theme';
+import { useTranslation } from 'react-i18next';
 
 export default function ScanScreen() {
+  const { t } = useTranslation();
   const navigation = useNavigation<NavigationProp<ParamListBase>>();
   const isFocused = useIsFocused();
   const [permission, requestPermission] = useCameraPermissions();
@@ -72,36 +74,36 @@ export default function ScanScreen() {
           // 还没到借用日期 → 直接提示，不弹确认取货
           const dateStr = approvedBooking.start_date.slice(0, 10);
           alertManager.alert(
-            '未到取货时间',
-            `您对「${asset.name}」的借用从 ${dateStr} 开始，请在当天或之后再来扫码取货。`,
-            [{ text: '好的', onPress: () => { setIsScanning(true); } }]
+            t('scan.notTimeToPickUp'),
+            t('scan.notTimeToPickUpMsg', { asset: asset.name, date: dateStr }),
+            [{ text: t('scan.ok'), onPress: () => { setIsScanning(true); } }]
           );
         } else {
           // 已到借用日期 → 弹窗确认取货激活
           alertManager.alert(
-            '确认取货',
-            `检测到您对「${asset.name}」有一个已审批的借用申请。\n\n确认取货后状态将变为「已借用」，借用周期开始计时。`,
+            t('scan.confirmPickUp'),
+            t('scan.confirmPickUpMsg', { asset: asset.name }),
             [
               {
-                text: '取消',
+                text: t('scan.cancel'),
                 style: 'cancel',
                 onPress: () => { setIsScanning(true); },
               },
               {
-                text: '确认取货',
+                text: t('scan.confirmPickUp'),
                 onPress: async () => {
                   setIsProcessing(true);
                   try {
                     await activateBooking(approvedBooking.id);
                     alertManager.alert(
-                      '取货成功',
-                      `设备「${asset.name}」已成功激活！\n请在 ${approvedBooking.end_date} 前归还。`,
-                      [{ text: '好的', onPress: () => { setIsScanning(true); } }]
+                      t('scan.pickUpSuccess'),
+                      t('scan.pickUpSuccessMsg', { asset: asset.name, date: approvedBooking.end_date }),
+                      [{ text: t('scan.ok'), onPress: () => { setIsScanning(true); } }]
                     );
                   } catch (err: unknown) {
-                    const msg = err instanceof Error ? err.message : '激活失败，请重试';
-                    alertManager.alert('取货失败', msg, [
-                      { text: '好的', onPress: () => { setIsScanning(true); } },
+                    const msg = err instanceof Error ? err.message : t('scan.pickUpFailedTryAgain');
+                    alertManager.alert(t('scan.pickUpFailed'), msg, [
+                      { text: t('scan.ok'), onPress: () => { setIsScanning(true); } },
                     ]);
                   } finally {
                     setIsProcessing(false);
@@ -119,17 +121,17 @@ export default function ScanScreen() {
         if (pendingBooking) {
           // 已有待审批的借用 → 提示用户等待，不要重复预约
           alertManager.alert(
-            '预约审批中',
-            `您对「${asset.name}」的借用申请正在等待管理员审批，请耐心等待。\n\n审批通过后再次扫码即可取货。`,
+            t('scan.pendingBooking'),
+            t('scan.pendingBookingMsg', { asset: asset.name }),
             [
               {
-                text: '查看我的预约',
+                text: t('scan.viewMyBookings'),
                 onPress: () => {
                   navigation.navigate('BookingsTab', { screen: 'BookingHistory' });
                 },
               },
               {
-                text: '好的',
+                text: t('scan.ok'),
                 style: 'cancel',
                 onPress: () => { setIsScanning(true); },
               },
@@ -158,7 +160,7 @@ export default function ScanScreen() {
 
   const handleManualSubmit = async () => {
     if (!manualId.trim()) {
-      alertManager.alert('提示', '请输入设备编号');
+      alertManager.alert(t('profile.prompt'), t('scan.enterDeviceId'));
       return;
     }
 
@@ -167,7 +169,7 @@ export default function ScanScreen() {
       // 手动输入按序列号查找，再复用扫码后的业务逻辑
       const asset = await getAssetBySerialNumber(manualId.trim());
       if (!asset) {
-        alertManager.alert('未找到设备', `找不到序列号为「${manualId.trim()}」的设备，请检查编号是否正确。`);
+        alertManager.alert(t('scan.deviceNotFound'), t('scan.deviceNotFoundMsg', { id: manualId.trim() }));
         setIsProcessing(false);
         return;
       }
@@ -175,8 +177,8 @@ export default function ScanScreen() {
       setIsProcessing(false);
       handleScan(asset.qr_code ?? asset.id);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : '查询失败，请重试';
-      alertManager.alert('查询失败', msg);
+      const msg = err instanceof Error ? err.message : t('scan.queryFailedTryAgain');
+      alertManager.alert(t('scan.queryFailed'), msg);
       setIsProcessing(false);
     }
   };
@@ -198,12 +200,12 @@ export default function ScanScreen() {
         fallback={
           <View style={styles.errorContainer}>
             <Ionicons name="alert-circle-outline" size={60} color={theme.colors.danger} />
-            <Text style={styles.errorText}>扫码组件初始化遇到了问题</Text>
+            <Text style={styles.errorText}>{t('scan.scannerInitError')}</Text>
             <TouchableOpacity 
               style={styles.retryButton} 
               onPress={() => setShowManualInput(true)}
             >
-              <Text style={styles.retryText}>切换到手动输入</Text>
+              <Text style={styles.retryText}>{t('scan.switchToManual')}</Text>
             </TouchableOpacity>
           </View>
         }
@@ -214,25 +216,23 @@ export default function ScanScreen() {
         />
       </ErrorBoundary>
 
-      {/* 处理中遮罩 */}
       {isProcessing && (
         <View style={styles.processingContainer}>
           <ActivityIndicator size="large" color="#fff" />
-          <Text style={styles.processingText}>正在查询资产信息...</Text>
+          <Text style={styles.processingText}>{t('scan.queryingAsset')}</Text>
         </View>
       )}
 
-      {/* 识别错误遮罩 */}
       {hasError && (
         <View style={styles.errorContainer}>
           <Ionicons name="close-circle-outline" size={60} color={theme.colors.danger} />
-          <Text style={styles.errorText}>无法识别该二维码，或设备不存在</Text>
+          <Text style={styles.errorText}>{t('scan.unrecognizedQrCode')}</Text>
           <View style={styles.errorButtonRow}>
             <TouchableOpacity style={[styles.inlineButton, { backgroundColor: 'rgba(255,255,255,0.2)' }]} onPress={handleRetry}>
-              <Text style={styles.inlineButtonText}>重新扫描</Text>
+              <Text style={styles.inlineButtonText}>{t('scan.rescan')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[styles.inlineButton, { backgroundColor: theme.colors.primary }]} onPress={() => setShowManualInput(true)}>
-              <Text style={styles.inlineButtonText}>手动输入</Text>
+              <Text style={styles.inlineButtonText}>{t('scan.manualInput')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -245,7 +245,7 @@ export default function ScanScreen() {
           onPress={() => setShowManualInput(true)}
         >
           <Ionicons name="create-outline" size={20} color="#fff" />
-          <Text style={styles.manualSwitchText}>手动输入编号</Text>
+          <Text style={styles.manualSwitchText}>{t('scan.manualInputTitle')}</Text>
         </TouchableOpacity>
       )}
     </View>
@@ -267,18 +267,18 @@ export default function ScanScreen() {
         </View>
 
         <Text style={styles.manualTitle}>
-          {isPermissionDenied ? '相机权限受限' : '手动输入设备编号'}
+          {isPermissionDenied ? t('scan.cameraRestricted') : t('scan.manualInputTitle')}
         </Text>
         <Text style={styles.manualSubtitle}>
           {isPermissionDenied
-            ? '由于您拒绝或未开启相机授权，无法使用扫码功能。\n请在下方手动输入设备 ID 以继续。'
-            : '如果扫码遇到困难，请在此手动输入设备编号进行查询。'}
+            ? t('scan.cameraRestrictedMsg')
+            : t('scan.scanDifficultyMsg')}
         </Text>
 
         <View style={styles.inputWrapper}>
           <TextInput
             style={styles.input}
-            placeholder="输入设备 ID (例如: ASSET-001)"
+            placeholder={t('scan.inputIdPlaceholder')}
             placeholderTextColor="rgba(255,255,255,0.4)"
             value={manualId}
             onChangeText={setManualId}
@@ -295,7 +295,7 @@ export default function ScanScreen() {
           {isProcessing ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.submitButtonText}>立即查询</Text>
+            <Text style={styles.submitButtonText}>{t('scan.queryNow')}</Text>
           )}
         </TouchableOpacity>
 
@@ -304,7 +304,7 @@ export default function ScanScreen() {
             style={styles.backToScanButton}
             onPress={() => setShowManualInput(false)}
           >
-            <Text style={styles.backToScanText}>返回扫码</Text>
+            <Text style={styles.backToScanText}>{t('scan.backToScan')}</Text>
           </TouchableOpacity>
         )}
 
@@ -313,7 +313,7 @@ export default function ScanScreen() {
             style={styles.requestAgainButton}
             onPress={requestPermission}
           >
-            <Text style={styles.requestAgainText}>再次尝试开启相机</Text>
+            <Text style={styles.requestAgainText}>{t('scan.tryCameraAgain')}</Text>
           </TouchableOpacity>
         )}
       </ScrollView>
@@ -324,7 +324,7 @@ export default function ScanScreen() {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
       <View style={styles.header}>
-        <Text style={styles.title}>设备扫码</Text>
+        <Text style={styles.title}>{t('scan.title')}</Text>
         <View style={styles.titleUnderline} />
       </View>
 
@@ -337,12 +337,14 @@ export default function ScanScreen() {
       {isPermissionPending && !showManualInput ? (
         <View style={styles.pendingContainer}>
           <ActivityIndicator size="large" color={theme.colors.primary} />
-          <Text style={styles.pendingText}>正在准备相机访问...</Text>
+          <Text style={styles.pendingText}>{t('scan.preparingCamera')}</Text>
         </View>
       ) : (isPermissionDenied || showManualInput) ? (
         renderManualInput()
-      ) : (
+      ) : isFocused ? (
         renderScanner()
+      ) : (
+        <View style={styles.scannerWrapper} />
       )}
     </View>
   );

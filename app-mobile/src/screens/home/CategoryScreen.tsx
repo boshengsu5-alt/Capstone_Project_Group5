@@ -16,6 +16,7 @@ import { getCategories, getAssets, searchAssets } from '../../services/assetServ
 import { theme } from '../../theme';
 import type { Asset, Category } from '../../../../database/types/supabase';
 import SafeImage from '../../components/SafeImage';
+import { useTranslation } from 'react-i18next';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'CategoryScreen'>;
 
@@ -34,6 +35,7 @@ const categoryIconMap: Record<string, string> = {
 };
 
 export default function CategoryScreen({ navigation, route }: Props) {
+  const { t, i18n } = useTranslation();
   const categoryId = route.params?.categoryId;
 
   // ============================================================
@@ -50,7 +52,7 @@ export default function CategoryScreen({ navigation, route }: Props) {
   // ============================================================
   const [assets, setAssets] = useState<(Asset & { categories: Category })[]>([]);
   const [loading, setLoading] = useState(true);
-  const [categoryName, setCategoryName] = useState('');
+  const [currentCategory, setCurrentCategory] = useState<Category | null>(null);
 
   // ============================================================
   // 搜索模式：加载分类列表 + 自动聚焦输入框
@@ -105,7 +107,7 @@ export default function CategoryScreen({ navigation, route }: Props) {
       ]);
       setAssets(assetsData);
       const found = categoriesData.find(c => c.id === categoryId);
-      if (found) setCategoryName(found.name);
+      if (found) setCurrentCategory(found);
     } catch (_) {
       // 加载失败显示空列表
     } finally {
@@ -149,16 +151,18 @@ export default function CategoryScreen({ navigation, route }: Props) {
               />
               <Text style={styles.productTitle} numberOfLines={1}>{item.name}</Text>
               <Text style={styles.productStatus}>
-                {item.status === 'available' ? '现存' : item.status}
+                {t(`assetDetail.status.${item.status}`)}
               </Text>
             </TouchableOpacity>
           )}
           ListHeaderComponent={
-            <Text style={styles.categoryHeader}>{categoryName}</Text>
+            <Text style={styles.categoryHeader}>
+              {currentCategory ? (i18n.language?.startsWith('zh') ? currentCategory.name_zh : currentCategory.name) : ''}
+            </Text>
           }
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>该分类下暂无商品</Text>
+              <Text style={styles.emptyText}>{t('category.noItemsInCategory')}</Text>
             </View>
           }
         />
@@ -180,7 +184,7 @@ export default function CategoryScreen({ navigation, route }: Props) {
           <TextInput
             ref={inputRef}
             style={[styles.searchInput, Platform.OS === 'web' && { outlineStyle: 'none' } as object]}
-            placeholder="搜索商品名称..."
+            placeholder={t('category.searchPlaceholder')}
             placeholderTextColor={theme.colors.gray}
             value={searchText}
             onChangeText={setSearchText}
@@ -194,7 +198,7 @@ export default function CategoryScreen({ navigation, route }: Props) {
           )}
         </View>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.cancelBtn}>
-          <Text style={styles.cancelText}>取消</Text>
+          <Text style={styles.cancelText}>{t('category.cancel')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -202,7 +206,7 @@ export default function CategoryScreen({ navigation, route }: Props) {
       {searching && (
         <View style={styles.searchingRow}>
           <ActivityIndicator size="small" color={theme.colors.primary} />
-          <Text style={styles.searchingText}>搜索中...</Text>
+          <Text style={styles.searchingText}>{t('category.searching')}</Text>
         </View>
       )}
 
@@ -226,13 +230,13 @@ export default function CategoryScreen({ navigation, route }: Props) {
               />
               <Text style={styles.productTitle} numberOfLines={1}>{item.name}</Text>
               <Text style={styles.productStatus}>
-                {item.status === 'available' ? '现存' : item.status}
+                {t(`assetDetail.status.${item.status}`)}
               </Text>
             </TouchableOpacity>
           )}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>未找到「{searchText}」相关商品</Text>
+              <Text style={styles.emptyText}>{t('category.noProductsFound', { query: searchText })}</Text>
             </View>
           }
         />
@@ -247,7 +251,7 @@ export default function CategoryScreen({ navigation, route }: Props) {
           columnWrapperStyle={styles.categoryRow}
           contentContainerStyle={styles.gridContent}
           ListHeaderComponent={
-            <Text style={styles.sectionTitle}>全部分类</Text>
+            <Text style={styles.sectionTitle}>{t('category.allCategories')}</Text>
           }
           renderItem={({ item }) => (
             <TouchableOpacity
@@ -261,12 +265,14 @@ export default function CategoryScreen({ navigation, route }: Props) {
                   color={theme.colors.primary}
                 />
               </View>
-              <Text style={styles.categoryText} numberOfLines={2}>{item.name}</Text>
+              <Text style={styles.categoryText} numberOfLines={2}>
+                {i18n.language?.startsWith('zh') ? item.name_zh : item.name}
+              </Text>
             </TouchableOpacity>
           )}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>暂无分类数据</Text>
+              <Text style={styles.emptyText}>{t('category.noCategories')}</Text>
             </View>
           }
         />

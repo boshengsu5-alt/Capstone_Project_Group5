@@ -13,16 +13,25 @@ import { RouteProp } from '@react-navigation/native';
 import { ProfileStackParamList } from '../../navigation/ProfileStackNavigator';
 import { theme } from '../../theme';
 import type { NotificationType } from '../../../../database/types/supabase';
+import { useTranslation } from 'react-i18next';
 
-// 不同通知类型对应的图标、颜色与中文标签
-const TYPE_CONFIG: Record<NotificationType, { icon: string; color: string; label: string }> = {
-  booking_approved: { icon: 'checkmark-circle', color: '#10b981', label: '预约通过' },
-  booking_rejected: { icon: 'close-circle', color: theme.colors.danger, label: '预约拒绝' },
-  return_reminder: { icon: 'time', color: '#f59e0b', label: '归还提醒' },
-  overdue_alert: { icon: 'alert-circle', color: theme.colors.danger, label: '逾期警告' },
-  damage_reported: { icon: 'warning', color: '#f97316', label: '损坏上报' },
-  review_reply: { icon: 'chatbubbles', color: '#8b5cf6', label: '评价回复' },
-  system: { icon: 'information-circle', color: theme.colors.primary, label: '系统通知' },
+const TYPE_CONFIG: Record<string, { icon: string; color: string }> = {
+  booking_approved: { icon: 'checkmark-circle', color: '#10b981' },
+  booking_rejected: { icon: 'close-circle', color: theme.colors.danger },
+  return_reminder: { icon: 'time', color: '#f59e0b' },
+  overdue_alert: { icon: 'alert-circle', color: theme.colors.danger },
+  damage_reported: { icon: 'warning', color: '#f97316' },
+  review_reply: { icon: 'chatbubbles', color: '#8b5cf6' },
+  system: { icon: 'information-circle', color: theme.colors.primary },
+};
+
+const getNotificationText = (t: any, type: string, origTitle: string, origMsg: string) => {
+  const tTitle = t(`notifications.types.${type}.title`);
+  const tMessage = t(`notifications.types.${type}.message`);
+  if (tTitle && tTitle !== `notifications.types.${type}.title`) {
+    return { title: tTitle, message: tMessage };
+  }
+  return { title: origTitle, message: origMsg };
 };
 
 function formatFullTime(dateStr: string): string {
@@ -41,8 +50,10 @@ type Props = {
 };
 
 export default function NotificationDetailScreen({ navigation, route }: Props) {
+  const { t } = useTranslation();
   const { notification } = route.params;
   const config = TYPE_CONFIG[notification.type] ?? TYPE_CONFIG.system;
+  const { title, message } = getNotificationText(t, notification.type, notification.title, notification.message);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -54,11 +65,11 @@ export default function NotificationDetailScreen({ navigation, route }: Props) {
 
         {/* 类型标签 */}
         <View style={[styles.typeBadge, { backgroundColor: config.color + '20' }]}>
-          <Text style={[styles.typeText, { color: config.color }]}>{config.label}</Text>
+          <Text style={[styles.typeText, { color: config.color }]}>{title}</Text>
         </View>
 
         {/* 标题 */}
-        <Text style={styles.title}>{notification.title}</Text>
+        <Text style={styles.title}>{title}</Text>
 
         {/* 时间 */}
         <Text style={styles.time}>{formatFullTime(notification.created_at)}</Text>
@@ -67,13 +78,13 @@ export default function NotificationDetailScreen({ navigation, route }: Props) {
         <View style={styles.divider} />
 
         {/* 消息正文 */}
-        <Text style={styles.message}>{notification.message}</Text>
+        <Text style={styles.message}>{message}</Text>
       </ScrollView>
 
       {/* 返回按钮 */}
       <View style={styles.footer}>
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <Text style={styles.backBtnText}>返回</Text>
+          <Text style={styles.backBtnText}>{t('notifications.back')}</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>

@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../theme';
 import { getReviewReplies, postReviewReply } from '../services/assetService';
 import type { Review, ReviewReply } from '../../../database/types/supabase';
+import { useTranslation } from 'react-i18next';
 
 export type ReviewWithMeta = Review & { reviewer_name: string };
 type ReplyWithAuthor = ReviewReply & { author_name: string };
@@ -26,8 +27,10 @@ export default function ReviewCard({ review, currentUserId }: ReviewCardProps) {
   const [showReplyInput, setShowReplyInput] = useState(false);
   const [replyText, setReplyText] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const { t } = useTranslation();
 
-  const ratingLabel = ['极差', '不太理想', '中规中矩', '很好', '非常好'][review.rating - 1];
+  const labels = t('reviewCard.labels', { returnObjects: true }) as string[];
+  const ratingLabel = labels[review.rating - 1] || labels[2];
 
   // 抽出纯粹的「获取回复」函数，不做任何 repliesLoaded 判断，避免闭包陷阱
   const fetchReplies = useCallback(async () => {
@@ -76,7 +79,7 @@ export default function ReviewCard({ review, currentUserId }: ReviewCardProps) {
       await fetchReplies();
       setExpanded(true);
     } catch (err: unknown) {
-      Alert.alert('发送失败', err instanceof Error ? err.message : '请稍后重试');
+      Alert.alert(t('reviewCard.sendFailed'), err instanceof Error ? err.message : t('reviewCard.tryAgain'));
     } finally {
       setSubmitting(false);
     }
@@ -122,7 +125,7 @@ export default function ReviewCard({ review, currentUserId }: ReviewCardProps) {
       <View style={styles.actionBar}>
         <TouchableOpacity style={styles.replyBtn} onPress={handleReplyPress}>
           <Ionicons name="chatbubble-outline" size={14} color={theme.colors.gray} />
-          <Text style={styles.replyBtnText}>追问 / 回复</Text>
+          <Text style={styles.replyBtnText}>{t('reviewCard.replyBtn')}</Text>
         </TouchableOpacity>
 
         {loadingReplies && (
@@ -132,7 +135,7 @@ export default function ReviewCard({ review, currentUserId }: ReviewCardProps) {
         {/* 未展开时显示「查看 N 条回复」 */}
         {repliesLoaded && replies.length > 0 && !expanded && (
           <TouchableOpacity style={styles.expandBtn} onPress={handleToggleReplies}>
-            <Text style={styles.expandText}>查看 {replies.length} 条回复</Text>
+            <Text style={styles.expandText}>{t('reviewCard.viewReplies', { count: replies.length })}</Text>
             <Ionicons name="chevron-down" size={14} color={theme.colors.primary} />
           </TouchableOpacity>
         )}
@@ -143,7 +146,7 @@ export default function ReviewCard({ review, currentUserId }: ReviewCardProps) {
         <View style={styles.replyInputRow}>
           <TextInput
             style={styles.replyInput}
-            placeholder="写下你的追问或回复..."
+            placeholder={t('reviewCard.replyPlaceholder')}
             placeholderTextColor={theme.colors.gray}
             value={replyText}
             onChangeText={setReplyText}
@@ -171,9 +174,9 @@ export default function ReviewCard({ review, currentUserId }: ReviewCardProps) {
             <View key={reply.id} style={styles.replyItem}>
               <View style={styles.replyHeader}>
                 <Text style={styles.replyAuthor}>
-                  {reply.author_id === currentUserId ? '我' : reply.author_name}
+                  {reply.author_id === currentUserId ? t('reviewCard.me') : reply.author_name}
                   {reply.author_id === review.reviewer_id
-                    ? <Text style={styles.reviewerTag}> [评价者]</Text>
+                    ? <Text style={styles.reviewerTag}>{t('reviewCard.reviewerTag')}</Text>
                     : null}
                 </Text>
                 <Text style={styles.replyDate}>{reply.created_at.slice(0, 10)}</Text>
@@ -186,7 +189,7 @@ export default function ReviewCard({ review, currentUserId }: ReviewCardProps) {
           {hasMore && !expanded ? null : hasMore && expanded ? (
             <TouchableOpacity style={styles.collapseBtn} onPress={() => setExpanded(false)}>
               <Ionicons name="chevron-up" size={14} color={theme.colors.gray} />
-              <Text style={styles.collapseText}>收起回复</Text>
+              <Text style={styles.collapseText}>{t('reviewCard.collapse')}</Text>
             </TouchableOpacity>
           ) : null}
         </View>

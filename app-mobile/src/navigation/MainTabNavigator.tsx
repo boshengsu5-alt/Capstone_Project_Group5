@@ -7,11 +7,13 @@ import BookingsStackNavigator from './BookingsStackNavigator';
 import ScanScreen from '../screens/scan/ScanScreen';
 import ProfileStackNavigator from './ProfileStackNavigator';
 import { useNotifications } from '../context/NotificationContext';
+import { useTranslation } from 'react-i18next';
 
 const Tab = createBottomTabNavigator();
 
 export default function MainTabNavigator() {
   const { unreadCount } = useNotifications();
+  const { t } = useTranslation();
 
   return (
     <Tab.Navigator
@@ -36,14 +38,14 @@ export default function MainTabNavigator() {
         headerShown: false,
       })}
     >
-      <Tab.Screen name="HomeTab" component={HomeStackNavigator} options={{ title: '首页' }} />
-      <Tab.Screen name="BookingsTab" component={BookingsStackNavigator} options={{ title: '借用记录' }} />
-      <Tab.Screen name="ScanTab" component={ScanScreen} options={{ title: '扫码' }} />
+      <Tab.Screen name="HomeTab" component={HomeStackNavigator} options={{ title: t('tabs.home') }} />
+      <Tab.Screen name="BookingsTab" component={BookingsStackNavigator} options={{ title: t('tabs.bookings') }} />
+      <Tab.Screen name="ScanTab" component={ScanScreen} options={{ title: t('tabs.scan') }} />
       <Tab.Screen
         name="ProfileTab"
         component={ProfileStackNavigator}
         options={{
-          title: '我的',
+          title: t('tabs.profile'),
           tabBarBadge: unreadCount > 0 ? '' : undefined,
           tabBarBadgeStyle: {
             backgroundColor: '#FF3B30',

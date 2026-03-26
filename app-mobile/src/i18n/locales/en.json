@@ -1,0 +1,250 @@
+{
+  "home": {
+    "searchPlaceholder": "Search hot items...",
+    "recommendation": "Recommended for You",
+    "status": "Status: {{status}}",
+    "statusAvailable": "Available",
+    "ad1": "New Arrivals, Big Discounts",
+    "ad2": "Limited Time Offer, Don't Miss Out",
+    "ad3": "Premium Selection, Selected for You"
+  },
+  "splash": {
+    "slogan": "The leading smart rental warehouse in universities",
+    "loading": "System loading..."
+  },
+  "tabs": {
+    "home": "Home",
+    "bookings": "Bookings",
+    "scan": "Scan",
+    "profile": "Profile"
+  },
+  "category": {
+    "allCategories": "All Categories",
+    "searchPlaceholder": "Search products...",
+    "cancel": "Cancel",
+    "searching": "Searching...",
+    "noProductsFound": "No products found for「{{query}}」",
+    "noCategories": "No categories available",
+    "noItemsInCategory": "No items in this category"
+  },
+  "bookings": {
+    "title": "My Bookings",
+    "status": {
+      "returned": "Returned",
+      "active": "Active",
+      "overdue": "Overdue",
+      "pending": "Pending",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "cancelled": "Cancelled"
+    },
+    "loadFailed": "Load Failed",
+    "loadFailedMessage": "Failed to fetch bookings. Pull down to refresh.",
+    "cancelConfirm": "Cancel Booking",
+    "cancelConfirmMessage": "Are you sure you want to cancel the booking for「{{asset}}」?",
+    "thinkAgain": "Think Again",
+    "confirmCancel": "Confirm Cancel",
+    "cancelSuccess": "Cancelled",
+    "cancelSuccessMessage": "Booking has been cancelled",
+    "cancelFailed": "Cancel failed",
+    "unknownDevice": "Unknown Device",
+    "period": "Period:",
+    "to": "to",
+    "scanToPickUp": "Pick Up",
+    "photoReturn": "Return",
+    "damageReport": "Report",
+    "editReview": "Edit Review",
+    "leaveReview": "Add Review",
+    "noBookings": "No Bookings",
+    "noBookingsMessage": "You haven't borrowed anything yet. Go check out the homepage!",
+    "goHome": "Go to Home"
+  },
+  "profile": {
+    "defaultName": "User",
+    "prompt": "Prompt",
+    "loadFailed": "Profile load failed, please try again later",
+    "settingNotReady": "Settings feature is under development, stay tuned",
+    "logoutConfirm": "Logout Confirmation",
+    "logoutConfirmMessage": "Are you sure you want to logout?",
+    "cancel": "Cancel",
+    "logout": "Logout",
+    "logoutFailed": "Logout failed",
+    "creditScore": "Credit",
+    "studentId": "Student ID",
+    "department": "Department",
+    "notSet": "Not Set",
+    "notifications": "Notifications",
+    "settings": "Settings"
+  },
+  "scan": {
+    "title": "Scan Device",
+    "prompt": "Align QR code within frame to scan",
+    "processing": "Processing...",
+    "notTimeToPickUp": "Not time to pick up",
+    "notTimeToPickUpMsg": "Your booking for「{{asset}}」starts on {{date}}. Please scan again on or after that day.",
+    "ok": "OK",
+    "confirmPickUp": "Confirm Pick Up",
+    "confirmPickUpMsg": "An approved booking application for「{{asset}}」was detected.\n\nAfter confirming, the status will change to「Active」and the borrowing period will start ticking.",
+    "cancel": "Cancel",
+    "pickUpSuccess": "Pick up successful",
+    "pickUpSuccessMsg": "Device「{{asset}}」has been successfully activated!\nPlease return it by {{date}}.",
+    "pickUpFailed": "Pick up failed",
+    "pickUpFailedTryAgain": "Activation failed, please try again",
+    "pendingBooking": "Booking pending",
+    "pendingBookingMsg": "Your booking for「{{asset}}」is waiting for admin approval.\n\nYou can pick it up by scanning after it's approved.",
+    "viewMyBookings": "View my bookings",
+    "enterDeviceId": "Please enter device ID",
+    "deviceNotFound": "Device not found",
+    "deviceNotFoundMsg": "Cannot find device with serial number「{{id}}」, please check if the ID is correct.",
+    "queryFailed": "Query failed",
+    "queryFailedTryAgain": "Query failed, please try again",
+    "scannerInitError": "Scanner initialization encountered a problem",
+    "switchToManual": "Switch to manual input",
+    "queryingAsset": "Querying asset info...",
+    "unrecognizedQrCode": "Cannot recognize QR code, or device does not exist",
+    "rescan": "Rescan",
+    "manualInput": "Manual Input",
+    "manualInputTitle": "Manual Device ID",
+    "cameraRestricted": "Camera Restricted",
+    "cameraRestrictedMsg": "Since you declined or haven't enabled camera access, the scanner is unavailable.\nPlease manually enter the device ID below to continue.",
+    "scanDifficultyMsg": "If you have trouble scanning, please enter the device ID here to query.",
+    "inputIdPlaceholder": "Enter Device ID (e.g. ASSET-001)",
+    "queryNow": "Query Now",
+    "backToScan": "Back to Scan",
+    "tryCameraAgain": "Try Camera Again",
+    "preparingCamera": "Preparing camera access..."
+  },
+  "review": {
+    "editSuccess": "Edit Successful",
+    "editSuccessMsg": "Your review has been updated!",
+    "submitSuccess": "Review Submitted",
+    "submitSuccessMsg": "Thank you for your feedback!",
+    "systemBusy": "System busy, please try again later",
+    "editFailed": "Edit Failed",
+    "submitFailed": "Submit Failed",
+    "ratingLabels": ["Terrible", "Not Ideal", "Average", "Good", "Excellent"],
+    "editReviewTitle": "Edit Review",
+    "addReviewTitle": "Device Review",
+    "editReviewSubtitle": "Editing review for「{{asset}}」",
+    "addReviewSubtitle": "Adding a review for「{{asset}}」",
+    "editPlaceholder": "Modify your experience (optional)",
+    "addPlaceholder": "Write down your experience (optional)",
+    "saveChanges": "Save Changes",
+    "submitReview": "Submit Review"
+  },
+  "errors": {
+    "prompt": "Prompt",
+    "network": "Network is wandering, please try again later",
+    "authFailed": "Invalid email or password, please check and try again",
+    "accountExists": "This account is already registered"
+  },
+  "nav": {
+    "profile": "Profile",
+    "notifications": "Notifications",
+    "notificationDetail": "Notification Detail",
+    "category": "Category",
+    "assetDetail": "Asset Detail",
+    "bookingForm": "Booking Application",
+    "back": "Back",
+    "returnAsset": "Return Asset",
+    "reportDamage": "Report Damage"
+  },
+  "assetDetail": {
+    "loading": "Loading device details...",
+    "notFound": "Device not found",
+    "fetchFailed": "Failed to fetch device details",
+    "noId": "No device ID provided",
+    "back": "Back",
+    "negotiable": "Negotiable",
+    "perDay": "/day",
+    "descTitle": "Description",
+    "noDesc": "No detailed description available.",
+    "infoTitle": "Device Info",
+    "location": "Location",
+    "defaultLocation": "Designated campus location",
+    "serialNumber": "Serial Number",
+    "noSerial": "No serial number",
+    "statusTitle": "Status",
+    "status": {
+      "available": "Available",
+      "borrowed": "Borrowed",
+      "maintenance": "Maintenance",
+      "retired": "Retired"
+    },
+    "conditionTitle": "Condition",
+    "condition": {
+      "new": "New",
+      "good": "Good",
+      "fair": "Fair",
+      "poor": "Poor",
+      "damaged": "Damaged"
+    },
+    "categoryTitle": "Category",
+    "uncategorized": "Uncategorized",
+    "selectPeriod": "Select Period",
+    "reviewsTitle": "User Reviews",
+    "noReviews": "No reviews yet. Be the first to review!",
+    "bookNow": "Book Now",
+    "notAvailable": "Not Available",
+    "selectDateFirst": "Please select dates"
+  },
+  "calendar": {
+    "loading": "Loading booking schedule...",
+    "error": "Failed to load schedule",
+    "retry": "Retry",
+    "disabledAsset": "Device is not available",
+    "selectTime": "Select Time",
+    "pickupTime": "Pick Up Time",
+    "returnTime": "Return Time",
+    "selectPickupTime": "Select Pick Up Time",
+    "selectReturnTime": "Select Return Time"
+  },
+  "reviewCard": {
+    "labels": ["Terrible", "Not Ideal", "Average", "Good", "Excellent"],
+    "sendFailed": "Send Failed",
+    "tryAgain": "Please try again later",
+    "replyBtn": "Reply / Ask",
+    "viewReplies": "View {{count}} replies",
+    "replyPlaceholder": "Write your reply or question...",
+    "me": "Me",
+    "reviewerTag": " [Reviewer]",
+    "collapse": "Collapse"
+  },
+  "notifications": {
+    "markAllRead": "Mark all read",
+    "emptyTitle": "No Notifications",
+    "emptyMessage": "Booking approvals and return reminders will appear here",
+    "back": "Back",
+    "types": {
+      "booking_approved": {
+        "title": "Booking Approved",
+        "message": "Your booking application has been approved. You can now pick up the asset."
+      },
+      "booking_rejected": {
+        "title": "Booking Rejected",
+        "message": "Your booking application has been rejected."
+      },
+      "overdue_alert": {
+        "title": "Overdue Warning",
+        "message": "Your booking has exceeded the return date. Please return the asset immediately to avoid credit deduction."
+      },
+      "return_reminder": {
+        "title": "Return Reminder",
+        "message": "Your booking is about to expire, please return it on time."
+      },
+      "damage_reported": {
+        "title": "Damage Reported",
+        "message": "A damage report for your booking has been filed."
+      },
+      "review_reply": {
+        "title": "Review Reply",
+        "message": "You have received a reply to your review."
+      },
+      "system": {
+        "title": "System Notification",
+        "message": "Your asset has been returned. Credit score +5."
+      }
+    }
+  }
+}
+

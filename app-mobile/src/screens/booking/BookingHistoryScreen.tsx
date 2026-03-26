@@ -20,20 +20,21 @@ import ReviewCard, { ReviewWithMeta } from '../../components/ReviewCard';
 import { theme } from '../../theme';
 import { Ionicons } from '@expo/vector-icons';
 import { handleApiError } from '../../utils/errorHandler';
+import { useTranslation } from 'react-i18next';
 
 type BookingWithAsset = Booking & {
   assets: Pick<Asset, 'name' | 'images'> | null;
 };
 
-const getStatusLabel = (status: BookingStatus) => {
+const getStatusLabel = (t: any, status: BookingStatus) => {
   switch (status) {
-    case 'returned': return '已归还';
-    case 'active': return '已借用';
-    case 'overdue': return '已逾期';
-    case 'pending': return '待审批';
-    case 'approved': return '已通过';
-    case 'rejected': return '已拒绝';
-    case 'cancelled': return '已取消';
+    case 'returned': return t('bookings.status.returned');
+    case 'active': return t('bookings.status.active');
+    case 'overdue': return t('bookings.status.overdue');
+    case 'pending': return t('bookings.status.pending');
+    case 'approved': return t('bookings.status.approved');
+    case 'rejected': return t('bookings.status.rejected');
+    case 'cancelled': return t('bookings.status.cancelled');
     default: return status;
   }
 };
@@ -51,6 +52,7 @@ const getStatusColor = (status: BookingStatus) => {
 
 
 export default function BookingHistoryScreen() {
+  const { t } = useTranslation();
   const navigation = useNavigation<NavigationProp<ParamListBase>>();
   const [bookings, setBookings] = useState<BookingWithAsset[]>([]);
   const [loading, setLoading] = useState(true);
@@ -87,7 +89,7 @@ export default function BookingHistoryScreen() {
       );
       setReviewsMap(Object.fromEntries(reviewEntries));
     } catch (error) {
-      alertManager.alert('加载失败', '获取借用记录失败，请下拉刷新重试');
+      alertManager.alert(t('bookings.loadFailed'), t('bookings.loadFailedMessage'));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -104,18 +106,18 @@ export default function BookingHistoryScreen() {
   };
 
   const handleCancel = (bookingId: string, assetName: string) => {
-    alertManager.alert('取消借用', `确定要取消「${assetName}」的借用申请吗？`, [
-      { text: '再想想', style: 'cancel' },
+    alertManager.alert(t('bookings.cancelConfirm'), t('bookings.cancelConfirmMessage', { asset: assetName }), [
+      { text: t('bookings.thinkAgain'), style: 'cancel' },
       {
-        text: '确认取消',
+        text: t('bookings.confirmCancel'),
         style: 'destructive',
         onPress: async () => {
           try {
             await cancelBooking(bookingId);
-            alertManager.alert('已取消', '借用申请已取消');
+            alertManager.alert(t('bookings.cancelSuccess'), t('bookings.cancelSuccessMessage'));
             fetchBookings();
           } catch (err: unknown) {
-            handleApiError(err, '取消失败');
+            handleApiError(err, t('bookings.cancelFailed'));
           }
         },
       },
@@ -126,7 +128,7 @@ export default function BookingHistoryScreen() {
     const asset = item.assets;
     const statusColor = getStatusColor(item.status);
     const imageUrl = asset?.images?.[0];
-    const assetName = asset?.name || '未知设备';
+    const assetName = asset?.name || t('bookings.unknownDevice');
 
     const canReturn = item.status === 'active' || item.status === 'overdue';
     const canPickUp = item.status === 'approved';
@@ -147,13 +149,13 @@ export default function BookingHistoryScreen() {
             <View style={styles.cardHeader}>
               <Text style={styles.itemName} numberOfLines={1}>{assetName}</Text>
               <View style={[styles.statusBadge, { backgroundColor: statusColor + '15' }]}>
-                <Text style={[styles.status, { color: statusColor }]}>{getStatusLabel(item.status)}</Text>
+                <Text style={[styles.status, { color: statusColor }]}>{getStatusLabel(t, item.status)}</Text>
               </View>
             </View>
             <View style={styles.dateRow}>
-              <Text style={styles.dateLabel}>借用周期：</Text>
+              <Text style={styles.dateLabel}>{t('bookings.period')}</Text>
               <Text style={styles.dateRange}>
-                {item.start_date?.split('T')[0]} 至 {item.end_date?.split('T')[0]}
+                {item.start_date?.split('T')[0]} {t('bookings.to')} {item.end_date?.split('T')[0]}
               </Text>
             </View>
           </View>
@@ -176,7 +178,7 @@ export default function BookingHistoryScreen() {
                 onPress={() => navigation.navigate('ScanTab')}
               >
                 <Ionicons name="qr-code-outline" size={16} color="#fff" />
-                <Text style={styles.actionTextPickUp}>扫码取货</Text>
+                <Text style={styles.actionTextPickUp}>{t('bookings.scanToPickUp')}</Text>
               </TouchableOpacity>
             )}
             {canReturn && (
@@ -186,14 +188,14 @@ export default function BookingHistoryScreen() {
                   onPress={() => navigation.navigate('ReturnScreen', { bookingId: item.id, assetName })}
                 >
                   <Ionicons name="camera-outline" size={16} color={theme.colors.primary} />
-                  <Text style={styles.actionText}>拍照归还</Text>
+                  <Text style={styles.actionText}>{t('bookings.photoReturn')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.actionBtn, styles.actionBtnDanger]}
                   onPress={() => navigation.navigate('DamageReport', { assetId: item.asset_id, bookingId: item.id })}
                 >
                   <Ionicons name="warning-outline" size={16} color={theme.colors.danger} />
-                  <Text style={[styles.actionText, { color: theme.colors.danger }]}>损坏报修</Text>
+                  <Text style={[styles.actionText, { color: theme.colors.danger }]}>{t('bookings.damageReport')}</Text>
                 </TouchableOpacity>
               </>
             )}
@@ -203,7 +205,7 @@ export default function BookingHistoryScreen() {
                 onPress={() => handleCancel(item.id, assetName)}
               >
                 <Ionicons name="close-circle-outline" size={16} color={theme.colors.danger} />
-                <Text style={[styles.actionText, { color: theme.colors.danger }]}>取消借用</Text>
+                <Text style={[styles.actionText, { color: theme.colors.danger }]}>{t('bookings.cancelConfirm')}</Text>
               </TouchableOpacity>
             )}
             {/* 已归还：无评价 → 评价设备；有评价 → 修改评价 */}
@@ -221,7 +223,7 @@ export default function BookingHistoryScreen() {
                   color={theme.colors.warning}
                 />
                 <Text style={[styles.actionText, { color: theme.colors.warning }]}>
-                  {hasReview ? '修改评价' : '评价设备'}
+                  {hasReview ? t('bookings.editReview') : t('bookings.leaveReview')}
                 </Text>
               </TouchableOpacity>
             )}
@@ -244,7 +246,7 @@ export default function BookingHistoryScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>我的借用记录</Text>
+        <Text style={styles.title}>{t('bookings.title')}</Text>
       </View>
 
       <FlatList
@@ -258,13 +260,13 @@ export default function BookingHistoryScreen() {
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Ionicons name="cube-outline" size={80} color={theme.colors.gray} style={{ marginBottom: 16, opacity: 0.5 }} />
-            <Text style={styles.emptyTitle}>暂无借用记录</Text>
-            <Text style={styles.emptySubtitle}>您还没有借用过任何东西，快去首页逛逛吧</Text>
+            <Text style={styles.emptyTitle}>{t('bookings.noBookings')}</Text>
+            <Text style={styles.emptySubtitle}>{t('bookings.noBookingsMessage')}</Text>
             <TouchableOpacity
               style={styles.goHomeButton}
               onPress={() => navigation.navigate('HomeTab')}
             >
-              <Text style={styles.goHomeButtonText}>去首页看看</Text>
+              <Text style={styles.goHomeButtonText}>{t('bookings.goHome')}</Text>
             </TouchableOpacity>
           </View>
         }

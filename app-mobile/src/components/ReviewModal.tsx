@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../theme';
 import { submitReview, updateReview } from '../services/bookingService';
 import type { Review } from '../../../database/types/supabase';
+import { useTranslation } from 'react-i18next';
 
 interface ReviewModalProps {
   visible: boolean;
@@ -37,6 +38,7 @@ export default function ReviewModal({
   onSuccess,
   existingReview,
 }: ReviewModalProps) {
+  const { t } = useTranslation();
   const isEditMode = !!existingReview;
 
   const [rating, setRating] = useState(existingReview?.rating ?? 5);
@@ -58,22 +60,22 @@ export default function ReviewModal({
     try {
       if (isEditMode && existingReview) {
         await updateReview(existingReview.id, rating, comment);
-        alertManager.alert('修改成功', '您的评价已更新！');
+        alertManager.alert(t('review.editSuccess'), t('review.editSuccessMsg'));
       } else {
         await submitReview(bookingId, rating, comment);
-        alertManager.alert('评价成功', '感谢您的反馈！');
+        alertManager.alert(t('review.submitSuccess'), t('review.submitSuccessMsg'));
       }
       onSuccess();
       onClose();
     } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : '系统繁忙，请稍后再试';
-      alertManager.alert(isEditMode ? '修改失败' : '评价失败', msg);
+      const msg = error instanceof Error ? error.message : t('review.systemBusy');
+      alertManager.alert(isEditMode ? t('review.editFailed') : t('review.submitFailed'), msg);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const ratingLabel = ['极差', '不太理想', '中规中矩', '很好', '非常好'][rating - 1];
+  const ratingLabel = (t('review.ratingLabels', { returnObjects: true }) as string[])[rating - 1];
 
   return (
     <Modal
@@ -96,7 +98,7 @@ export default function ReviewModal({
         <View style={styles.container}>
           {/* 顶部标题栏 */}
           <View style={styles.header}>
-            <Text style={styles.title}>{isEditMode ? '修改评价' : '设备评价'}</Text>
+            <Text style={styles.title}>{isEditMode ? t('review.editReviewTitle') : t('review.addReviewTitle')}</Text>
             <TouchableOpacity onPress={onClose} disabled={isSubmitting}>
               <Ionicons name="close" size={24} color={theme.colors.gray} />
             </TouchableOpacity>
@@ -111,8 +113,8 @@ export default function ReviewModal({
             <View style={styles.content}>
               <Text style={styles.assetName}>
                 {isEditMode
-                  ? `修改对「${assetName}」的评价`
-                  : `正在为「${assetName}」进行评价`}
+                  ? t('review.editReviewSubtitle', { asset: assetName })
+                  : t('review.addReviewSubtitle', { asset: assetName })}
               </Text>
 
               {/* 星级选择 */}
@@ -137,7 +139,7 @@ export default function ReviewModal({
 
               <TextInput
                 style={styles.input}
-                placeholder={isEditMode ? '修改您的使用感受（可选）' : '写下您的使用感受（可选）'}
+                placeholder={isEditMode ? t('review.editPlaceholder') : t('review.addPlaceholder')}
                 multiline
                 numberOfLines={4}
                 value={comment}
@@ -154,7 +156,7 @@ export default function ReviewModal({
                   <ActivityIndicator color="#fff" />
                 ) : (
                   <Text style={styles.submitBtnText}>
-                    {isEditMode ? '保存修改' : '提交评价'}
+                    {isEditMode ? t('review.saveChanges') : t('review.submitReview')}
                   </Text>
                 )}
               </TouchableOpacity>
