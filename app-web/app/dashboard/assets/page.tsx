@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Header from '@/components/layout/Header';
-import { Plus, Search, Filter, QrCode, ClipboardList, Pencil, CheckCircle2, AlertCircle, Clock, Package, Eye, Trash2, Download } from 'lucide-react';
+import { Download, Package, Search } from 'lucide-react';
 import { getAssets, deleteAsset, updateAsset } from '@/lib/assetService';
 import { bookingService } from '@/lib/bookingService';
 import RelistModal from '@/components/assets/RelistModal';
@@ -16,27 +17,29 @@ import { Asset, Category } from '@/types/database';
 import { useToast } from '@/components/ui/Toast';
 import { exportToExcel } from '@/lib/exportUtils';
 import { useLanguage } from '@/components/providers/LanguageProvider';
+import { useAuth } from '@/components/providers/AuthContext';
 
 /** Asset row with joined category info from API response. */
 type AssetWithCategory = Asset & {
   categories?: Pick<Category, 'id' | 'name'> | null;
 };
 
-import { useAuth } from '@/components/providers/AuthContext';
-import { useRouter } from 'next/navigation';
-
 export default function AssetsPage() {
   const { t } = useLanguage();
   const { showToast } = useToast();
-  const { isAdmin, isLoading: authLoading } = useAuth();
+  const { canManageAssets, isLoading: authLoading } = useAuth();
   const router = useRouter();
+
+  const getErrorMessage = (error: unknown, fallback: string) => {
+    return error instanceof Error ? error.message : fallback;
+  };
 
   // Guard: Only admins can access this page
   useEffect(() => {
-    if (!authLoading && !isAdmin) {
+    if (!authLoading && !canManageAssets) {
       router.replace('/dashboard/access-denied');
     }
-  }, [isAdmin, authLoading, router]);
+  }, [authLoading, canManageAssets, router]);
 
   const [assets, setAssets] = useState<AssetWithCategory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -58,9 +61,9 @@ export default function AssetsPage() {
       setIsLoading(true);
       const data = await getAssets();
       setAssets(data as AssetWithCategory[]);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Failed to fetch assets', error);
-      showToast(error.message || 'Failed to load assets', 'error');
+      showToast(getErrorMessage(error, 'Failed to load assets'), 'error');
     } finally {
       setIsLoading(false);
     }
@@ -85,15 +88,16 @@ export default function AssetsPage() {
       showToast('Asset archived successfully!', 'success');
       setAssetToDelete(null);
       fetchAssets();
-    } catch (err: any) {
+    } catch (err) {
       console.error('Delete error:', err);
-      const isForbidden = err.message?.includes('无法归档正在借出中的资产') || err.message?.includes('borrowed');
-      const isSchemaError = err.message?.includes('column assets.is_archived does not exist');
+      const errorMessage = getErrorMessage(err, 'Failed to delete asset');
+      const isForbidden = errorMessage.includes('无法归档正在借出中的资产') || errorMessage.includes('borrowed');
+      const isSchemaError = errorMessage.includes('column assets.is_archived does not exist');
 
       if (isSchemaError) {
         showToast('Database Schema Mismatch: Please run the SQL migration (is_archived column missing).', 'error');
       } else {
-        showToast(err.message || 'Failed to delete asset', isForbidden ? 'warning' : 'error');
+        showToast(errorMessage, isForbidden ? 'warning' : 'error');
       }
     } finally {
       setIsDeleting(false);
@@ -208,6 +212,10 @@ export default function AssetsPage() {
     const matchesCategory = selectedCategory === 'All' || asset.category_id === selectedCategory;
     return matchesSearch && matchesCategory;
   });
+
+  if (!authLoading && !canManageAssets) {
+    return null;
+  }
 
   return (
     <div className="flex flex-col flex-1 h-full w-full bg-gray-50 dark:bg-black overflow-y-auto">

@@ -1,12 +1,17 @@
 import { supabase } from './supabase';
 import { getCurrentUser } from './authService';
-import type { DamageSeverity } from '../../../database/types/supabase';
+import type { DamageReport, DamageSeverity } from '../../../database/types/supabase';
 import { uploadFile } from './storageService';
 
 // 手写 Database 类型与 Supabase 客户端泛型不完全兼容，
 // 用 db 别名统一绕过类型推断问题，运行时行为不受影响
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase as any;
+
+export type MyDamageReport = Pick<
+  DamageReport,
+  'id' | 'booking_id' | 'asset_id' | 'description' | 'severity' | 'photo_urls' | 'status'
+>;
 
 // ============================================================
 // Booking Service — 借用管理服务
@@ -64,12 +69,44 @@ export async function getMyBookings() {
 
   const { data, error } = await db
     .from('bookings')
-    .select('*, assets(name, images)')
+    .select('*, assets(name, images), damage_reports(id, status)')
     .eq('borrower_id', user.id)
     .order('created_at', { ascending: false });
 
   if (error) throw error;
   return data ?? [];
+}
+
+export async function getMyDamageReportByBookingId(bookingId: string): Promise<MyDamageReport | null> {
+  const user = await getCurrentUser();
+
+  const { data, error } = await db
+    .from('damage_reports')
+    .select('id, booking_id, asset_id, description, severity, photo_urls, status')
+    .eq('booking_id', bookingId)
+    .eq('reporter_id', user.id)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+  return (data ?? null) as MyDamageReport | null;
+}
+
+export async function updateOwnDamageReport(
+  reportId: string,
+  description: string,
+  severity: DamageSeverity,
+  photoUrls: string[]
+) {
+  const { error } = await db.rpc('update_own_damage_report', {
+    p_report_id: reportId,
+    p_description: description,
+    p_severity: severity,
+    p_photo_urls: photoUrls,
+  });
+
+  if (error) throw error;
 }
 
 /**
@@ -105,9 +142,44 @@ export async function activateBooking(bookingId: string) {
 }
 
 /**
+ * Upload a pickup condition photo to Supabase Storage.
+ * 上传取货状况照片到 Supabase Storage (pickups bucket)
+ *
+ * @param photoUri - Local URI of the photo. 照片本地 URI
+ * @param bookingId - The booking ID. 借用 ID
+ * @param base64 - Optional base64 data for reliable upload. 可选 base64 数据
+ * @returns Public URL of the uploaded photo. 上传后的公开 URL
+ */
+export async function uploadPickupPhoto(photoUri: string, bookingId: string, base64?: string): Promise<string> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('用户未登录');
+
+  const fileExt = photoUri.split('.').pop() || 'jpg';
+  const fileName = `${user.id}/${bookingId}_${Date.now()}.${fileExt}`;
+
+  return uploadFile('pickups', photoUri, fileName, base64);
+}
+
+/**
+ * Save the pickup photo URL to the booking record via RPC.
+ * 通过 RPC 将取货照片 URL 保存到借用记录
+ *
+ * @param bookingId - Booking to update. 要更新的借用 ID
+ * @param photoUrl - Pickup condition photo URL from Storage. 取货照片 URL
+ */
+export async function savePickupPhoto(bookingId: string, photoUrl: string) {
+  const { error } = await db.rpc('save_pickup_photo', {
+    p_booking_id: bookingId,
+    p_photo_url: photoUrl,
+  });
+
+  if (error) throw error;
+}
+
+/**
  * Upload a return photo to Supabase Storage.
  * 上传归还照片到 Supabase Storage (returns bucket)
- * 
+ *
  * @param photoUri - Local URI of the photo to upload.
  * @param bookingId - The booking ID associated with this photo.
  * @returns Public URL of the uploaded photo.
@@ -155,6 +227,23 @@ export async function submitDamageReport(
   severity: DamageSeverity,
   photoUrls: string[]
 ) {
+  const existingReport = await getMyDamageReportByBookingId(bookingId);
+
+  if (existingReport) {
+    if (existingReport.status !== 'open' && existingReport.status !== 'investigating') {
+      throw new Error('该损坏报告已处理完成，不能重复提交');
+    }
+
+    await updateOwnDamageReport(existingReport.id, description, severity, photoUrls);
+    return {
+      ...existingReport,
+      asset_id: assetId,
+      description,
+      severity,
+      photo_urls: photoUrls,
+    };
+  }
+
   const user = await getCurrentUser();
 
   const { data, error } = await db

@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { BookingWithDetails } from '@/lib/bookingService';
+import { formatDateTime } from '@/lib/dateTime';
 import { cn } from '@/lib/utils';
 import { useLanguage } from '@/components/providers/LanguageProvider';
 
@@ -123,19 +124,19 @@ export default function BookingTable({ bookings, onReview, onReportDamage, highl
                                     <div className="text-gray-500 text-xs mt-0.5 font-mono">{booking.profiles?.student_id ?? 'No ID'}</div>
                                 </td>
                                 <td className="px-6 py-4">
-                                    <div className="text-gray-200">{new Date(booking.start_date).toLocaleDateString()}</div>
-                                    <div className="text-gray-500 text-xs mt-0.5">to {new Date(booking.end_date).toLocaleDateString()}</div>
+                                    <div className="text-gray-200 leading-tight">{formatDateTime(booking.start_date)}</div>
+                                    <div className="text-gray-500 text-xs mt-1 leading-tight">to {formatDateTime(booking.end_date)}</div>
                                 </td>
                                 <td className="px-6 py-4">
                                     {getStatusBadge(booking.status)}
                                 </td>
                                 <td className="px-6 py-4 text-right">
                                     <div className="flex items-center justify-end gap-2">
-                                        {/* 仅对 overdue / returned 状态显示；已核验(VERIFIED)或已有未处理损坏报告时隐藏，避免重复提交 */}
+                                        {/* 仅对 overdue / returned 状态显示；只要本借用已有损坏报告就隐藏，避免重复创建 */}
                                         {onReportDamage &&
                                             ['overdue', 'returned'].includes(booking.status) &&
                                             booking.rejection_reason !== 'VERIFIED' &&
-                                            !booking.damage_reports?.some(r => r.status === 'open' || r.status === 'investigating') && (
+                                            !(booking.damage_reports && booking.damage_reports.length > 0) && (
                                             <button
                                                 onClick={() => onReportDamage(booking)}
                                                 className="px-3 py-1.5 text-xs font-semibold text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-lg hover:bg-rose-500/20 hover:text-rose-300 transition-colors"

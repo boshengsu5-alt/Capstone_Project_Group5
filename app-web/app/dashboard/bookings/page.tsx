@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import BookingTable from '@/components/bookings/BookingTable';
 import ApprovalModal from '@/components/bookings/ApprovalModal';
 import DamageSeverityModal from '@/components/damage/DamageSeverityModal';
@@ -24,9 +25,16 @@ const STATUS_OPTIONS: { value: 'all' | BookingStatus; label: string }[] = [
 
 export default function BookingsPage() {
     const { showToast } = useToast();
+    const searchParams = useSearchParams();
     const [bookings, setBookings] = useState<BookingWithDetails[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [statusFilter, setStatusFilter] = useState<'all' | BookingStatus>('all');
+
+    // 从 URL 查询参数读取初始筛选状态（如 ?status=pending）
+    const validStatuses: (BookingStatus | 'all')[] = ['all', 'pending', 'approved', 'active', 'returned', 'overdue', 'rejected', 'cancelled'];
+    const initialStatus = validStatuses.includes(searchParams.get('status') as any)
+        ? (searchParams.get('status') as 'all' | BookingStatus)
+        : 'all';
+    const [statusFilter, setStatusFilter] = useState<'all' | BookingStatus>(initialStatus);
 
     // Approval modal state
     const [isModalOpen, setIsModalOpen] = useState(false);

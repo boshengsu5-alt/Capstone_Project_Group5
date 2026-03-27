@@ -11,7 +11,7 @@ import { saveAs } from 'file-saver';
  * @param columnWidths - Optional array of custom column widths.
  */
 export async function exportToExcel(
-  data: Record<string, any>[],
+  data: Record<string, unknown>[],
   fileName: string,
   sheetName: string = 'Sheet1',
   columnWidths?: number[]

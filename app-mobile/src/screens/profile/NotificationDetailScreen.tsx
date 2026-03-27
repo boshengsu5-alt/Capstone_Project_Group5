@@ -14,6 +14,7 @@ import { ProfileStackParamList } from '../../navigation/ProfileStackNavigator';
 import { theme } from '../../theme';
 import type { NotificationType } from '../../../../database/types/supabase';
 import { useTranslation } from 'react-i18next';
+import { getNotificationText } from '../../utils/notificationText';
 
 const TYPE_CONFIG: Record<string, { icon: string; color: string }> = {
   booking_approved: { icon: 'checkmark-circle', color: '#10b981' },
@@ -23,15 +24,6 @@ const TYPE_CONFIG: Record<string, { icon: string; color: string }> = {
   damage_reported: { icon: 'warning', color: '#f97316' },
   review_reply: { icon: 'chatbubbles', color: '#8b5cf6' },
   system: { icon: 'information-circle', color: theme.colors.primary },
-};
-
-const getNotificationText = (t: any, type: string, origTitle: string, origMsg: string) => {
-  const tTitle = t(`notifications.types.${type}.title`);
-  const tMessage = t(`notifications.types.${type}.message`);
-  if (tTitle && tTitle !== `notifications.types.${type}.title`) {
-    return { title: tTitle, message: tMessage };
-  }
-  return { title: origTitle, message: origMsg };
 };
 
 function formatFullTime(dateStr: string): string {
@@ -53,7 +45,7 @@ export default function NotificationDetailScreen({ navigation, route }: Props) {
   const { t } = useTranslation();
   const { notification } = route.params;
   const config = TYPE_CONFIG[notification.type] ?? TYPE_CONFIG.system;
-  const { title, message } = getNotificationText(t, notification.type, notification.title, notification.message);
+  const { title, message } = getNotificationText(t, notification);
 
   return (
     <SafeAreaView style={styles.container}>

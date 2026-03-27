@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, type FieldError, type Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Package, Tag, Hash, DollarSign, MapPin, AlignLeft, ShieldCheck, Asterisk, Upload, X, Loader2, Activity, Thermometer, Layers, AlertCircle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
@@ -22,16 +22,17 @@ export default function AssetForm({ onCancel, onSuccess, asset }: AssetFormProps
   const [isUploading, setIsUploading] = useState(false);
   const [images, setImages] = useState<string[]>(asset?.images ?? []);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
+  const [categories, setCategories] = useState<Array<Pick<Category, 'id' | 'name' | 'name_zh'>>>([]);
+
+  type CreateAssetPayload = Parameters<typeof createAsset>[0];
+  type UpdateAssetPayload = Parameters<typeof updateAsset>[1];
 
   const {
     register,
     handleSubmit,
-    setValue,
-    watch,
     formState: { errors, isSubmitting },
   } = useForm<AssetFormData>({
-    resolver: zodResolver(assetSchema) as any,
+    resolver: zodResolver(assetSchema) as Resolver<AssetFormData>,
     defaultValues: {
       name: asset?.name || '',
       category_id: asset?.category_id || '',
@@ -44,8 +45,6 @@ export default function AssetForm({ onCancel, onSuccess, asset }: AssetFormProps
       quantity: 1,
     },
   });
-
-  const categoryIdValue = watch('category_id');
 
   const [isFetchingCategories, setIsFetchingCategories] = useState(false);
 
@@ -95,7 +94,7 @@ export default function AssetForm({ onCancel, onSuccess, asset }: AssetFormProps
 
       const urls = await Promise.all(uploadPromises);
       setImages((prev) => [...prev, ...urls]);
-    } catch (err: any) {
+    } catch (err) {
       console.error('Upload error:', err);
       const msg = 'Failed to upload images. Please check your network connection.';
       showToast(msg, 'error');
@@ -109,60 +108,58 @@ export default function AssetForm({ onCancel, onSuccess, asset }: AssetFormProps
     setImages((prev) => prev.filter((_, i) => i !== index));
   };
 
+  const buildCreatePayload = (data: AssetFormData, nameOverride?: string): CreateAssetPayload => ({
+    name: nameOverride ?? data.name,
+    category_id: data.category_id,
+    serial_number: data.serial_number || undefined,
+    purchase_price: data.purchase_price,
+    location: data.location || undefined,
+    description: data.description || undefined,
+    images: images || [],
+  });
+
+  const buildUpdatePayload = (data: AssetFormData): UpdateAssetPayload => ({
+    name: data.name,
+    category_id: data.category_id,
+    serial_number: data.serial_number || null,
+    purchase_price: data.purchase_price ?? 0,
+    location: data.location || '',
+    description: data.description || '',
+    condition: data.condition,
+    status: data.status,
+    images: images || [],
+  });
+
   const onSubmit = async (data: AssetFormData) => {
     try {
       if (isEditMode && asset) {
-        const payload = {
-          ...data,
-          serial_number: data.serial_number || undefined,
-          location: data.location || undefined,
-          description: data.description || undefined,
-          images: images || []
-        };
-        await updateAsset(asset.id, payload as any);
+        await updateAsset(asset.id, buildUpdatePayload(data));
         showToast('Asset updated successfully!', 'success');
       } else {
         const quantity = data.quantity || 1;
         
         if (quantity > 1) {
-          // Batch create
-          const promises = [];
+          const promises: Array<Promise<Asset>> = [];
           for (let i = 1; i <= quantity; i++) {
-            const payload = {
-              ...data,
-              name: `${data.name} #${i}`,
-              serial_number: data.serial_number || undefined,
-              location: data.location || undefined,
-              description: data.description || undefined,
-              images: images || []
-            };
-            promises.push(createAsset(payload as any));
+            promises.push(createAsset(buildCreatePayload(data, `${data.name} #${i}`)));
           }
           await Promise.all(promises);
           showToast(`Successfully registered ${quantity} assets!`, 'success');
         } else {
-          // Single create
-          const payload = {
-            ...data,
-            serial_number: data.serial_number || undefined,
-            location: data.location || undefined,
-            description: data.description || undefined,
-            images: images || []
-          };
-          await createAsset(payload as any);
+          await createAsset(buildCreatePayload(data));
           showToast('Asset registered successfully!', 'success');
         }
       }
       onSuccess();
-    } catch (err: any) {
+    } catch (err) {
       console.error('Asset form error:', err);
-      const msg = err.message || 'An error occurred while saving the asset.';
+      const msg = err instanceof Error ? err.message : 'An error occurred while saving the asset.';
       showToast(msg, 'error');
     }
   };
 
   // Helper to render error message with fade-in
-  const ErrorMessage = ({ error }: { error?: { message?: string } }) => {
+  const ErrorMessage = ({ error }: { error?: FieldError }) => {
     return (
       <div className="h-6 overflow-hidden">
         {error?.message && (
@@ -174,10 +171,6 @@ export default function AssetForm({ onCancel, onSuccess, asset }: AssetFormProps
       </div>
     );
   };
-  
-  const AlertCircle = ({ className }: { className?: string }) => (
-    <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
-  );
 
   return (
     <div className="bg-white/90 dark:bg-gray-900/90 backdrop-blur-2xl shadow-2xl ring-1 ring-gray-900/10 sm:rounded-3xl border border-white/20 dark:border-gray-800/50 overflow-hidden transition-all duration-300">
@@ -317,7 +310,7 @@ export default function AssetForm({ onCancel, onSuccess, asset }: AssetFormProps
                   ) : categories.length === 0 ? (
                     <option disabled value="">No categories available</option>
                   ) : (
-                    categories.map((cat: any) => (
+                    categories.map((cat) => (
                       <option key={cat.id} value={cat.id}>
                         {cat.name} {cat.name_zh ? `(${cat.name_zh})` : ''}
                       </option>

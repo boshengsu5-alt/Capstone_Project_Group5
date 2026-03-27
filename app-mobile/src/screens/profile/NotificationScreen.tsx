@@ -18,6 +18,7 @@ import NotificationItem from '../../components/NotificationItem';
 import { getMyNotifications, markAsRead, markAllAsRead } from '../../services/notificationService';
 import type { Notification } from '../../../../database/types/supabase';
 import { useTranslation } from 'react-i18next';
+import { getNotificationText } from '../../utils/notificationText';
 
 type Props = {
   navigation: NativeStackNavigationProp<ProfileStackParamList, 'Notifications'>;
@@ -38,16 +39,6 @@ function formatTime(dateStr: string): string {
   if (diffDay < 7) return `${diffDay}天前`;
   return date.toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' });
 }
-
-const getNotificationText = (t: any, type: string, origTitle: string, origMsg: string) => {
-  const tTitle = t(`notifications.types.${type}.title`);
-  const tMessage = t(`notifications.types.${type}.message`);
-  // If translation exists and is not just the key string returned by missing fallback
-  if (tTitle && tTitle !== `notifications.types.${type}.title`) {
-    return { title: tTitle, message: tMessage };
-  }
-  return { title: origTitle, message: origMsg };
-};
 
 export default function NotificationScreen({ navigation }: Props) {
   const { t } = useTranslation();
@@ -134,7 +125,7 @@ export default function NotificationScreen({ navigation }: Props) {
           data={notifications}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => {
-            const { title, message } = getNotificationText(t, item.type, item.title, item.message);
+            const { title, message } = getNotificationText(t, item);
             return (
               <NotificationItem
                 title={title}

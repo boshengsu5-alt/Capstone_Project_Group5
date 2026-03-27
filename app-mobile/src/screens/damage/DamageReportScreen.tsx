@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -13,7 +13,7 @@ import {
 import { alertManager } from '../../utils/alertManager';
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import type { BookingsStackParamList } from '../../navigation/BookingsStackNavigator';
-import { submitDamageReport } from '../../services/bookingService';
+import { getMyDamageReportByBookingId, submitDamageReport } from '../../services/bookingService';
 import { getCurrentUser } from '../../services/authService';
 import { uploadFile } from '../../services/storageService';
 import * as ImagePicker from 'expo-image-picker';
@@ -33,12 +33,42 @@ const SEVERITY_OPTIONS: { value: DamageSeverity; label: string; emoji: string; c
 export default function DamageReportScreen() {
   const route = useRoute<DamageReportRouteProp>();
   const navigation = useNavigation();
-  const { assetId, bookingId } = route.params;
+  const { assetId, bookingId, mode } = route.params;
 
   const [description, setDescription] = useState('');
   const [severity, setSeverity] = useState<DamageSeverity>('minor');
-  const [photoUris, setPhotoUris] = useState<string[]>([]);
+  const [photoUris, setPhotoUris] = useState<Array<{ uri: string; uploaded: boolean }>>([]);
+  const [loadingExisting, setLoadingExisting] = useState(true);
+  const [isEditing, setIsEditing] = useState(mode === 'edit');
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    const loadExistingReport = async () => {
+      try {
+        const existingReport = await getMyDamageReportByBookingId(bookingId);
+
+        if (existingReport) {
+          setDescription(existingReport.description ?? '');
+          setSeverity(existingReport.severity);
+          setPhotoUris((existingReport.photo_urls ?? []).map((uri) => ({ uri, uploaded: true })));
+          setIsEditing(existingReport.status === 'open' || existingReport.status === 'investigating');
+
+          if (existingReport.status !== 'open' && existingReport.status !== 'investigating') {
+            alertManager.alert('不可重复提交', '该损坏报告已处理完成，不能再次提交新的报修');
+          }
+        } else {
+          setIsEditing(false);
+        }
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : '加载报修单失败';
+        alertManager.alert('加载失败', message);
+      } finally {
+        setLoadingExisting(false);
+      }
+    };
+
+    loadExistingReport();
+  }, [bookingId, mode]);
 
   // 选择照片（相册 or 相机）
   // AppAlert 现已通过 onDismiss（iOS）/ setTimeout（Android）确保 Modal 完全消失后
@@ -94,7 +124,7 @@ export default function DamageReportScreen() {
       [{ resize: { width: 1024 } }],
       { compress: 0.75, format: ImageManipulator.SaveFormat.JPEG }
     );
-    setPhotoUris(prev => [...prev, manipResult.uri]);
+    setPhotoUris(prev => [...prev, { uri: manipResult.uri, uploaded: false }]);
   };
 
   const removePhoto = (index: number) => {
@@ -110,6 +140,10 @@ export default function DamageReportScreen() {
       alertManager.alert('缺少照片', '请上传至少一张损坏区域照片');
       return;
     }
+    if (mode === 'edit' && !isEditing) {
+      alertManager.alert('无法编辑', '当前没有可编辑的损坏报告');
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -118,10 +152,15 @@ export default function DamageReportScreen() {
 
       // 上传所有照片
       const uploadedUrls: string[] = [];
-      for (const uri of photoUris) {
-        const fileExt = uri.split('.').pop() || 'jpg';
+      for (const photo of photoUris) {
+        if (photo.uploaded) {
+          uploadedUrls.push(photo.uri);
+          continue;
+        }
+
+        const fileExt = photo.uri.split('.').pop() || 'jpg';
         const fileName = `${user.id}/damage_${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
-        const url = await uploadFile('damage-photos', uri, fileName);
+        const url = await uploadFile('damage-photos', photo.uri, fileName);
         uploadedUrls.push(url);
       }
 
@@ -129,8 +168,10 @@ export default function DamageReportScreen() {
       await submitDamageReport(assetId, bookingId, description.trim(), severity, uploadedUrls);
 
       alertManager.alert(
-        '报修单已提交',
-        '感谢您的反馈！老师将在 1-2 个工作日内核验，信用分结果届时通知。',
+        isEditing ? '报修单已更新' : '报修单已提交',
+        isEditing
+          ? '您之前提交的损坏报告已更新，老师会基于最新内容继续核验。'
+          : '感谢您的反馈！老师将在 1-2 个工作日内核验，信用分结果届时通知。',
         [{ text: '好的', onPress: () => navigation.goBack() }]
       );
     } catch (err: unknown) {
@@ -141,9 +182,27 @@ export default function DamageReportScreen() {
     }
   };
 
+  if (loadingExisting) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingWrap}>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+          <Text style={styles.loadingText}>正在加载报修单…</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+
+        {isEditing && (
+          <View style={styles.editBanner}>
+            <Text style={styles.editBannerTitle}>已存在未处理报修单</Text>
+            <Text style={styles.editBannerText}>当前页面为编辑模式，保存后会更新原有报修单，不会重复创建第二条。</Text>
+          </View>
+        )}
 
         {/* 报修设备信息卡 */}
         <View style={styles.section}>
@@ -208,7 +267,7 @@ export default function DamageReportScreen() {
           <View style={styles.photoGrid}>
             {photoUris.map((uri, index) => (
               <View key={index} style={styles.photoWrapper}>
-                <Image source={{ uri }} style={styles.photoThumb} />
+                <Image source={{ uri: uri.uri }} style={styles.photoThumb} />
                 <TouchableOpacity style={styles.removeBtn} onPress={() => removePhoto(index)}>
                   <Text style={styles.removeBtnText}>✕</Text>
                 </TouchableOpacity>
@@ -234,7 +293,7 @@ export default function DamageReportScreen() {
           {submitting ? (
             <ActivityIndicator color={theme.colors.background} />
           ) : (
-            <Text style={styles.submitText}>提交客诉单</Text>
+            <Text style={styles.submitText}>{isEditing ? '更新客诉单' : '提交客诉单'}</Text>
           )}
         </TouchableOpacity>
 
@@ -249,6 +308,35 @@ export default function DamageReportScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.background },
   scroll: { padding: theme.spacing.lg, paddingBottom: 40 },
+  loadingWrap: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: theme.colors.gray,
+  },
+  editBanner: {
+    backgroundColor: '#FFF7ED',
+    borderColor: '#FDBA74',
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.lg,
+  },
+  editBannerTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#C2410C',
+    marginBottom: 4,
+  },
+  editBannerText: {
+    fontSize: 13,
+    lineHeight: 20,
+    color: '#9A3412',
+  },
 
   section: { marginBottom: theme.spacing.lg },
   sectionTitle: { fontSize: 15, fontWeight: '700', color: theme.colors.text, marginBottom: 12 },

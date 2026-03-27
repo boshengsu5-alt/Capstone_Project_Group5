@@ -20,6 +20,9 @@ export type DamageReportWithDetails = DamageReport & {
     profiles: Pick<Database['public']['Tables']['profiles']['Row'], 'full_name' | 'student_id'> | null;
     bookings: {
         borrower_id: string;
+        start_date: string;
+        end_date: string;
+        actual_return_date: string | null;
         /** 取货时拍摄的设备原始状态照片。Pickup condition photo taken by borrower. */
         pickup_photo_url: string | null;
         /** 归还时拍摄的设备状态照片。Return condition photo taken by borrower. */
@@ -48,6 +51,90 @@ export function calcOverduePenalty(overdueDays: number): number {
     if (overdueDays > 3) penalty += Math.min(overdueDays - 3, 4) * 5;   // 第 4-7 天
     if (overdueDays > 7) penalty += (overdueDays - 7) * 8;              // 第 7 天以后
     return Math.min(penalty, 50);                                         // 封顶 50
+}
+
+function getSeverityLabel(severity: string): string {
+    return { minor: 'Minor', moderate: 'Moderate', severe: 'Severe' }[severity] ?? severity;
+}
+
+function getMetadataString(metadata: unknown, key: string): string | null {
+    if (!metadata || typeof metadata !== 'object') return null;
+    const value = (metadata as Record<string, unknown>)[key];
+    return typeof value === 'string' && value.trim().length > 0 ? value : null;
+}
+
+function getMetadataNumber(metadata: unknown, key: string): number | null {
+    if (!metadata || typeof metadata !== 'object') return null;
+    const value = (metadata as Record<string, unknown>)[key];
+    return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function getMetadataBoolean(metadata: unknown, key: string): boolean {
+    if (!metadata || typeof metadata !== 'object') return false;
+    return (metadata as Record<string, unknown>)[key] === true;
+}
+
+async function applyCreditDelta(userId: string, delta: number, reason: string): Promise<void> {
+    const { error: rpcErr } = await (supabase as any).rpc('update_credit_score', {
+        p_user_id: userId,
+        p_delta: delta,
+        p_reason: reason,
+    });
+
+    if (!rpcErr) return;
+
+    const { data: profile } = await supabase
+        .from('profiles')
+        .select('credit_score')
+        .eq('id', userId)
+        .single();
+
+    if (!profile) return;
+
+    const newScore = Math.max(0, Math.min(200, (profile as any).credit_score + delta));
+    await (supabase as any)
+        .from('profiles')
+        .update({ credit_score: newScore })
+        .eq('id', userId);
+}
+
+async function getReturnBonusRevocationDelta(userId: string, bookingId: string): Promise<number> {
+    const { data: notifications } = await (supabase as any)
+        .from('notifications')
+        .select('type, title, message, metadata')
+        .eq('user_id', userId)
+        .in('type', ['system', 'damage_reported']);
+
+    if (!notifications || notifications.length === 0) return 0;
+
+    const relatedNotifications = notifications.filter((notification: any) =>
+        getMetadataString(notification.metadata, 'booking_id') === bookingId
+    );
+    if (relatedNotifications.length === 0) return 0;
+
+    const alreadyRevoked = relatedNotifications.some((notification: any) => {
+        if (getMetadataBoolean(notification.metadata, 'return_bonus_revoked')) return true;
+        return getMetadataString(notification.metadata, 'reason') === 'return_bonus_reversed';
+    });
+    if (alreadyRevoked) return 0;
+
+    const returnBonusNotification = relatedNotifications.find((notification: any) => {
+        if (notification.type !== 'system') return false;
+
+        const reason = getMetadataString(notification.metadata, 'reason');
+        if (reason === 'return_bonus_granted') return true;
+
+        return notification.title === 'Asset returned successfully'
+            && typeof notification.message === 'string'
+            && notification.message.includes('Credit score +5');
+    });
+
+    if (!returnBonusNotification) return 0;
+
+    const explicitDelta = getMetadataNumber(returnBonusNotification.metadata, 'credit_delta');
+    if (explicitDelta && explicitDelta > 0) return explicitDelta;
+
+    return 5;
 }
 
 export const bookingService = {
@@ -200,7 +287,7 @@ export const bookingService = {
                 *,
                 assets ( name, qr_code, images, condition, status, purchase_price, purchase_date ),
                 profiles!reporter_id ( full_name, student_id ),
-                bookings ( borrower_id, pickup_photo_url, return_photo_url, profiles!borrower_id ( full_name, student_id ) )
+                bookings ( borrower_id, start_date, end_date, actual_return_date, pickup_photo_url, return_photo_url, profiles!borrower_id ( full_name, student_id ) )
             `)
             .order('created_at', { ascending: false });
 
@@ -454,13 +541,19 @@ export const bookingService = {
         }
 
         // 给借用者发送损坏通知（此时仅告知已报告，信用分待审核后扣减）
-        const severityLabel: Record<string, string> = { minor: 'Minor', moderate: 'Moderate', severe: 'Severe' };
+        const assetName = (booking as any).assets?.name ?? 'an asset';
         await (supabase as any).from('notifications').insert({
             user_id: borrowerId,
             type: 'damage_reported',
-            title: 'Damage Reported — Under Review',
-            message: `Your borrowed item "${(booking as any).assets?.name ?? 'an asset'}" was reported as damaged (${severityLabel[severity] ?? severity}). Credit score adjustment is pending review.`,
-            metadata: { booking_id: bookingId, severity },
+            title: 'Damage Report Filed — Review Pending',
+            message: `Your borrowed item "${assetName}" was reported as damaged (${getSeverityLabel(severity)}). Credit score adjustment is pending review.`,
+            metadata: {
+                booking_id: bookingId,
+                asset_id: assetId,
+                asset_name: assetName,
+                severity,
+                stage: 'reported',
+            },
         });
 
         // 更新借用状态为 returned，标记已核验 (prevent duplicate damage reports)
@@ -650,8 +743,58 @@ export const bookingService = {
             return false;
         }
 
-        // 仅 investigating → resolved 时扣减信用分，确保只扣一次
-        if (status === 'resolved' && previousStatus === 'investigating') {
+        if (status === 'investigating' && previousStatus === 'open') {
+            const { data: booking } = await supabase
+                .from('bookings')
+                .select('borrower_id, assets ( name )')
+                .eq('id', (report as any).booking_id)
+                .single();
+
+            if (booking) {
+                const assetName = (booking as any).assets?.name ?? '设备';
+                await (supabase as any).from('notifications').insert({
+                    user_id: (booking as any).borrower_id,
+                    type: 'damage_reported',
+                    title: 'Damage Review Started',
+                    message: `The damage report for "${assetName}" is now under investigation. We will notify you once the review is completed.`,
+                    metadata: {
+                        booking_id: (report as any).booking_id,
+                        asset_id: (report as any).asset_id,
+                        asset_name: assetName,
+                        stage: 'investigating',
+                        severity,
+                    },
+                });
+            }
+        }
+
+        if (status === 'dismissed') {
+            const { data: booking } = await supabase
+                .from('bookings')
+                .select('borrower_id, assets ( name )')
+                .eq('id', (report as any).booking_id)
+                .single();
+
+            if (booking) {
+                const assetName = (booking as any).assets?.name ?? '设备';
+                await (supabase as any).from('notifications').insert({
+                    user_id: (booking as any).borrower_id,
+                    type: 'damage_reported',
+                    title: 'Damage Report Dismissed',
+                    message: `The damage report for "${assetName}" has been dismissed. No credit deduction or compensation will be applied.`,
+                    metadata: {
+                        booking_id: (report as any).booking_id,
+                        asset_id: (report as any).asset_id,
+                        asset_name: assetName,
+                        stage: 'dismissed',
+                        severity,
+                    },
+                });
+            }
+        }
+
+        // 首次进入 resolved 时扣减信用分并发送最终处理通知，确保只扣一次
+        if (status === 'resolved') {
             // 扣分标准 §5.3：minor -5, moderate -15, severe -30（使用最终 severity）
             const severityMap: Record<string, number> = { minor: -5, moderate: -15, severe: -30 };
             const delta = severityMap[severity] ?? -10;
@@ -663,25 +806,22 @@ export const bookingService = {
                 .single();
 
             if (booking) {
-                const { error: rpcErr } = await (supabase as any).rpc('update_credit_score', {
-                    p_user_id: (booking as any).borrower_id,
-                    p_delta: delta,
-                    p_reason: `damage_${severity}`,
-                });
+                await applyCreditDelta(
+                    (booking as any).borrower_id,
+                    delta,
+                    `damage_${severity}`,
+                );
 
-                if (rpcErr) {
-                    const { data: profile } = await supabase
-                        .from('profiles')
-                        .select('credit_score')
-                        .eq('id', (booking as any).borrower_id)
-                        .single();
-                    if (profile) {
-                        const newScore = Math.max(0, Math.min(200, (profile as any).credit_score + delta));
-                        await (supabase as any)
-                            .from('profiles')
-                            .update({ credit_score: newScore })
-                            .eq('id', (booking as any).borrower_id);
-                    }
+                const returnBonusDelta = await getReturnBonusRevocationDelta(
+                    (booking as any).borrower_id,
+                    (report as any).booking_id,
+                );
+                if (returnBonusDelta > 0) {
+                    await applyCreditDelta(
+                        (booking as any).borrower_id,
+                        -returnBonusDelta,
+                        `damage_return_bonus_reversal_${(report as any).booking_id}`,
+                    );
                 }
 
                 // 计算赔偿金额（复用折旧公式 §5.2）并写入通知
@@ -697,17 +837,23 @@ export const bookingService = {
                     compensation = Math.round(price * depRatio * coef);
                 }
 
-                const severityLabel: Record<string, string> = { minor: '轻微损坏', moderate: '中度损坏', severe: '严重损坏' };
                 const assetName = (booking as any).assets?.name ?? '设备';
+                const totalCreditDelta = delta - returnBonusDelta;
                 await (supabase as any).from('notifications').insert({
                     user_id: (booking as any).borrower_id,
                     type: 'damage_reported',
-                    title: '损坏赔偿通知',
-                    message: `您借用的「${assetName}」损坏报告已核实处理。\n损坏等级：${severityLabel[severity] ?? severity}\n信用分扣除：${Math.abs(delta)} 分${compensation != null ? `\n应赔偿金额：¥${compensation.toLocaleString()}（请联系管理员完成线下赔偿）` : ''}`,
+                    title: 'Damage Review Result — Credit Updated',
+                    message: `Damage to "${assetName}" has been confirmed as ${getSeverityLabel(severity)}. Damage penalty: ${Math.abs(delta)} points.${returnBonusDelta > 0 ? ` Previous return bonus revoked: ${returnBonusDelta} points.` : ''} Total credit impact: ${Math.abs(totalCreditDelta)} points.${compensation != null ? ` Compensation due: ¥${compensation.toLocaleString()}.` : ''}`,
                     metadata: {
                         booking_id: (report as any).booking_id,
+                        asset_id: (report as any).asset_id,
+                        asset_name: assetName,
+                        stage: 'resolved',
                         severity,
                         credit_delta: delta,
+                        return_bonus_revoked: returnBonusDelta > 0,
+                        return_bonus_delta: returnBonusDelta > 0 ? -returnBonusDelta : 0,
+                        total_credit_delta: totalCreditDelta,
                         compensation,
                     },
                 });
@@ -729,8 +875,10 @@ export const bookingService = {
         };
         const severityMapAudit: Record<string, number> = { minor: -5, moderate: -15, severe: -30 };
         let auditDesc = `Damage report status: ${statusLabels[previousStatus] ?? previousStatus} → ${statusLabels[status] ?? status}. Severity: ${severity}.`;
-        if (status === 'resolved' && previousStatus === 'investigating') {
+        if (status === 'resolved') {
             auditDesc += ` Credit delta: ${severityMapAudit[severity] ?? -10}.`;
+        } else if (status === 'dismissed') {
+            auditDesc += ' No credit deduction.';
         }
         if (notes) auditDesc += ` Notes: ${notes}`;
 

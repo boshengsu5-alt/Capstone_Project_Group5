@@ -1,32 +1,30 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { getCurrentUser, getUserProfile } from '@/lib/auth';
-
-interface UserProfile {
-  id: string;
-  full_name?: string;
-  role: 'admin' | 'student' | string;
-  avatar_url?: string;
-  [key: string]: any;
-}
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import type { User } from '@supabase/supabase-js';
+import type { Profile } from '@/types/database';
+import { canManageAssets, canManageUsers, canViewAuditLogs, getCurrentUser, getUserProfile, hasDashboardAccess } from '@/lib/auth';
 
 interface AuthContextType {
-  user: any | null;
-  profile: UserProfile | null;
+  user: User | null;
+  profile: Profile | null;
   isLoading: boolean;
   isAdmin: boolean;
+  canAccessDashboard: boolean;
+  canManageAssets: boolean;
+  canViewAuditLogs: boolean;
+  canManageUsers: boolean;
   refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<any | null>(null);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const fetchAuthData = async () => {
+  const fetchAuthData = async (): Promise<void> => {
     try {
       setIsLoading(true);
       const currentUser = await getCurrentUser();
@@ -46,21 +44,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    fetchAuthData();
+    void fetchAuthData();
   }, []);
 
   const refreshProfile = async () => {
-    if (user) {
-      const userProfile = await getUserProfile(user.id);
-      setProfile(userProfile);
+    if (!user) {
+      setProfile(null);
+      return;
     }
+
+    const userProfile = await getUserProfile(user.id);
+    setProfile(userProfile);
   };
 
-  const value = {
+  const isAdmin = profile?.role === 'admin';
+  const value: AuthContextType = {
     user,
     profile,
     isLoading,
-    isAdmin: profile?.role === 'admin',
+    isAdmin,
+    canAccessDashboard: hasDashboardAccess(profile),
+    canManageAssets: canManageAssets(profile),
+    canViewAuditLogs: canViewAuditLogs(profile),
+    canManageUsers: canManageUsers(profile),
     refreshProfile,
   };
 
