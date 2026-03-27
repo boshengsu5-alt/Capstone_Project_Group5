@@ -19,17 +19,24 @@ export const signIn = async (email: string, password: string) => {
 export const signOut = async () => {
   // 清除 middleware 路由守卫 cookie
   document.cookie = 'unigear-admin=; path=/; max-age=0';
+  
+  // 彻底清除 local storage 中的 supabase.auth.token 等
+  if (typeof window !== 'undefined') {
+    localStorage.clear(); 
+    sessionStorage.clear();
+  }
+
   const { error } = await supabase.auth.signOut();
   return { error };
 };
 
 /**
- * Set the admin session cookie used by middleware for route guarding.
- * 设置 middleware 路由守卫用的 admin cookie（登录成功且确认为 admin 后调用）
+ * Set the session cookie used by middleware for route guarding.
+ * 设置 middleware 路由守卫用的 session cookie
  */
-export const setAdminCookie = () => {
-  // 有效期 7 天，与 Supabase 默认 refresh 周期对齐
-  document.cookie = 'unigear-admin=1; path=/; max-age=604800; SameSite=Lax';
+export const setSessionCookie = () => {
+  // 有效期 7 天
+  document.cookie = 'unigear-session=1; path=/; max-age=604800; SameSite=Lax';
 };
 
 /**
@@ -37,9 +44,41 @@ export const setAdminCookie = () => {
  * 这是一个异步函数，用于在各个组件里判断”我是谁”
  */
 export const getCurrentUser = async () => {
-  const { data: { user }, error } = await supabase.auth.getUser();
-  if (error) return null;
-  return user;
+  try {
+    const { data: { user }, error } = await supabase.auth.getUser();
+    if (error) {
+      console.error('getCurrentUser Error:', error.message);
+      // 如果是 Refresh Token 错误，返回 null 触发重定向
+      return null;
+    }
+    return user;
+  } catch (err) {
+    console.error('getCurrentUser Exception:', err);
+    return null;
+  }
+};
+
+/**
+ * 5. 获取用户档案 (GetUserProfile)
+ * 从 profiles 表获取完整的用户信息（含 role）
+ */
+export const getUserProfile = async (userId: string) => {
+  try {
+    const { data, error } = await (supabase as any)
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
+
+    if (error) {
+      console.error('getUserProfile error:', error.message);
+      return null;
+    }
+    return data;
+  } catch (err) {
+    console.error('getUserProfile exception:', err);
+    return null;
+  }
 };
 
 /**
@@ -47,17 +86,6 @@ export const getCurrentUser = async () => {
  * 基于 Day 2 的进阶要求：查询 profiles 表里的 role 字段是否为 'admin'
  */
 export const checkAdminRole = async (userId: string) => {
-  try {
-    // Supabase 泛型类型可能不完整，用 as any 绕过推断
-    const { data, error } = await (supabase as any)
-      .from('profiles')
-      .select('role')
-      .eq('id', userId)
-      .single();
-
-    if (error || !data) return false;
-    return data.role === 'admin';
-  } catch (err) {
-    return false;
-  }
+  const profile = await getUserProfile(userId);
+  return profile?.role === 'admin';
 };

@@ -22,9 +22,22 @@ type AssetWithCategory = Asset & {
   categories?: Pick<Category, 'id' | 'name'> | null;
 };
 
+import { useAuth } from '@/components/providers/AuthContext';
+import { useRouter } from 'next/navigation';
+
 export default function AssetsPage() {
   const { t } = useLanguage();
   const { showToast } = useToast();
+  const { isAdmin, isLoading: authLoading } = useAuth();
+  const router = useRouter();
+
+  // Guard: Only admins can access this page
+  useEffect(() => {
+    if (!authLoading && !isAdmin) {
+      router.replace('/dashboard/access-denied');
+    }
+  }, [isAdmin, authLoading, router]);
+
   const [assets, setAssets] = useState<AssetWithCategory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -121,33 +134,63 @@ export default function AssetsPage() {
     }
   };
 
-  const handleExport = () => {
+  const handleExport = async () => {
     if (filteredAssets.length === 0) {
       showToast('No data to export', 'info');
       return;
     }
 
     const statusMap: Record<string, string> = {
-      available: 'Available',
-      borrowed: 'Borrowed',
-      maintenance: 'Maintenance',
-      retired: 'Retired',
+      available: '可借用 (Available)',
+      borrowed: '借出中 (Borrowed)',
+      maintenance: '维修中 (Maintenance)',
+      retired: '已报废/退役 (Retired)',
+    };
+
+    const conditionMap: Record<string, string> = {
+      new: '全新 (New)',
+      good: '良好 (Good)',
+      fair: '一般 (Fair)',
+      poor: '较差 (Poor)',
+      damaged: '损坏 (Damaged)',
+    };
+
+    const warrantyMap: Record<string, string> = {
+      none: '无 (None)',
+      active: '在保 (Active)',
+      expired: '已过期 (Expired)',
     };
 
     const exportData = filteredAssets.map((asset: AssetWithCategory) => ({
-      'Name': asset.name,
-      'Category': asset.categories?.name || 'Uncategorized',
-      'Status': statusMap[asset.status] || asset.status,
-      'Serial Number': asset.serial_number || 'N/A',
-      'Location': asset.location || 'N/A',
-      'Purchase Date': asset.purchase_date ? new Date(asset.purchase_date).toLocaleDateString() : 'N/A',
+      '资产名称 (Name)': asset.name,
+      '资产分类 (Category)': asset.categories?.name || '未分类',
+      '当前状态 (Status)': statusMap[asset.status] || asset.status,
+      '品相状况 (Condition)': conditionMap[asset.condition] || asset.condition,
+      '序列号 (S/N)': asset.serial_number || 'N/A',
+      '二维码 ID (QR)': asset.qr_code || 'N/A',
+      '采购价格 (Price)': asset.purchase_price ? `¥${Number(asset.purchase_price).toFixed(2)}` : '¥0.00',
+      '存放位置 (Location)': asset.location || 'N/A',
+      '采购日期 (Purchase Date)': asset.purchase_date ? new Date(asset.purchase_date).toLocaleDateString() : 'N/A',
+      '保修状态 (Warranty)': warrantyMap[asset.warranty_status] || asset.warranty_status,
+      '保修到期 (Warranty Expiry)': asset.warranty_expiry ? new Date(asset.warranty_expiry).toLocaleDateString() : 'N/A',
+      '详细描述 (Description)': asset.description || '无',
+      '录入时间 (Created At)': new Date(asset.created_at).toLocaleString(),
     }));
 
+    // Define column widths for Excel
+    const columnWidths = [25, 15, 20, 15, 20, 20, 15, 20, 15, 15, 15, 30, 25];
+
     try {
-      exportToExcel(exportData, `Assets_Report_${new Date().toISOString().split('T')[0]}`, 'Assets');
-      showToast('Report exported successfully', 'success');
+      await exportToExcel(
+        exportData, 
+        `UniGear_Assets_Report_${new Date().toISOString().split('T')[0]}`, 
+        'Asset List',
+        columnWidths
+      );
+      showToast('Asset report downloaded successfully!', 'success');
     } catch (error) {
-      showToast('Export failed', 'error');
+      console.error('Export error:', error);
+      showToast('Export failed. Please try again.', 'error');
     }
   };
 

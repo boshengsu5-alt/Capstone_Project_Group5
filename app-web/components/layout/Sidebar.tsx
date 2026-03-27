@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import { LayoutDashboard, Package, ClipboardList, RotateCcw, AlertTriangle, ScrollText, Users, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useLanguage } from '@/components/providers/LanguageProvider';
+import { useAuth } from '@/components/providers/AuthContext';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -15,15 +16,20 @@ interface SidebarProps {
 const Sidebar: FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
   const pathname = usePathname();
   const { t } = useLanguage();
+  const { isAdmin } = useAuth();
 
   const navigation = [
     { name: t('sidebar.dashboard'), href: '/dashboard', icon: LayoutDashboard },
-    { name: t('sidebar.assets'), href: '/dashboard/assets', icon: Package },
+    ...(isAdmin ? [
+      { name: t('sidebar.assets'), href: '/dashboard/assets', icon: Package },
+    ] : []),
     { name: t('sidebar.bookings'), href: '/dashboard/bookings', icon: ClipboardList },
     { name: t('sidebar.returns'), href: '/dashboard/returns', icon: RotateCcw },
     { name: t('sidebar.damage'), href: '/dashboard/damage', icon: AlertTriangle },
-    { name: t('sidebar.audit'), href: '/dashboard/audit-logs', icon: ScrollText },
-    { name: t('sidebar.users'), href: '/dashboard/users', icon: Users },
+    ...(isAdmin ? [
+      { name: t('sidebar.audit'), href: '/dashboard/audit-logs', icon: ScrollText },
+      { name: t('sidebar.users'), href: '/dashboard/users', icon: Users },
+    ] : []),
   ];
 
   return (

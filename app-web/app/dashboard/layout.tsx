@@ -6,47 +6,22 @@ import Sidebar from '@/components/layout/Sidebar';
 import Navbar from '@/components/layout/Navbar';
 import { ToastProvider } from '@/components/ui/Toast';
 import { LanguageProvider } from '@/components/providers/LanguageProvider';
-import { getCurrentUser, checkAdminRole, setAdminCookie, signOut } from '@/lib/auth';
+import { AuthProvider, useAuth } from '@/components/providers/AuthContext';
+import { signOut, setSessionCookie } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+function DashboardContent({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const { profile, isLoading } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [authChecked, setAuthChecked] = useState(false);
 
   useEffect(() => {
-    async function verifyAccess() {
-      try {
-        const user = await getCurrentUser();
-        if (!user) {
-          router.replace('/login');
-          return;
-        }
-        const isAdmin = await checkAdminRole(user.id);
-        if (!isAdmin) {
-          // If not admin, sign out and redirect
-          await signOut();
-          router.replace('/login');
-          return;
-        }
-        // Refresh middleware cookie
-        setAdminCookie();
-        setAuthChecked(true);
-      } catch {
-        router.replace('/login');
-      }
-    }
-    verifyAccess();
-
     // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_OUT' || (event === 'TOKEN_REFRESHED' && !session)) {
-        // Clear cookie manually if needed
-        document.cookie = 'unigear-admin=; path=/; max-age=0';
+        console.warn('Auth state change detected issue:', event);
+        document.cookie = 'unigear-session=; path=/; max-age=0';
+        if (typeof window !== 'undefined') localStorage.clear();
         router.replace('/login');
       }
     });
@@ -56,15 +31,28 @@ export default function DashboardLayout({
     };
   }, [router]);
 
-  if (!authChecked) {
+  // 更新 session cookie (防止 midddleware 拦截)
+  useEffect(() => {
+    if (profile) {
+      setSessionCookie();
+    }
+  }, [profile]);
+
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-          <p className="text-gray-500 text-sm">Verifying access...</p>
+          <p className="text-gray-500 text-sm font-medium">Verifying access...</p>
         </div>
       </div>
     );
+  }
+
+  // 如果加载完成后仍没有 profile，说明未登录
+  if (!profile) {
+    router.replace('/login');
+    return null;
   }
 
   return (
@@ -82,5 +70,17 @@ export default function DashboardLayout({
         </div>
       </ToastProvider>
     </LanguageProvider>
+  );
+}
+
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <AuthProvider>
+      <DashboardContent>{children}</DashboardContent>
+    </AuthProvider>
   );
 }

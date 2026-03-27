@@ -1,9 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Package, Tag, Hash, DollarSign, MapPin, AlignLeft, ShieldCheck, Asterisk, Upload, X, Loader2, Activity, Thermometer } from 'lucide-react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Package, Tag, Hash, DollarSign, MapPin, AlignLeft, ShieldCheck, Asterisk, Upload, X, Loader2, Activity, Thermometer, Layers, AlertCircle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/components/ui/Toast';
 import { createAsset, updateAsset } from '@/lib/assetService';
-import { Asset } from '@/types/database';
+import { getCategories } from '@/lib/categoryService';
+import { Asset, Category } from '@/types/database';
+import { assetSchema, AssetFormData } from '@/lib/validations/asset';
+import { cn } from '@/lib/utils';
 
 interface AssetFormProps {
   onCancel: () => void;
@@ -14,38 +19,50 @@ interface AssetFormProps {
 export default function AssetForm({ onCancel, onSuccess, asset }: AssetFormProps) {
   const isEditMode = !!asset;
   const { showToast } = useToast();
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [images, setImages] = useState<string[]>(asset?.images ?? []);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
 
-  useEffect(() => {
-    (supabase as any)
-      .from('categories')
-      .select('id, name')
-      .order('name')
-      .then(({ data }: { data: { id: string; name: string }[] | null }) => {
-        if (data) setCategories(data);
-      });
-  }, []);
-
-  const [formData, setFormData] = useState({
-    name: asset?.name || '',
-    category_id: asset?.category_id || '',
-    serial_number: asset?.serial_number || '',
-    purchase_price: asset?.purchase_price?.toString() || '',
-    location: asset?.location || '',
-    description: asset?.description || '',
-    condition: asset?.condition || 'good',
-    status: asset?.status || 'available',
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    watch,
+    formState: { errors, isSubmitting },
+  } = useForm<AssetFormData>({
+    resolver: zodResolver(assetSchema) as any,
+    defaultValues: {
+      name: asset?.name || '',
+      category_id: asset?.category_id || '',
+      serial_number: asset?.serial_number || '',
+      purchase_price: asset?.purchase_price || 0,
+      location: asset?.location || '',
+      description: asset?.description || '',
+      condition: asset?.condition || 'good',
+      status: asset?.status || 'available',
+      quantity: 1,
+    },
   });
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
+  const categoryIdValue = watch('category_id');
+
+  const [isFetchingCategories, setIsFetchingCategories] = useState(false);
+
+  useEffect(() => {
+    async function loadCategories() {
+      try {
+        setIsFetchingCategories(true);
+        const data = await getCategories();
+        setCategories(data);
+      } catch (err) {
+        console.error('Failed to load categories', err);
+      } finally {
+        setIsFetchingCategories(false);
+      }
+    }
+    loadCategories();
+  }, []);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -57,7 +74,6 @@ export default function AssetForm({ onCancel, onSuccess, asset }: AssetFormProps
   const uploadImages = async (files: File[]) => {
     try {
       setIsUploading(true);
-      setError(null);
 
       const uploadPromises = files.map(async (file) => {
         const fileExt = file.name.split('.').pop();
@@ -82,7 +98,6 @@ export default function AssetForm({ onCancel, onSuccess, asset }: AssetFormProps
     } catch (err: any) {
       console.error('Upload error:', err);
       const msg = 'Failed to upload images. Please check your network connection.';
-      setError(msg);
       showToast(msg, 'error');
     } finally {
       setIsUploading(false);
@@ -94,42 +109,75 @@ export default function AssetForm({ onCancel, onSuccess, asset }: AssetFormProps
     setImages((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-
-    if (!formData.name.trim()) {
-      showToast('Asset name is required.', 'warning');
-      setError('Asset name cannot be empty.');
-      return;
-    }
-
+  const onSubmit = async (data: AssetFormData) => {
     try {
-      setIsSubmitting(true);
-      
-      const payload = {
-        ...formData,
-        purchase_price: formData.purchase_price ? parseFloat(formData.purchase_price) : 0,
-        images: images || []
-      };
-
       if (isEditMode && asset) {
-        await updateAsset(asset.id, payload);
+        const payload = {
+          ...data,
+          serial_number: data.serial_number || undefined,
+          location: data.location || undefined,
+          description: data.description || undefined,
+          images: images || []
+        };
+        await updateAsset(asset.id, payload as any);
         showToast('Asset updated successfully!', 'success');
       } else {
-        await createAsset(payload);
-        showToast('Asset registered successfully!', 'success');
+        const quantity = data.quantity || 1;
+        
+        if (quantity > 1) {
+          // Batch create
+          const promises = [];
+          for (let i = 1; i <= quantity; i++) {
+            const payload = {
+              ...data,
+              name: `${data.name} #${i}`,
+              serial_number: data.serial_number || undefined,
+              location: data.location || undefined,
+              description: data.description || undefined,
+              images: images || []
+            };
+            promises.push(createAsset(payload as any));
+          }
+          await Promise.all(promises);
+          showToast(`Successfully registered ${quantity} assets!`, 'success');
+        } else {
+          // Single create
+          const payload = {
+            ...data,
+            serial_number: data.serial_number || undefined,
+            location: data.location || undefined,
+            description: data.description || undefined,
+            images: images || []
+          };
+          await createAsset(payload as any);
+          showToast('Asset registered successfully!', 'success');
+        }
       }
       onSuccess();
     } catch (err: any) {
       console.error('Asset form error:', err);
       const msg = err.message || 'An error occurred while saving the asset.';
-      setError(msg);
       showToast(msg, 'error');
-    } finally {
-      setIsSubmitting(false);
     }
   };
+
+  // Helper to render error message with fade-in
+  const ErrorMessage = ({ error }: { error?: { message?: string } }) => {
+    return (
+      <div className="h-6 overflow-hidden">
+        {error?.message && (
+          <p className="mt-1 text-xs text-rose-500 font-medium animate-fade-in flex items-center gap-1">
+            <AlertCircle className="w-3.5 h-3.5" />
+            {error.message}
+          </p>
+        )}
+      </div>
+    );
+  };
+  
+  const AlertCircle = ({ className }: { className?: string }) => (
+    <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
+  );
 
   return (
     <div className="bg-white/90 dark:bg-gray-900/90 backdrop-blur-2xl shadow-2xl ring-1 ring-gray-900/10 sm:rounded-3xl border border-white/20 dark:border-gray-800/50 overflow-hidden transition-all duration-300">
@@ -145,30 +193,54 @@ export default function AssetForm({ onCancel, onSuccess, asset }: AssetFormProps
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="relative z-10">
+      <form onSubmit={handleSubmit(onSubmit)} className="relative z-10">
         <div className="px-8 py-10 sm:px-12 sm:py-12">
-          <div className="grid max-w-3xl grid-cols-1 gap-x-10 gap-y-10 sm:grid-cols-6 mx-auto">
+          <div className="grid max-w-3xl grid-cols-1 gap-x-10 gap-y-6 sm:grid-cols-6 mx-auto">
             
             {/* Asset Name */}
-            <div className="sm:col-span-6">
+            <div className="sm:col-span-4">
               <label htmlFor="name" className="flex items-center text-sm font-semibold leading-6 text-gray-900 dark:text-gray-100">
                 Asset Name <Asterisk className="w-3 h-3 text-rose-500 ml-1" />
               </label>
-              <div className="mt-2.5 relative rounded-xl shadow-sm">
+              <div className="mt-2 relative rounded-xl shadow-sm">
                 <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
                   <Package className="h-5 w-5 text-gray-400 dark:text-gray-500" />
                 </div>
                 <input
                   type="text"
-                  name="name"
                   id="name"
-                  required
-                  value={formData.name}
-                  onChange={handleInputChange}
-                  className="block w-full rounded-xl border-0 py-3.5 pl-12 pr-4 text-gray-900 dark:text-white ring-1 ring-inset ring-gray-300 dark:ring-gray-700 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 bg-white/50 dark:bg-black/50 backdrop-blur-sm transition-all shadow-sm"
+                  {...register('name')}
+                  className={cn(
+                    "block w-full rounded-xl border-0 py-3.5 pl-12 pr-4 text-gray-900 dark:text-white ring-1 ring-inset placeholder:text-gray-400 focus:ring-2 focus:ring-inset sm:text-sm sm:leading-6 bg-white/50 dark:bg-black/50 backdrop-blur-sm transition-all shadow-sm",
+                    errors.name ? "ring-rose-500 focus:ring-rose-500" : "ring-gray-300 dark:ring-gray-700 focus:ring-indigo-600"
+                  )}
                   placeholder="e.g. Dell XPS 15 9530"
                 />
               </div>
+              <ErrorMessage error={errors.name} />
+            </div>
+
+            {/* Quantity - Only for non-edit mode */}
+            <div className={cn("sm:col-span-2", isEditMode && "hidden")}>
+              <label htmlFor="quantity" className="flex items-center text-sm font-semibold leading-6 text-gray-900 dark:text-gray-100">
+                Quantity <Asterisk className="w-3 h-3 text-rose-500 ml-1" />
+              </label>
+              <div className="mt-2 relative rounded-xl shadow-sm">
+                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
+                  <Layers className="h-5 w-5 text-gray-400 dark:text-gray-500" />
+                </div>
+                <input
+                  type="number"
+                  id="quantity"
+                  {...register('quantity')}
+                  className={cn(
+                    "block w-full rounded-xl border-0 py-3.5 pl-12 pr-4 text-gray-900 dark:text-white ring-1 ring-inset placeholder:text-gray-400 focus:ring-2 focus:ring-inset sm:text-sm sm:leading-6 bg-white/50 dark:bg-black/50 backdrop-blur-sm transition-all shadow-sm",
+                    errors.quantity ? "ring-rose-500 focus:ring-rose-500" : "ring-gray-300 dark:ring-gray-700 focus:ring-indigo-600"
+                  )}
+                  placeholder="1"
+                />
+              </div>
+              <ErrorMessage error={errors.quantity} />
             </div>
 
             {/* Image Upload Area */}
@@ -226,23 +298,34 @@ export default function AssetForm({ onCancel, onSuccess, asset }: AssetFormProps
               <label htmlFor="category_id" className="block text-sm font-semibold leading-6 text-gray-900 dark:text-gray-100">
                 Category
               </label>
-              <div className="mt-2.5 relative rounded-xl shadow-sm">
+              <div className="mt-2 relative rounded-xl shadow-sm">
                 <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
                   <Tag className="h-5 w-5 text-gray-400 dark:text-gray-500" />
                 </div>
                 <select
-                  name="category_id"
                   id="category_id"
-                  value={formData.category_id}
-                  onChange={handleInputChange}
-                  className="block w-full rounded-xl border-0 py-3.5 pl-12 pr-4 text-gray-900 dark:text-white ring-1 ring-inset ring-gray-300 dark:ring-gray-700 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 bg-white/50 dark:bg-black/50 backdrop-blur-sm transition-all shadow-sm appearance-none"
+                  {...register('category_id')}
+                  disabled={isFetchingCategories}
+                  className={cn(
+                    "block w-full rounded-xl border-0 py-3.5 pl-12 pr-10 text-gray-900 dark:text-white ring-1 ring-inset focus:ring-2 focus:ring-inset sm:text-sm sm:leading-6 bg-white/50 dark:bg-black/50 backdrop-blur-sm transition-all shadow-sm appearance-none cursor-pointer",
+                    errors.category_id ? "ring-rose-500 focus:ring-rose-500" : "ring-gray-300 dark:ring-gray-700 focus:ring-indigo-600"
+                  )}
                 >
-                  <option value="">-- Select category --</option>
-                  {categories.map(cat => (
-                    <option key={cat.id} value={cat.id}>{cat.name}</option>
-                  ))}
+                  <option value="">Select a category...</option>
+                  {isFetchingCategories ? (
+                    <option disabled>Loading categories...</option>
+                  ) : categories.length === 0 ? (
+                    <option disabled value="">No categories available</option>
+                  ) : (
+                    categories.map((cat: any) => (
+                      <option key={cat.id} value={cat.id}>
+                        {cat.name} {cat.name_zh ? `(${cat.name_zh})` : ''}
+                      </option>
+                    ))
+                  )}
                 </select>
               </div>
+              <ErrorMessage error={errors.category_id} />
             </div>
 
             {/* Serial Number */}
@@ -250,20 +333,19 @@ export default function AssetForm({ onCancel, onSuccess, asset }: AssetFormProps
               <label htmlFor="serial_number" className="block text-sm font-semibold leading-6 text-gray-900 dark:text-gray-100">
                 Serial Number
               </label>
-              <div className="mt-2.5 relative rounded-xl shadow-sm">
+              <div className="mt-2 relative rounded-xl shadow-sm">
                 <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
                   <Hash className="h-5 w-5 text-gray-400 dark:text-gray-500" />
                 </div>
                 <input
                   type="text"
-                  name="serial_number"
                   id="serial_number"
-                  value={formData.serial_number}
-                  onChange={handleInputChange}
+                  {...register('serial_number')}
                   className="block w-full rounded-xl border-0 py-3.5 pl-12 pr-4 text-gray-900 dark:text-white ring-1 ring-inset ring-gray-300 dark:ring-gray-700 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 bg-white/50 dark:bg-black/50 backdrop-blur-sm transition-all shadow-sm uppercase font-mono"
                   placeholder="SN-XXXX-YYYY"
                 />
               </div>
+              <ErrorMessage error={errors.serial_number} />
             </div>
 
             {/* Purchase Price */}
@@ -271,22 +353,20 @@ export default function AssetForm({ onCancel, onSuccess, asset }: AssetFormProps
               <label htmlFor="purchase_price" className="block text-sm font-semibold leading-6 text-gray-900 dark:text-gray-100">
                 Purchase Price
               </label>
-              <div className="mt-2.5 relative rounded-xl shadow-sm">
+              <div className="mt-2 relative rounded-xl shadow-sm">
                 <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
                   <DollarSign className="h-5 w-5 text-gray-400 dark:text-gray-500" />
                 </div>
                 <input
                   type="number"
-                  name="purchase_price"
                   id="purchase_price"
                   step="0.01"
-                  min="0"
-                  value={formData.purchase_price}
-                  onChange={handleInputChange}
+                  {...register('purchase_price')}
                   className="block w-full rounded-xl border-0 py-3.5 pl-12 pr-4 text-gray-900 dark:text-white ring-1 ring-inset ring-gray-300 dark:ring-gray-700 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 bg-white/50 dark:bg-black/50 backdrop-blur-sm transition-all shadow-sm"
                   placeholder="0.00"
                 />
               </div>
+              <ErrorMessage error={errors.purchase_price} />
             </div>
 
             {/* Location */}
@@ -294,37 +374,34 @@ export default function AssetForm({ onCancel, onSuccess, asset }: AssetFormProps
               <label htmlFor="location" className="block text-sm font-semibold leading-6 text-gray-900 dark:text-gray-100">
                 Storage Location
               </label>
-              <div className="mt-2.5 relative rounded-xl shadow-sm">
+              <div className="mt-2 relative rounded-xl shadow-sm">
                 <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
                   <MapPin className="h-5 w-5 text-gray-400 dark:text-gray-500" />
                 </div>
                 <input
                   type="text"
-                  name="location"
                   id="location"
-                  value={formData.location}
-                  onChange={handleInputChange}
+                  {...register('location')}
                   className="block w-full rounded-xl border-0 py-3.5 pl-12 pr-4 text-gray-900 dark:text-white ring-1 ring-inset ring-gray-300 dark:ring-gray-700 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 bg-white/50 dark:bg-black/50 backdrop-blur-sm transition-all shadow-sm"
                   placeholder="e.g. IT Department"
                 />
               </div>
+              <ErrorMessage error={errors.location} />
             </div>
 
-            {/* Condition — only shown in edit mode, new assets default to 'good' (编辑模式才显示设备状况选择) */}
+            {/* Condition — only shown in edit mode */}
             {isEditMode && (
               <div className="sm:col-span-3">
                 <label htmlFor="condition" className="block text-sm font-semibold leading-6 text-gray-900 dark:text-gray-100">
                   Condition
                 </label>
-                <div className="mt-2.5 relative rounded-xl shadow-sm">
+                <div className="mt-2 relative rounded-xl shadow-sm">
                   <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
                     <Thermometer className="h-5 w-5 text-gray-400 dark:text-gray-500" />
                   </div>
                   <select
-                    name="condition"
                     id="condition"
-                    value={formData.condition}
-                    onChange={handleInputChange}
+                    {...register('condition')}
                     className="block w-full rounded-xl border-0 py-3.5 pl-12 pr-4 text-gray-900 dark:text-white ring-1 ring-inset ring-gray-300 dark:ring-gray-700 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 bg-white/50 dark:bg-black/50 backdrop-blur-sm transition-all shadow-sm appearance-none"
                   >
                     <option value="new">New (全新)</option>
@@ -334,24 +411,23 @@ export default function AssetForm({ onCancel, onSuccess, asset }: AssetFormProps
                     <option value="damaged">Damaged (损坏)</option>
                   </select>
                 </div>
+                <ErrorMessage error={errors.condition} />
               </div>
             )}
 
-            {/* Status — only shown in edit mode, new assets default to 'available' (编辑模式才显示上架状态选择) */}
+            {/* Status — only shown in edit mode */}
             {isEditMode && (
               <div className="sm:col-span-3">
                 <label htmlFor="status" className="block text-sm font-semibold leading-6 text-gray-900 dark:text-gray-100">
                   Status
                 </label>
-                <div className="mt-2.5 relative rounded-xl shadow-sm">
+                <div className="mt-2 relative rounded-xl shadow-sm">
                   <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
                     <Activity className="h-5 w-5 text-gray-400 dark:text-gray-500" />
                   </div>
                   <select
-                    name="status"
                     id="status"
-                    value={formData.status}
-                    onChange={handleInputChange}
+                    {...register('status')}
                     className="block w-full rounded-xl border-0 py-3.5 pl-12 pr-4 text-gray-900 dark:text-white ring-1 ring-inset ring-gray-300 dark:ring-gray-700 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 bg-white/50 dark:bg-black/50 backdrop-blur-sm transition-all shadow-sm appearance-none"
                   >
                     <option value="available">Available (可借用)</option>
@@ -359,6 +435,7 @@ export default function AssetForm({ onCancel, onSuccess, asset }: AssetFormProps
                     <option value="retired">Retired (已退役)</option>
                   </select>
                 </div>
+                <ErrorMessage error={errors.status} />
               </div>
             )}
 
@@ -367,33 +444,23 @@ export default function AssetForm({ onCancel, onSuccess, asset }: AssetFormProps
               <label htmlFor="description" className="block text-sm font-semibold leading-6 text-gray-900 dark:text-gray-100">
                 Description & Notes
               </label>
-              <div className="mt-2.5 relative rounded-xl shadow-sm">
+              <div className="mt-2 relative rounded-xl shadow-sm">
                 <div className="pointer-events-none absolute top-4 left-0 flex items-start pl-4">
                   <AlignLeft className="h-5 w-5 text-gray-400 dark:text-gray-500" />
                 </div>
                 <textarea
                   id="description"
-                  name="description"
                   rows={4}
-                  value={formData.description}
-                  onChange={handleInputChange}
+                  {...register('description')}
                   className="block w-full rounded-xl border-0 py-3.5 pl-12 pr-4 text-gray-900 dark:text-white ring-1 ring-inset ring-gray-300 dark:ring-gray-700 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 bg-white/50 dark:bg-black/50 backdrop-blur-sm transition-all shadow-sm resize-none"
                   placeholder="Additional specs, condition details, or notes..."
                 />
               </div>
+              <ErrorMessage error={errors.description} />
             </div>
 
           </div>
         </div>
-
-        {error && (
-          <div className="px-8 py-4 mx-8 sm:mx-12 mb-8 rounded-xl bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-300 dark:border-yellow-700 shadow-sm animate-bounce">
-            <p className="text-sm font-bold text-yellow-800 dark:text-yellow-300 flex items-center">
-              <span className="mr-2.5 flex-shrink-0 bg-yellow-200 dark:bg-yellow-800 rounded-full p-1 text-base">⚠️</span>
-              {error}
-            </p>
-          </div>
-        )}
 
         <div className="flex items-center justify-end gap-x-6 border-t border-gray-200/60 dark:border-gray-800 bg-gray-50/30 dark:bg-gray-900/30 px-8 py-6 sm:px-12 backdrop-blur-md">
           <button

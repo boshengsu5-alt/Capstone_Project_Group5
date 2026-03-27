@@ -7,10 +7,23 @@ import type { AuditLogWithMeta } from '@/lib/auditService';
 import { useToast } from '@/components/ui/Toast';
 import { ScrollText, RefreshCw } from 'lucide-react';
 
+import { useAuth } from '@/components/providers/AuthContext';
+import { useRouter } from 'next/navigation';
+
 export default function AuditLogsPage() {
-    const { showToast } = useToast();
-    const [logs, setLogs] = useState<AuditLogWithMeta[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+  const { showToast } = useToast();
+  const { isAdmin, isLoading: authLoading } = useAuth();
+  const router = useRouter();
+
+  // Guard: Only admins can access this page
+  useEffect(() => {
+    if (!authLoading && !isAdmin) {
+      router.replace('/dashboard/access-denied');
+    }
+  }, [isAdmin, authLoading, router]);
+
+  const [logs, setLogs] = useState<AuditLogWithMeta[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
     const loadLogs = async () => {
         setIsLoading(true);
