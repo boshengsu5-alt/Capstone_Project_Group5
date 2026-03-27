@@ -46,6 +46,7 @@ function getDepreciationLabel(purchaseDate: string | null): string {
  * 估算赔偿金额 = purchase_price × 折旧比例 × 损坏系数
  */
 function estimateCompensation(report: DamageReportWithDetails): number | null {
+    if (report.status === 'dismissed') return 0;
     const price = report.assets?.purchase_price;
     if (price == null) return null;
     const depreciation = getDepreciationRatio(report.assets?.purchase_date ?? null);
@@ -184,51 +185,55 @@ function UpdateModal({ report, onSave, onClose }: UpdateModalProps) {
                     </span>
                 </div>
 
-                {/* Severity 调整（联动赔偿和信用分） */}
-                <div className="mx-6 mb-4">
-                    <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-                        Final Severity — admin may adjust
-                    </label>
-                    <div className="grid grid-cols-3 gap-2">
-                        {(['minor', 'moderate', 'severe'] as const).map((s) => {
-                            const comp = price != null
-                                ? Math.round(price * depRatio * (DAMAGE_COEFFICIENT[s] ?? 0.5))
-                                : null;
-                            const active = severity === s;
-                            const colors = {
-                                minor:    active ? 'border-yellow-500 bg-yellow-500/10 text-yellow-300' : 'border-white/10 text-gray-400 hover:border-yellow-500/40',
-                                moderate: active ? 'border-orange-500 bg-orange-500/10 text-orange-300' : 'border-white/10 text-gray-400 hover:border-orange-500/40',
-                                severe:   active ? 'border-red-500    bg-red-500/10    text-red-300'    : 'border-white/10 text-gray-400 hover:border-red-500/40',
-                            };
-                            return (
-                                <button
-                                    key={s}
-                                    onClick={() => { setSeverity(s); setConfirming(false); }}
-                                    className={`rounded-xl border px-3 py-2.5 text-center text-xs font-semibold transition-all ${colors[s]}`}
-                                >
-                                    <div className="capitalize mb-1">{s}</div>
-                                    <div className="text-[10px] opacity-70">
-                                        {comp != null ? `¥${comp.toLocaleString()}` : '—'} · {Math.abs(CREDIT_DEDUCTION[s] ?? 5)}pt
-                                    </div>
-                                </button>
-                            );
-                        })}
-                    </div>
-                </div>
+                {/* Severity 调整（仅在标记为 Resolved 时显示） */}
+                {isResolvePath && (
+                    <>
+                        <div className="mx-6 mb-4">
+                            <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+                                Final Severity — admin may adjust
+                            </label>
+                            <div className="grid grid-cols-3 gap-2">
+                                {(['minor', 'moderate', 'severe'] as const).map((s) => {
+                                    const comp = price != null
+                                        ? Math.round(price * depRatio * (DAMAGE_COEFFICIENT[s] ?? 0.5))
+                                        : null;
+                                    const active = severity === s;
+                                    const colors = {
+                                        minor:    active ? 'border-yellow-500 bg-yellow-500/10 text-yellow-300' : 'border-white/10 text-gray-400 hover:border-yellow-500/40',
+                                        moderate: active ? 'border-orange-500 bg-orange-500/10 text-orange-300' : 'border-white/10 text-gray-400 hover:border-orange-500/40',
+                                        severe:   active ? 'border-red-500    bg-red-500/10    text-red-300'    : 'border-white/10 text-gray-400 hover:border-red-500/40',
+                                    };
+                                    return (
+                                        <button
+                                            key={s}
+                                            onClick={() => { setSeverity(s); setConfirming(false); }}
+                                            className={`rounded-xl border px-3 py-2.5 text-center text-xs font-semibold transition-all ${colors[s]}`}
+                                        >
+                                            <div className="capitalize mb-1">{s}</div>
+                                            <div className="text-[10px] opacity-70">
+                                                {comp != null ? `¥${comp.toLocaleString()}` : '—'} · {Math.abs(CREDIT_DEDUCTION[s] ?? 5)}pt
+                                            </div>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
 
-                {/* 赔偿公式（完整展示） */}
-                {price != null && (
-                    <div className="mx-6 mb-4 rounded-xl border border-amber-500/15 bg-amber-500/5 px-4 py-3 space-y-1">
-                        <p className="text-xs font-semibold text-amber-400 uppercase tracking-wider mb-1.5">Compensation Estimate</p>
-                        <p className="text-xs text-gray-400">
-                            ¥{price.toLocaleString()} <span className="text-gray-600">（购入价）</span>
-                            × {depLabel} <span className="text-gray-600">（折旧率）</span>
-                            × {coef} <span className="text-gray-600">（{severity} 系数）</span>
-                        </p>
-                        <p className="text-sm font-bold text-amber-400">
-                            = ¥{compensation?.toLocaleString() ?? '—'}
-                        </p>
-                    </div>
+                        {/* 赔偿公式（仅在标记为 Resolved 时显示） */}
+                        {price != null && (
+                            <div className="mx-6 mb-4 rounded-xl border border-amber-500/15 bg-amber-500/5 px-4 py-3 space-y-1">
+                                <p className="text-xs font-semibold text-amber-400 uppercase tracking-wider mb-1.5">Compensation Estimate</p>
+                                <p className="text-xs text-gray-400">
+                                    ¥{price.toLocaleString()} <span className="text-gray-600">（购入价）</span>
+                                    × {depLabel} <span className="text-gray-600">（折旧率）</span>
+                                    × {coef} <span className="text-gray-600">（{severity} 系数）</span>
+                                </p>
+                                <p className="text-sm font-bold text-amber-400">
+                                    = ¥{compensation?.toLocaleString() ?? '—'}
+                                </p>
+                            </div>
+                        )}
+                    </>
                 )}
 
                 {/* 下一步状态选择 */}
