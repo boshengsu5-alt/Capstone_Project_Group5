@@ -3,6 +3,7 @@
 import React from 'react';
 import { CheckCircle, AlertTriangle, ImageIcon, Calendar, Clock, ExternalLink } from 'lucide-react';
 import { calcOverduePenalty } from '@/lib/bookingService';
+import { formatDateTime, formatDateTimeRange } from '@/lib/dateTime';
 import type { BookingWithDetails } from '@/lib/bookingService';
 
 interface ReturnVerifyProps {
@@ -44,12 +45,8 @@ export default function ReturnVerify({ booking, onVerify, onAcknowledgeWithDamag
         isOverdue = overdueDays > 0;
     }
 
-    const formatDate = (d: string | null) => d ? new Date(d).toLocaleDateString('en-CA') : '—';
-
-    // 检测学生是否已从手机端提交了损坏报告（open/investigating = 未处理完）
-    const pendingDamageReport = booking.damage_reports?.find(
-        r => r.status === 'open' || r.status === 'investigating'
-    ) ?? null;
+    // 只要学生已经提交过损坏报告，就不再允许管理员重复创建第二条
+    const existingDamageReport = booking.damage_reports?.[0] ?? null;
 
     const PhotoPlaceholder = ({ label }: { label: string }) => (
         <div className="w-full aspect-[4/3] bg-white/5 rounded-xl flex flex-col items-center justify-center border-2 border-dashed border-white/10">
@@ -89,7 +86,7 @@ export default function ReturnVerify({ booking, onVerify, onAcknowledgeWithDamag
                             <Calendar className="w-3.5 h-3.5 text-blue-400" />
                             <span>Booking Period:</span>
                             <span className="text-gray-200 font-medium">
-                                {formatDate(startDate)} → {formatDate(endDate)}
+                                {formatDateTimeRange(startDate, endDate)}
                             </span>
                             {borrowDays !== null && (
                                 <span className="text-xs text-gray-500">({borrowDays} days)</span>
@@ -100,7 +97,7 @@ export default function ReturnVerify({ booking, onVerify, onAcknowledgeWithDamag
                             <div className="flex items-center gap-1.5 text-gray-400">
                                 <Clock className="w-3.5 h-3.5 text-amber-400" />
                                 <span>Actual Return:</span>
-                                <span className="text-gray-200 font-medium">{formatDate(actualReturnDate)}</span>
+                                <span className="text-gray-200 font-medium">{formatDateTime(actualReturnDate)}</span>
                             </div>
                         )}
 
@@ -161,13 +158,13 @@ export default function ReturnVerify({ booking, onVerify, onAcknowledgeWithDamag
             </div>
 
             {/* Action buttons — 根据是否已有学生提交的损坏报告显示不同按钮 */}
-            {pendingDamageReport ? (
+            {existingDamageReport ? (
                 // 学生已提交损坏报告：提示管理员，提供确认归还 + 跳转查看报告
                 <div className="px-6 py-4 border-t border-white/5 bg-white/[0.02] space-y-3">
                     <div className="flex items-start gap-2.5 px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
                         <AlertTriangle className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />
                         <p className="text-sm text-amber-300 leading-snug">
-                            <span className="font-semibold">Student has already submitted a damage report.</span>
+                            <span className="font-semibold">A damage report already exists for this return.</span>
                             <span className="text-amber-400/80"> Please acknowledge the return and review the report on the Damage Reports page.</span>
                         </p>
                     </div>

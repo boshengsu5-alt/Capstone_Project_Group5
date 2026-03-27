@@ -1,10 +1,12 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import type { User as AuthUser } from '@supabase/supabase-js';
 import { Settings, ScrollText, LogOut, User, ChevronDown, Languages } from 'lucide-react';
 import { signOut } from '@/lib/auth';
 import { useLanguage } from '@/components/providers/LanguageProvider';
+import { useAuth } from '@/components/providers/AuthContext';
 import { supabase } from '@/lib/supabase';
 
 interface UserDropdownProps {
@@ -14,23 +16,28 @@ interface UserDropdownProps {
 export default function UserDropdown({ email }: UserDropdownProps) {
   const router = useRouter();
   const { locale, setLocale, t } = useLanguage();
+  const { canViewAuditLogs, profile } = useAuth();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   // Close on outside click
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
 
-  const fetchUser = async () => {
+  const fetchUser = async (): Promise<AuthUser | null> => {
     const { data: { user } } = await supabase.auth.getUser();
-    setUser(user);
+    return user;
   };
 
   useEffect(() => {
-    fetchUser();
+    void fetchUser().then((currentUser) => {
+      setUser(currentUser);
+    });
 
     const handleUpdate = () => {
-      fetchUser();
+      void fetchUser().then((currentUser) => {
+        setUser(currentUser);
+      });
     };
 
     window.addEventListener('avatar-updated', handleUpdate);
@@ -66,13 +73,13 @@ export default function UserDropdown({ email }: UserDropdownProps) {
       className: 'text-gray-100 hover:bg-purple-500/20',
       iconClassName: 'text-purple-400',
     },
-    {
+    ...(canViewAuditLogs ? [{
       label: t('settings.auditLogs'),
       icon: ScrollText,
       action: () => { setOpen(false); router.push('/dashboard/audit-logs'); },
       className: 'text-gray-100 hover:bg-purple-500/20',
       iconClassName: 'text-purple-400',
-    },
+    }] : []),
     {
       label: t('common.switchLang'),
       icon: Languages,
@@ -81,6 +88,7 @@ export default function UserDropdown({ email }: UserDropdownProps) {
       iconClassName: 'text-amber-400',
     },
   ];
+  const roleLabel = profile?.role === 'staff' ? 'Staff User' : 'Admin User';
 
   return (
     <div className="relative" ref={ref}>
@@ -111,7 +119,7 @@ export default function UserDropdown({ email }: UserDropdownProps) {
         {/* Two-line text */}
         <span className="hidden lg:flex lg:flex-col lg:items-start leading-tight">
           <span className="text-sm font-semibold text-white tracking-wide">
-            Admin User
+            {roleLabel}
           </span>
           <span className="text-xs text-purple-300 truncate max-w-[140px]">
             {email ?? 'admin@unigear.edu'}

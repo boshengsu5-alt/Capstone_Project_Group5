@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import HomeStackNavigator from './HomeStackNavigator';
 import BookingsStackNavigator from './BookingsStackNavigator';
-import ScanScreen from '../screens/scan/ScanScreen';
+import ScanStackNavigator from './ScanStackNavigator';
 import ProfileStackNavigator from './ProfileStackNavigator';
 import { useNotifications } from '../context/NotificationContext';
 import { useTranslation } from 'react-i18next';
@@ -40,7 +40,7 @@ export default function MainTabNavigator() {
     >
       <Tab.Screen name="HomeTab" component={HomeStackNavigator} options={{ title: t('tabs.home') }} />
       <Tab.Screen name="BookingsTab" component={BookingsStackNavigator} options={{ title: t('tabs.bookings') }} />
-      <Tab.Screen name="ScanTab" component={ScanScreen} options={{ title: t('tabs.scan') }} />
+      <Tab.Screen name="ScanTab" component={ScanStackNavigator} options={{ title: t('tabs.scan') }} />
       <Tab.Screen
         name="ProfileTab"
         component={ProfileStackNavigator}

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -10,21 +10,23 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { alertManager } from '../../utils/alertManager';
-import { useNavigation, NavigationProp, ParamListBase } from '@react-navigation/native';
+import { useNavigation, NavigationProp, ParamListBase, useFocusEffect } from '@react-navigation/native';
 import { getMyBookings, cancelBooking, getReviewByBookingId } from '../../services/bookingService';
 import { checkAndSendReturnReminders, checkSuspendedBookingsExpiring, checkExpiredPendingBookings } from '../../services/notificationService';
 import { supabase } from '../../services/supabase';
-import type { Booking, Asset, BookingStatus, Review } from '../../../../database/types/supabase';
+import type { Booking, Asset, BookingStatus } from '../../../../database/types/supabase';
 import SafeImage from '../../components/SafeImage';
 import ReviewModal from '../../components/ReviewModal';
 import ReviewCard, { ReviewWithMeta } from '../../components/ReviewCard';
 import { theme } from '../../theme';
 import { Ionicons } from '@expo/vector-icons';
 import { handleApiError } from '../../utils/errorHandler';
+import { formatDateTime } from '../../utils/dateTime';
 import { useTranslation } from 'react-i18next';
 
 type BookingWithAsset = Booking & {
   assets: Pick<Asset, 'name' | 'images'> | null;
+  damage_reports: Array<{ id: string; status: string }> | null;
 };
 
 const getStatusLabel = (status: BookingStatus, t: any) => {
@@ -69,7 +71,7 @@ export default function BookingHistoryScreen() {
   // 各 bookingId 对应的评价（已归还的借用）
   const [reviewsMap, setReviewsMap] = useState<Record<string, ReviewWithMeta | null>>({});
 
-  const fetchBookings = async (isRefreshing = false) => {
+  const fetchBookings = useCallback(async (isRefreshing = false) => {
     if (!isRefreshing) setLoading(true);
     try {
       // 先自动取消过期的 pending 预约，再拉数据，确保列表状态是最新的
@@ -100,15 +102,20 @@ export default function BookingHistoryScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [t]);
 
   useEffect(() => {
-    fetchBookings();
     // 静默检查快到期的借用并发提醒（fire-and-forget）
     checkAndSendReturnReminders().catch(() => {});
     // 检查距取货日 12h 内仍暂停的预约，发紧急通知并自动取消
     checkSuspendedBookingsExpiring().catch(() => {});
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchBookings();
+    }, [fetchBookings])
+  );
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -145,6 +152,13 @@ export default function BookingHistoryScreen() {
     // suspended 状态允许用户主动取消，不想等设备修好可直接放弃
     const canCancel = item.status === 'pending' || item.status === 'approved' || item.status === 'suspended';
     const isReturned = item.status === 'returned';
+    const ownDamageReport =
+      item.damage_reports?.find((report) => report.status === 'open' || report.status === 'investigating')
+      ?? item.damage_reports?.[0]
+      ?? null;
+    const hasDamageReport = (item.damage_reports?.length ?? 0) > 0;
+    const canEditDamage = canReturn && !!ownDamageReport && (ownDamageReport.status === 'open' || ownDamageReport.status === 'investigating');
+    const canCreateDamage = canReturn && !hasDamageReport;
     const existingReview = isReturned ? reviewsMap[item.id] : undefined;
     const hasReview = !!existingReview;
 
@@ -166,7 +180,10 @@ export default function BookingHistoryScreen() {
             <View style={styles.dateRow}>
               <Text style={styles.dateLabel}>{t('bookings.period')}</Text>
               <Text style={styles.dateRange}>
-                {item.start_date?.split('T')[0]} {t('bookings.to')} {item.end_date?.split('T')[0]}
+                {formatDateTime(item.start_date)}
+              </Text>
+              <Text style={styles.dateRangeSub}>
+                {t('bookings.to')} {formatDateTime(item.end_date)}
               </Text>
             </View>
           </View>
@@ -201,13 +218,24 @@ export default function BookingHistoryScreen() {
                   <Ionicons name="camera-outline" size={16} color={theme.colors.primary} />
                   <Text style={styles.actionText}>{t('bookings.photoReturn')}</Text>
                 </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.actionBtn, styles.actionBtnDanger]}
-                  onPress={() => navigation.navigate('DamageReport', { assetId: item.asset_id, bookingId: item.id })}
-                >
-                  <Ionicons name="warning-outline" size={16} color={theme.colors.danger} />
-                  <Text style={[styles.actionText, { color: theme.colors.danger }]}>{t('bookings.damageReport')}</Text>
-                </TouchableOpacity>
+                {canCreateDamage && (
+                  <TouchableOpacity
+                    style={[styles.actionBtn, styles.actionBtnDanger]}
+                    onPress={() => navigation.navigate('DamageReport', { assetId: item.asset_id, bookingId: item.id, mode: 'create' })}
+                  >
+                    <Ionicons name="warning-outline" size={16} color={theme.colors.danger} />
+                    <Text style={[styles.actionText, { color: theme.colors.danger }]}>{t('bookings.damageReport')}</Text>
+                  </TouchableOpacity>
+                )}
+                {canEditDamage && (
+                  <TouchableOpacity
+                    style={[styles.actionBtn, styles.actionBtnDanger]}
+                    onPress={() => navigation.navigate('DamageReport', { assetId: item.asset_id, bookingId: item.id, mode: 'edit' })}
+                  >
+                    <Ionicons name="create-outline" size={16} color={theme.colors.danger} />
+                    <Text style={[styles.actionText, { color: theme.colors.danger }]}>编辑报修</Text>
+                  </TouchableOpacity>
+                )}
               </>
             )}
             {canCancel && (
@@ -384,6 +412,13 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: theme.colors.text,
     fontWeight: '500',
+    lineHeight: 18,
+  },
+  dateRangeSub: {
+    fontSize: 12,
+    color: theme.colors.gray,
+    marginTop: 2,
+    lineHeight: 18,
   },
   // ---- 操作按钮 ----
   actionRow: {

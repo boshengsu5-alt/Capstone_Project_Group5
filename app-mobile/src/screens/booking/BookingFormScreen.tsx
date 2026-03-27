@@ -27,7 +27,15 @@ export default function BookingFormScreen({ route, navigation }: Props) {
       alertManager.alert('日期缺失', '请先在日历上选择借用起止日期');
       return;
     }
-    if (endDate < startDate) {
+
+    const startAt = new Date(startDate);
+    const endAt = new Date(endDate);
+    if (Number.isNaN(startAt.getTime()) || Number.isNaN(endAt.getTime())) {
+      alertManager.alert('日期错误', '所选日期无效，请重新选择');
+      return;
+    }
+
+    if (endAt.getTime() < startAt.getTime()) {
       alertManager.alert('日期错误', '结束日期不能早于开始日期');
       return;
     }

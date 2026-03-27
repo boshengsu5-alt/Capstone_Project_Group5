@@ -35,6 +35,9 @@ const TIME_SLOTS: string[] = Array.from({ length: 29 }, (_, i) => {
     return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 });
 
+const DEFAULT_START_TIME = '09:00';
+const DEFAULT_END_TIME = '18:00';
+
 /**
  * Compute the earliest selectable start time for today (rounded up to next half-hour).
  * 计算今天最早可选时间（当前时间向上取整到下一个半小时）
@@ -50,9 +53,15 @@ function getMinTimeForToday(): string {
     return `${String(nextH).padStart(2, '0')}:00`;
 }
 
+function getDefaultStartTime(dateString: string): string {
+    if (dateString !== format(new Date(), 'yyyy-MM-dd')) return DEFAULT_START_TIME;
+    const minTime = getMinTimeForToday();
+    return minTime > DEFAULT_START_TIME ? minTime : DEFAULT_START_TIME;
+}
+
 interface CalendarViewProps {
     assetId: string;
-    onDateChange?: (startDate: string, endDate: string) => void;
+    onDateChange?: (startDate: string | null, endDate: string | null) => void;
     /** 禁用日历交互（设备不可借用时传 true）*/
     disabled?: boolean;
 }
@@ -89,8 +98,8 @@ const CalendarView: React.FC<CalendarViewProps> = ({ assetId, onDateChange, disa
     }, [i18n.language]);
 
     // 时间选择状态
-    const [startTime, setStartTime] = useState<string>('09:00');
-    const [endTime, setEndTime] = useState<string>('18:00');
+    const [startTime, setStartTime] = useState<string>(DEFAULT_START_TIME);
+    const [endTime, setEndTime] = useState<string>(DEFAULT_END_TIME);
     // 当前打开的时间选择器目标：'start' | 'end' | null
     const [timePickerTarget, setTimePickerTarget] = useState<'start' | 'end' | null>(null);
 
@@ -100,13 +109,18 @@ const CalendarView: React.FC<CalendarViewProps> = ({ assetId, onDateChange, disa
 
     // 每当日期或时间变化时通知父组件
     useEffect(() => {
-        if (selectionStart && selectionEnd && onDateChange) {
+        if (!onDateChange) return;
+
+        if (selectionStart && selectionEnd) {
             onDateChange(
                 `${selectionStart}T${startTime}:00`,
                 `${selectionEnd}T${endTime}:00`,
             );
+            return;
         }
-    }, [selectionStart, selectionEnd, startTime, endTime]);
+
+        onDateChange(null, null);
+    }, [selectionStart, selectionEnd, startTime, endTime, onDateChange]);
 
     // 选中今天时，若默认取借时间已过期则自动修正到最近半小时槽
     useEffect(() => {
@@ -115,6 +129,22 @@ const CalendarView: React.FC<CalendarViewProps> = ({ assetId, onDateChange, disa
             if (startTime < minTime) setStartTime(minTime);
         }
     }, [selectionStart]);
+
+    const startNewSelection = (dateString: string) => {
+        setSelectionStart(dateString);
+        setSelectionEnd(null);
+        setStartTime(getDefaultStartTime(dateString));
+        setEndTime(DEFAULT_END_TIME);
+        setTimePickerTarget('start');
+    };
+
+    const clearSelection = () => {
+        setSelectionStart(null);
+        setSelectionEnd(null);
+        setStartTime(DEFAULT_START_TIME);
+        setEndTime(DEFAULT_END_TIME);
+        setTimePickerTarget(null);
+    };
 
     const fetchBookings = async () => {
         try {
@@ -159,18 +189,14 @@ const CalendarView: React.FC<CalendarViewProps> = ({ assetId, onDateChange, disa
 
         if (!selectionStart || (selectionStart && selectionEnd)) {
             // 第一次点击：设置开始日期，弹出取借时间选择
-            setSelectionStart(dateString);
-            setSelectionEnd(null);
-            setTimePickerTarget('start');
+            startNewSelection(dateString);
         } else {
             const start = parseISO(selectionStart);
             const end = parseISO(dateString);
 
             if (isBefore(end, start)) {
                 // 点的日期比开始日期早，重新设为开始日期并弹出取借时间
-                setSelectionStart(dateString);
-                setSelectionEnd(null);
-                setTimePickerTarget('start');
+                startNewSelection(dateString);
             } else {
                 let hasConflict = false;
                 let current = start;
@@ -183,9 +209,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ assetId, onDateChange, disa
                 }
                 if (hasConflict) {
                     // 范围内有冲突，重新设为开始日期并弹出取借时间
-                    setSelectionStart(dateString);
-                    setSelectionEnd(null);
-                    setTimePickerTarget('start');
+                    startNewSelection(dateString);
                 } else {
                     // 第二次点击：设置结束日期，弹出归还时间选择
                     setSelectionEnd(dateString);
@@ -251,6 +275,14 @@ const CalendarView: React.FC<CalendarViewProps> = ({ assetId, onDateChange, disa
     }
 
     const showTimePicker = selectionStart !== null && selectionEnd !== null;
+    const hasSelection = selectionStart !== null;
+    const isSingleDaySelection = selectionStart !== null && selectionEnd !== null && selectionStart === selectionEnd;
+    const timeSlotOptions =
+        timePickerTarget === 'start' && selectionStart === format(new Date(), 'yyyy-MM-dd')
+            ? TIME_SLOTS.filter(slot => slot >= getMinTimeForToday())
+            : timePickerTarget === 'end' && isSingleDaySelection
+                ? TIME_SLOTS.filter(slot => slot >= startTime)
+                : TIME_SLOTS;
 
     return (
         <View style={styles.container}>
@@ -274,6 +306,27 @@ const CalendarView: React.FC<CalendarViewProps> = ({ assetId, onDateChange, disa
                     textMonthFontWeight: 'bold',
                 }}
             />
+
+            {hasSelection && (
+                <View style={styles.selectionBar}>
+                    <View style={styles.selectionSummary}>
+                        <Text style={styles.selectionLabel}>
+                            {selectionEnd ? t('calendar.selectedRange') : t('calendar.selectionPending')}
+                        </Text>
+                        <Text style={styles.selectionValue}>
+                            {selectionEnd ? `${selectionStart} ~ ${selectionEnd}` : selectionStart}
+                        </Text>
+                    </View>
+
+                    <TouchableOpacity
+                        style={styles.clearButton}
+                        onPress={clearSelection}
+                        activeOpacity={0.7}
+                    >
+                        <Text style={styles.clearButtonText}>{t('calendar.clearSelection')}</Text>
+                    </TouchableOpacity>
+                </View>
+            )}
 
             {/* 时间选择区域：只有选完日期范围后才显示 */}
             {showTimePicker && (
@@ -330,12 +383,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ assetId, onDateChange, disa
                         {timePickerTarget === 'start' ? t('calendar.selectPickupTime') : t('calendar.selectReturnTime')}
                     </Text>
                     <FlatList
-                        data={
-                            // 取借时间 + 今天 → 只显示未来时间槽，防止预约过去
-                            timePickerTarget === 'start' && selectionStart === format(new Date(), 'yyyy-MM-dd')
-                                ? TIME_SLOTS.filter(s => s >= getMinTimeForToday())
-                                : TIME_SLOTS
-                        }
+                        data={timeSlotOptions}
                         keyExtractor={(item) => item}
                         showsVerticalScrollIndicator={false}
                         renderItem={({ item }) => {
@@ -348,6 +396,9 @@ const CalendarView: React.FC<CalendarViewProps> = ({ assetId, onDateChange, disa
                                     onPress={() => {
                                         if (timePickerTarget === 'start') {
                                             setStartTime(item);
+                                            if (isSingleDaySelection && endTime < item) {
+                                                setEndTime(item);
+                                            }
                                         } else {
                                             setEndTime(item);
                                         }
@@ -423,6 +474,39 @@ const styles = StyleSheet.create({
         color: theme.colors.background,
         fontSize: 14,
         fontWeight: '600',
+    },
+    selectionBar: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: theme.spacing.md,
+        paddingTop: theme.spacing.md,
+        paddingBottom: theme.spacing.sm,
+        gap: theme.spacing.sm,
+    },
+    selectionSummary: {
+        flex: 1,
+    },
+    selectionLabel: {
+        fontSize: 13,
+        color: theme.colors.gray,
+        marginBottom: 4,
+    },
+    selectionValue: {
+        fontSize: 15,
+        fontWeight: '600',
+        color: theme.colors.text,
+    },
+    clearButton: {
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 999,
+        backgroundColor: '#FEE2E2',
+    },
+    clearButtonText: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: theme.colors.danger,
     },
     // ---- 时间选择区 ----
     timeSection: {

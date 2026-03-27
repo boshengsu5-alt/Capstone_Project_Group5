@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { 
-  Package, 
-  ArrowUpRight, 
-  Clock, 
+import Link from 'next/link';
+import {
+  Package,
+  ArrowUpRight,
+  Clock,
   AlertTriangle,
   Search,
   Filter,
@@ -182,44 +183,48 @@ export default function DashboardPage() {
       
       <main className="flex-1 px-6 lg:px-10 max-w-[1600px] w-full space-y-6 py-6 pb-20">
         
-        {/* --- KPI Cards (Day 6): 四个核心计数卡片 --- */}
+        {/* --- KPI Cards: 四个核心计数卡片，可点击跳转 --- */}
         <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-gray-900/40 backdrop-blur-xl border border-white/5 rounded-2xl p-5 flex items-center gap-4">
-            <div className="w-11 h-11 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-400">
+          <Link href="/dashboard/assets" className="bg-gray-900/40 backdrop-blur-xl border border-white/5 rounded-2xl p-5 flex items-center gap-4 hover:border-purple-500/30 hover:bg-purple-500/5 transition-all cursor-pointer group">
+            <div className="w-11 h-11 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-400 group-hover:scale-110 transition-transform">
               <Package className="w-5 h-5" />
             </div>
-            <div>
+            <div className="flex-1">
               <p className="text-2xl font-bold text-white">{totalAssets}</p>
               <p className="text-xs text-gray-500">Total Assets</p>
             </div>
-          </div>
-          <div className="bg-gray-900/40 backdrop-blur-xl border border-white/5 rounded-2xl p-5 flex items-center gap-4">
-            <div className="w-11 h-11 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-400">
+            <ChevronRight className="w-4 h-4 text-gray-600 group-hover:text-purple-400 transition-colors" />
+          </Link>
+          <Link href="/dashboard/bookings?status=active" className="bg-gray-900/40 backdrop-blur-xl border border-white/5 rounded-2xl p-5 flex items-center gap-4 hover:border-amber-500/30 hover:bg-amber-500/5 transition-all cursor-pointer group">
+            <div className="w-11 h-11 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-400 group-hover:scale-110 transition-transform">
               <ArrowUpRight className="w-5 h-5" />
             </div>
-            <div>
+            <div className="flex-1">
               <p className="text-2xl font-bold text-white">{loanedAssets}</p>
               <p className="text-xs text-gray-500">Currently Loaned</p>
             </div>
-          </div>
-          <div className="bg-gray-900/40 backdrop-blur-xl border border-white/5 rounded-2xl p-5 flex items-center gap-4">
-            <div className="w-11 h-11 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-400">
+            <ChevronRight className="w-4 h-4 text-gray-600 group-hover:text-amber-400 transition-colors" />
+          </Link>
+          <Link href="/dashboard/bookings?status=pending" className="bg-gray-900/40 backdrop-blur-xl border border-white/5 rounded-2xl p-5 flex items-center gap-4 hover:border-blue-500/30 hover:bg-blue-500/5 transition-all cursor-pointer group">
+            <div className="w-11 h-11 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-400 group-hover:scale-110 transition-transform">
               <Clock className="w-5 h-5" />
             </div>
-            <div>
+            <div className="flex-1">
               <p className="text-2xl font-bold text-white">{pendingBookings}</p>
               <p className="text-xs text-gray-500">Pending Approval</p>
             </div>
-          </div>
-          <div className="bg-gray-900/40 backdrop-blur-xl border border-white/5 rounded-2xl p-5 flex items-center gap-4">
-            <div className="w-11 h-11 rounded-xl bg-rose-500/10 flex items-center justify-center text-rose-400">
+            <ChevronRight className="w-4 h-4 text-gray-600 group-hover:text-blue-400 transition-colors" />
+          </Link>
+          <Link href="/dashboard/bookings?status=overdue" className="bg-gray-900/40 backdrop-blur-xl border border-white/5 rounded-2xl p-5 flex items-center gap-4 hover:border-rose-500/30 hover:bg-rose-500/5 transition-all cursor-pointer group">
+            <div className="w-11 h-11 rounded-xl bg-rose-500/10 flex items-center justify-center text-rose-400 group-hover:scale-110 transition-transform">
               <AlertTriangle className="w-5 h-5" />
             </div>
-            <div>
+            <div className="flex-1">
               <p className="text-2xl font-bold text-white">{overdueBookings}</p>
               <p className="text-xs text-gray-500">Overdue</p>
             </div>
-          </div>
+            <ChevronRight className="w-4 h-4 text-gray-600 group-hover:text-rose-400 transition-colors" />
+          </Link>
         </section>
 
         {/* --- Charts Section: Visual Reports --- */}

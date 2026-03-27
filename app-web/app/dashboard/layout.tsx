@@ -7,12 +7,12 @@ import Navbar from '@/components/layout/Navbar';
 import { ToastProvider } from '@/components/ui/Toast';
 import { LanguageProvider } from '@/components/providers/LanguageProvider';
 import { AuthProvider, useAuth } from '@/components/providers/AuthContext';
-import { signOut, setSessionCookie } from '@/lib/auth';
+import { clearStoredAuthState, setSessionCookie, signOut } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 
 function DashboardContent({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const { profile, isLoading } = useAuth();
+  const { canAccessDashboard, isLoading, profile } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
@@ -20,8 +20,7 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_OUT' || (event === 'TOKEN_REFRESHED' && !session)) {
         console.warn('Auth state change detected issue:', event);
-        document.cookie = 'unigear-session=; path=/; max-age=0';
-        if (typeof window !== 'undefined') localStorage.clear();
+        clearStoredAuthState();
         router.replace('/login');
       }
     });
@@ -31,12 +30,26 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
     };
   }, [router]);
 
-  // 更新 session cookie (防止 midddleware 拦截)
   useEffect(() => {
-    if (profile) {
+    if (!isLoading && !profile) {
+      router.replace('/login');
+    }
+  }, [isLoading, profile, router]);
+
+  useEffect(() => {
+    if (!isLoading && profile && !canAccessDashboard) {
+      void signOut().finally(() => {
+        router.replace('/login');
+      });
+    }
+  }, [canAccessDashboard, isLoading, profile, router]);
+
+  // 更新 session cookie (防止 middleware 拦截)
+  useEffect(() => {
+    if (profile && canAccessDashboard) {
       setSessionCookie();
     }
-  }, [profile]);
+  }, [canAccessDashboard, profile]);
 
   if (isLoading) {
     return (
@@ -49,9 +62,7 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // 如果加载完成后仍没有 profile，说明未登录
-  if (!profile) {
-    router.replace('/login');
+  if (!profile || !canAccessDashboard) {
     return null;
   }
 

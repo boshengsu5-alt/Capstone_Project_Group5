@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { StyleSheet, Text, View, StatusBar, TouchableOpacity, ActivityIndicator, TextInput, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { alertManager } from '../../utils/alertManager';
-import { useNavigation, useIsFocused, NavigationProp, ParamListBase } from '@react-navigation/native';
+import { useNavigation, useIsFocused } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { ScanStackParamList } from '../../navigation/ScanStackNavigator';
 import { useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 import QRScanner from '../../components/QRScanner';
@@ -13,7 +15,7 @@ import { useTranslation } from 'react-i18next';
 
 export default function ScanScreen() {
   const { t } = useTranslation();
-  const navigation = useNavigation<NavigationProp<ParamListBase>>();
+  const navigation = useNavigation<NativeStackNavigationProp<ScanStackParamList> & { navigate: (screen: string, params?: any) => void }>();
   const isFocused = useIsFocused();
   const [permission, requestPermission] = useCameraPermissions();
   const [isScanning, setIsScanning] = useState(true);
@@ -95,17 +97,18 @@ export default function ScanScreen() {
                   setIsProcessing(true);
                   try {
                     await activateBooking(approvedBooking.id);
-                    alertManager.alert(
-                      t('scan.pickUpSuccess'),
-                      t('scan.pickUpSuccessMsg', { asset: asset.name, date: approvedBooking.end_date }),
-                      [{ text: t('scan.ok'), onPress: () => { setIsScanning(true); } }]
-                    );
+                    // 激活成功 → 跳转到取货拍照界面
+                    setIsProcessing(false);
+                    setIsScanning(true);
+                    navigation.navigate('PickupPhoto', {
+                      bookingId: approvedBooking.id,
+                      assetName: asset.name,
+                    });
                   } catch (err: unknown) {
                     const msg = err instanceof Error ? err.message : t('scan.pickUpFailedTryAgain');
                     alertManager.alert(t('scan.pickUpFailed'), msg, [
                       { text: t('scan.ok'), onPress: () => { setIsScanning(true); } },
                     ]);
-                  } finally {
                     setIsProcessing(false);
                   }
                 },

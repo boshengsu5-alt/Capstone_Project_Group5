@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { BookingWithDetails, calcOverduePenalty } from '@/lib/bookingService';
+import { formatDateTime, formatDateTimeRange } from '@/lib/dateTime';
 import {
     X, Calendar, Clock, User, QrCode, ImageIcon,
     AlertTriangle, CheckCircle2, RotateCcw, ShieldAlert,
@@ -27,12 +28,6 @@ const STATUS_CFG: Record<string, { label: string; cls: string }> = {
     suspended: { label: '已暂停',  cls: 'bg-amber-500/10 text-amber-400 border-amber-500/20' },
 };
 
-function fmt(dateStr: string) {
-    return new Date(dateStr).toLocaleDateString('en-CA');
-}
-function fmtTime(dateStr: string) {
-    return new Date(dateStr).toLocaleString('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
-}
 function daysBetween(a: string, b: string) {
     return Math.round((new Date(b).getTime() - new Date(a).getTime()) / (1000 * 60 * 60 * 24));
 }
@@ -158,7 +153,7 @@ export default function ApprovalModal({ isOpen, booking, onClose, onApprove, onR
                         <div>
                             <p className="text-xs text-gray-500 mb-0.5">借用周期</p>
                             <p className="text-sm font-semibold text-white">
-                                {fmt(booking.start_date)} → {fmt(booking.end_date)}
+                                {formatDateTimeRange(booking.start_date, booking.end_date)}
                                 <span className="ml-2 text-xs text-gray-500 font-normal">（{borrowDays} 天）</span>
                             </p>
                         </div>
@@ -169,7 +164,7 @@ export default function ApprovalModal({ isOpen, booking, onClose, onApprove, onR
                         <Clock className="w-4 h-4 text-gray-500 flex-shrink-0" />
                         <div>
                             <p className="text-xs text-gray-500 mb-0.5">提交时间</p>
-                            <p className="text-sm text-gray-300">{fmtTime(booking.created_at)}</p>
+                            <p className="text-sm text-gray-300">{formatDateTime(booking.created_at)}</p>
                         </div>
                     </div>
 
@@ -180,7 +175,7 @@ export default function ApprovalModal({ isOpen, booking, onClose, onApprove, onR
                             <div className="flex-1">
                                 <p className="text-xs text-gray-500 mb-0.5">实际归还日期</p>
                                 <div className="flex items-center gap-2 flex-wrap">
-                                    <span className="text-sm text-gray-300">{fmt(booking.actual_return_date)}</span>
+                                    <span className="text-sm text-gray-300">{formatDateTime(booking.actual_return_date)}</span>
                                     {overdueDays != null && overdueDays > 0 ? (
                                         <span className="text-xs font-semibold text-red-400 bg-red-500/10 border border-red-500/20 px-2 py-0.5 rounded-full">
                                             逾期 {overdueDays} 天 · 扣 {overduePenalty} 分

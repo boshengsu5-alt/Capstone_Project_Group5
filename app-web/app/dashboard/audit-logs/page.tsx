@@ -12,15 +12,15 @@ import { useRouter } from 'next/navigation';
 
 export default function AuditLogsPage() {
   const { showToast } = useToast();
-  const { isAdmin, isLoading: authLoading } = useAuth();
+  const { canViewAuditLogs, isLoading: authLoading } = useAuth();
   const router = useRouter();
 
   // Guard: Only admins can access this page
   useEffect(() => {
-    if (!authLoading && !isAdmin) {
+    if (!authLoading && !canViewAuditLogs) {
       router.replace('/dashboard/access-denied');
     }
-  }, [isAdmin, authLoading, router]);
+  }, [authLoading, canViewAuditLogs, router]);
 
   const [logs, setLogs] = useState<AuditLogWithMeta[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -41,6 +41,10 @@ export default function AuditLogsPage() {
     useEffect(() => {
         loadLogs();
     }, []);
+
+    if (!authLoading && !canViewAuditLogs) {
+        return null;
+    }
 
     return (
         <div className="flex flex-col flex-1 h-full w-full bg-[#050505] text-gray-100 overflow-y-auto">

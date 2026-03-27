@@ -86,9 +86,20 @@ export default function AssetDetailScreen({ route, navigation }: Props) {
     fetchAssetDetails();
   }, [fetchAssetDetails]);
 
-  const handleDateChange = (startDate: string, endDate: string) => {
-    setSelectedDates({ startDate, endDate });
-  };
+  const handleDateChange = useCallback((startDate: string | null, endDate: string | null) => {
+    if (!startDate || !endDate) {
+      setSelectedDates(prev => (prev ? null : prev));
+      return;
+    }
+
+    setSelectedDates(prev => {
+      if (prev?.startDate === startDate && prev?.endDate === endDate) {
+        return prev;
+      }
+
+      return { startDate, endDate };
+    });
+  }, []);
 
   if (loading) {
     return (

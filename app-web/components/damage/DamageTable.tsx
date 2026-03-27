@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { formatDate, formatDateTime, formatDateTimeRange, formatTime } from '@/lib/dateTime';
 import { ChevronDown, ChevronRight, X, AlertTriangle } from 'lucide-react';
 import type { DamageReportWithDetails } from '@/lib/bookingService';
 
@@ -323,9 +324,25 @@ function ExpandedDetail({ report }: { report: DamageReportWithDetails }) {
     const pickupPhoto = report.bookings?.pickup_photo_url || null;
     const returnPhoto = report.bookings?.return_photo_url || null;
     const hasBookingPhotos = pickupPhoto || returnPhoto;
+    const bookingPeriod = formatDateTimeRange(report.bookings?.start_date ?? null, report.bookings?.end_date ?? null);
 
     return (
         <div className="px-6 py-4 bg-white/[0.02] border-t border-white/5 space-y-4">
+            <div className="grid gap-3 md:grid-cols-3">
+                <div className="rounded-xl border border-white/5 bg-white/5 px-4 py-3">
+                    <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Booking Period</h4>
+                    <p className="text-sm text-gray-200 leading-relaxed">{bookingPeriod}</p>
+                </div>
+                <div className="rounded-xl border border-white/5 bg-white/5 px-4 py-3">
+                    <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Reported At</h4>
+                    <p className="text-sm text-gray-200">{formatDateTime(report.created_at)}</p>
+                </div>
+                <div className="rounded-xl border border-white/5 bg-white/5 px-4 py-3">
+                    <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Actual Return</h4>
+                    <p className="text-sm text-gray-200">{formatDateTime(report.bookings?.actual_return_date ?? null)}</p>
+                </div>
+            </div>
+
             {/* 取货 / 归还照片对比（来自借用记录） */}
             {hasBookingPhotos && (
                 <div>
@@ -523,7 +540,8 @@ export default function DamageTable({ reports, onUpdateStatus }: DamageTableProp
                                                 <StatusBadge status={report.status} />
                                             </td>
                                             <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                                                {new Date(report.created_at).toLocaleDateString()}
+                                                <div className="text-sm text-gray-200">{formatDate(report.created_at)}</div>
+                                                <div className="text-xs text-gray-500 mt-0.5">{formatTime(report.created_at)}</div>
                                             </td>
                                             <td className="relative whitespace-nowrap py-4 pl-3 pr-6 text-right text-sm font-medium">
                                                 {report.status !== 'resolved' && report.status !== 'dismissed' && (

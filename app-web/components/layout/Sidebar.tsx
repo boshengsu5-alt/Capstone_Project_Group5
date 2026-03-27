@@ -16,18 +16,20 @@ interface SidebarProps {
 const Sidebar: FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
   const pathname = usePathname();
   const { t } = useLanguage();
-  const { isAdmin } = useAuth();
+  const { canManageAssets, canManageUsers, canViewAuditLogs } = useAuth();
 
   const navigation = [
     { name: t('sidebar.dashboard'), href: '/dashboard', icon: LayoutDashboard },
-    ...(isAdmin ? [
+    ...(canManageAssets ? [
       { name: t('sidebar.assets'), href: '/dashboard/assets', icon: Package },
     ] : []),
     { name: t('sidebar.bookings'), href: '/dashboard/bookings', icon: ClipboardList },
     { name: t('sidebar.returns'), href: '/dashboard/returns', icon: RotateCcw },
     { name: t('sidebar.damage'), href: '/dashboard/damage', icon: AlertTriangle },
-    ...(isAdmin ? [
+    ...(canViewAuditLogs ? [
       { name: t('sidebar.audit'), href: '/dashboard/audit-logs', icon: ScrollText },
+    ] : []),
+    ...(canManageUsers ? [
       { name: t('sidebar.users'), href: '/dashboard/users', icon: Users },
     ] : []),
   ];

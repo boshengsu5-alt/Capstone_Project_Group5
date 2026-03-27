@@ -2,9 +2,8 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { signIn, checkAdminRole, setSessionCookie } from '@/lib/auth';
+import { checkDashboardAccess, setSessionCookie, signIn, signOut } from '@/lib/auth';
 import { LayoutDashboard, Eye, EyeOff, Loader2 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -26,17 +25,22 @@ export default function LoginPage() {
         return;
       }
 
-      // 登录成功后立即检查是否为 admin，非 admin 不允许进入管理后台
       const userId = data.user?.id;
       if (!userId) {
         setError('Login succeeded but user data is missing.');
         return;
       }
 
-      // 允许任何有效账号进入 Dashboard 基座 (RBAC 将在各页面执行)
+      const hasAccess = await checkDashboardAccess(userId);
+      if (!hasAccess) {
+        await signOut();
+        setError('Access denied. This portal is for admin and staff only. 仅管理员或工作人员可登录此面板。');
+        return;
+      }
+
       setSessionCookie();
       router.push('/dashboard');
-    } catch (err) {
+    } catch {
       setError('An unexpected error occurred. Please try again.');
     } finally {
       setIsLoading(false);

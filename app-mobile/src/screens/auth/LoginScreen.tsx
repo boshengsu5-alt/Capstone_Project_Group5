@@ -14,6 +14,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { theme } from '../../theme';
 import { signIn } from '../../services/authService';
 import { AuthStackParamList } from '../../navigation/AuthStackNavigator';
+import { getDisplayErrorMessage } from '../../utils/errorHandler';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Login'>;
 
@@ -41,15 +42,8 @@ export default function LoginScreen({ navigation }: Props) {
     try {
       await signIn(email.trim(), password);
       // 登录成功后 RootNavigator 会自动监听 auth 状态变化并跳转到主页
-    } catch (error: any) {
-      const msg = error?.message?.toLowerCase() ?? '';
-      if (msg.includes('credentials') || msg.includes('invalid login')) {
-        setErrorMsg('邮箱或密码错误，请检查后再试');
-      } else if (msg.includes('fetch') || msg.includes('network')) {
-        setErrorMsg('网络连接失败，请稍后再试');
-      } else {
-        setErrorMsg(error?.message || '登录失败，请稍后再试');
-      }
+    } catch (error: unknown) {
+      setErrorMsg(getDisplayErrorMessage(error));
     } finally {
       setLoading(false);
     }

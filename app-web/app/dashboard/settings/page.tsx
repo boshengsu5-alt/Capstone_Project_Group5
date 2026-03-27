@@ -1,16 +1,19 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { User, Mail, Shield, CheckCircle2, Globe, Monitor, Lock, Bell, Clock, Languages } from 'lucide-react';
+import type { User as AuthUser } from '@supabase/supabase-js';
+import { Shield, CheckCircle2, Globe, Monitor, Lock, Bell, Clock, Languages } from 'lucide-react';
 import Header from '@/components/layout/Header';
+import { useAuth } from '@/components/providers/AuthContext';
 import { useLanguage } from '@/components/providers/LanguageProvider';
 import { getCurrentUser } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 import AvatarUpload from '@/components/settings/AvatarUpload';
 
 export default function SettingsPage() {
+  const { profile } = useAuth();
   const { t, locale, setLocale } = useLanguage();
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   
   // Password State
   const [showPasswordForm, setShowPasswordForm] = useState(false);
@@ -36,7 +39,7 @@ export default function SettingsPage() {
     if (saved) {
       try {
         setNotifs(JSON.parse(saved));
-      } catch (e) {
+      } catch {
         console.error('Failed to parse notif settings');
       }
     }
@@ -67,8 +70,8 @@ export default function SettingsPage() {
       setShowPasswordForm(false);
       setNewPassword('');
       setConfirmPassword('');
-    } catch (err: any) {
-      alert(err.message);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to update password.');
     } finally {
       setPasswordLoading(false);
     }
@@ -77,6 +80,8 @@ export default function SettingsPage() {
   const toggleLanguage = () => {
     setLocale(locale === 'en' ? 'zh' : 'en');
   };
+
+  const roleLabel = profile?.role === 'staff' ? 'Staff' : 'Administrator';
 
   return (
     <div className="flex flex-col flex-1 h-full w-full bg-[#050505] text-gray-100 overflow-y-auto font-sans selection:bg-purple-500/30">
@@ -92,16 +97,26 @@ export default function SettingsPage() {
             <AvatarUpload 
               currentAvatarUrl={user?.user_metadata?.avatar_url} 
               onUploadSuccess={(url) => {
-                setUser({ ...user, user_metadata: { ...user.user_metadata, avatar_url: url } });
+                setUser((currentUser) => {
+                  if (!currentUser) return currentUser;
+
+                  return {
+                    ...currentUser,
+                    user_metadata: {
+                      ...(currentUser.user_metadata ?? {}),
+                      avatar_url: url,
+                    },
+                  };
+                });
               }}
             />
             <div className="text-center md:text-left space-y-2">
               <div className="flex flex-wrap items-center justify-center md:justify-start gap-3">
                 <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
-                  {user?.email?.split('@')[0].toUpperCase() || 'ADMIN USER'}
+                  {user?.email?.split('@')[0].toUpperCase() || 'MANAGEMENT USER'}
                 </h1>
                 <span className="px-3 py-1 rounded-full bg-purple-500/20 border border-purple-500/30 text-purple-300 text-[10px] font-bold uppercase tracking-widest">
-                  Administrator
+                  {roleLabel}
                 </span>
                 <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-bold uppercase tracking-widest">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />

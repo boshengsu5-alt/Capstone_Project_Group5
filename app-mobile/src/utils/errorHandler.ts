@@ -1,6 +1,97 @@
 import { alertManager } from './alertManager';
 import i18n from '../i18n';
 
+function getRawErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'string') return error;
+
+  if (error && typeof error === 'object' && 'message' in error && typeof (error as Record<string, unknown>).message === 'string') {
+    return (error as Record<string, unknown>).message as string;
+  }
+
+  return '';
+}
+
+export function getDisplayErrorMessage(error: unknown): string {
+  const rawMessage = getRawErrorMessage(error);
+  if (!rawMessage) return i18n.t('errors.network');
+  if (/[\u4e00-\u9fa5]/.test(rawMessage)) return rawMessage;
+
+  const errMessage = rawMessage.toLowerCase();
+
+  if (errMessage.includes('credentials') || errMessage.includes('invalid login')) {
+    return i18n.t('errors.authFailed');
+  }
+
+  if (errMessage.includes('already registered') || errMessage.includes('user already exists')) {
+    return i18n.t('errors.accountExists');
+  }
+
+  if (
+    errMessage.includes('jwt') ||
+    errMessage.includes('auth session missing') ||
+    errMessage.includes('refresh token') ||
+    errMessage.includes('session') ||
+    errMessage.includes('not logged in')
+  ) {
+    return i18n.t('errors.sessionExpired');
+  }
+
+  if (
+    errMessage.includes('row-level security') ||
+    errMessage.includes('permission denied') ||
+    errMessage.includes('not allowed') ||
+    errMessage.includes('forbidden') ||
+    errMessage.includes('unauthorized') ||
+    errMessage.includes('insufficient_privilege')
+  ) {
+    return i18n.t('errors.permissionDenied');
+  }
+
+  if (
+    errMessage.includes('time conflict') ||
+    errMessage.includes('conflict') ||
+    errMessage.includes('overlap') ||
+    errMessage.includes('already booked') ||
+    errMessage.includes('already reserved') ||
+    errMessage.includes('selected date') ||
+    errMessage.includes('selected period')
+  ) {
+    return i18n.t('errors.bookingConflict');
+  }
+
+  if (
+    errMessage.includes('duplicate') ||
+    errMessage.includes('already has') ||
+    errMessage.includes('pending booking') ||
+    errMessage.includes('approved booking')
+  ) {
+    return i18n.t('errors.duplicateBooking');
+  }
+
+  if (
+    errMessage.includes('rpc') ||
+    errMessage.includes('pgrst') ||
+    errMessage.includes('schema cache') ||
+    errMessage.includes('create_booking') ||
+    errMessage.includes('activate_booking') ||
+    errMessage.includes('return_booking')
+  ) {
+    return i18n.t('errors.serviceUnavailable');
+  }
+
+  if (
+    errMessage.includes('fetch') ||
+    errMessage.includes('network') ||
+    errMessage.includes('timeout') ||
+    errMessage.includes('failed to fetch')
+  ) {
+    return i18n.t('errors.network');
+  }
+
+  return rawMessage;
+}
+
 /**
  * Global API Error Handler
  * Displays user-friendly error messages based on error types and network issues.
@@ -8,45 +99,6 @@ import i18n from '../i18n';
  */
 export function handleApiError(error: unknown, title?: string) {
   const actualTitle = title || i18n.t('errors.prompt');
-  
-  // Default elegant fallback message
-  let displayMessage = i18n.t('errors.network');
-  
-  if (error instanceof Error) {
-    const errMessage = error.message.toLowerCase();
-    
-    // Auth specific error mapping
-    if (errMessage.includes('credentials') || errMessage.includes('invalid login')) {
-      displayMessage = i18n.t('errors.authFailed');
-    } else if (errMessage.includes('already registered') || errMessage.includes('user already exists')) {
-      displayMessage = i18n.t('errors.accountExists');
-    } 
-    // Network errors
-    else if (errMessage.includes('fetch') || errMessage.includes('network') || errMessage.includes('timeout')) {
-      displayMessage = i18n.t('errors.network');
-    } 
-    // If the error message contains Chinese characters, it's likely our custom business error
-    // (e.g. "时间冲突：该设备在所选日期段内已被预订，请选择其他时间")
-    else if (/[\u4e00-\u9fa5]/.test(error.message)) {
-      displayMessage = error.message;
-    } else {
-      // Fallback: show the raw English message so developers can see what's wrong
-      displayMessage = error.message;
-    }
-  } else if (typeof error === 'string') {
-    if (/[\u4e00-\u9fa5]/.test(error)) {
-      displayMessage = error;
-    }
-  } else if (error && typeof error === 'object' && 'message' in error && typeof (error as Record<string, unknown>).message === 'string') {
-    // Supabase PostgrestError or similar plain-object errors with a message field
-    const errMessage = (error as Record<string, unknown>).message as string;
-    if (/[\u4e00-\u9fa5]/.test(errMessage)) {
-      displayMessage = errMessage;
-    } else if (errMessage) {
-      displayMessage = errMessage;
-    }
-  }
-  
-  alertManager.alert(actualTitle, displayMessage);
-}
 
+  alertManager.alert(actualTitle, getDisplayErrorMessage(error));
+}

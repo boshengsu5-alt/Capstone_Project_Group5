@@ -117,6 +117,30 @@
     "tryCameraAgain": "Try Camera Again",
     "preparingCamera": "Preparing camera access..."
   },
+  "pickupPhoto": {
+    "navTitle": "Pickup Photo",
+    "title": "📷 Pickup Photo",
+    "currentAsset": "Picking up:",
+    "step1": "Take Photo",
+    "step2": "Upload",
+    "step3": "Confirm",
+    "bannerTitle": "Record asset condition at pickup",
+    "bannerText": "Please take a photo of the device at pickup. This helps admin compare the condition before and after your use.",
+    "uploading": "Uploading to cloud...",
+    "uploadFailed": "Upload Failed",
+    "uploadFailedGeneric": "Photo upload failed, please retake and try again.",
+    "retake": "Retake",
+    "retakeBtn": "🔄 Retake",
+    "uploadSuccess": "Photo uploaded successfully, click below to confirm.",
+    "confirmSave": "Confirm & Save Photo",
+    "saveSuccess": "Photo Saved",
+    "saveSuccessMsg": "Pickup photo for「{{asset}}」has been saved! You may now use the device.",
+    "saveFailed": "Save Failed",
+    "skip": "Skip for now",
+    "skipTitle": "Skip Pickup Photo?",
+    "skipMsg": "Skipping the pickup photo means there will be no record of the device's initial condition. Continue?",
+    "skipConfirm": "Skip"
+  },
   "review": {
     "editSuccess": "Edit Successful",
     "editSuccessMsg": "Your review has been updated!",
@@ -139,7 +163,12 @@
     "prompt": "Prompt",
     "network": "Network is wandering, please try again later",
     "authFailed": "Invalid email or password, please check and try again",
-    "accountExists": "This account is already registered"
+    "accountExists": "This account is already registered",
+    "sessionExpired": "Your session has expired. Please sign in again",
+    "permissionDenied": "Your account does not have permission to do that",
+    "bookingConflict": "The selected time range is no longer available. Please choose another slot",
+    "duplicateBooking": "You already have a booking request for this asset",
+    "serviceUnavailable": "Booking service is temporarily unavailable. Please try again later"
   },
   "nav": {
     "profile": "Profile",
@@ -210,6 +239,9 @@
     "error": "Failed to load schedule",
     "retry": "Retry",
     "disabledAsset": "Device is not available",
+    "selectionPending": "Start date selected",
+    "selectedRange": "Selected booking range",
+    "clearSelection": "Clear",
     "selectTime": "Select Time",
     "pickupTime": "Pick Up Time",
     "returnTime": "Return Time",
@@ -232,6 +264,36 @@
     "emptyTitle": "No Notifications",
     "emptyMessage": "Booking approvals and return reminders will appear here",
     "back": "Back",
+    "damageSeverity": {
+      "minor": "minor damage",
+      "moderate": "moderate damage",
+      "severe": "severe damage",
+      "unknown": "unknown damage"
+    },
+    "dynamic": {
+      "damageReported": {
+        "reported": {
+          "title": "Damage Report Filed",
+          "message": "An admin has filed a damage report for your borrowed item \"{{asset}}\". The current assessment is {{severity}} and the report is under review."
+        },
+        "investigating": {
+          "title": "Damage Investigation Started",
+          "message": "The damage report for \"{{asset}}\" is now under investigation. We will notify you again once the review is completed."
+        },
+        "dismissed": {
+          "title": "Damage Report Dismissed",
+          "message": "The damage report for \"{{asset}}\" has been dismissed. No credit deduction or compensation will be applied."
+        },
+        "resolved": {
+          "title": "Damage Review Result",
+          "base": "The damage report for \"{{asset}}\" has been confirmed as {{severity}}.",
+          "damagePenalty": "Damage penalty: {{points}} points.",
+          "returnBonusRevoked": "Previous return bonus revoked: {{points}} points.",
+          "totalCreditImpact": "Total credit impact this time: -{{points}} points.",
+          "compensation": "Compensation due: ¥{{amount}}. Please contact the admin to settle it offline."
+        }
+      }
+    },
     "types": {
       "booking_approved": {
         "title": "Booking Approved",
@@ -264,4 +326,3 @@
     }
   }
 }
-

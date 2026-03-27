@@ -1,23 +1,33 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Users as UsersIcon, Search, RefreshCw, Shield, GraduationCap, Briefcase, Star } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/components/ui/Toast';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/components/providers/AuthContext';
 import type { Profile, UserRole } from '@/types/database';
 
 export default function UsersPage() {
   const { showToast } = useToast();
+  const { canManageUsers, isLoading: authLoading } = useAuth();
+  const router = useRouter();
   const [users, setUsers] = useState<Profile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<'all' | UserRole>('all');
 
+  useEffect(() => {
+    if (!authLoading && !canManageUsers) {
+      router.replace('/dashboard/access-denied');
+    }
+  }, [authLoading, canManageUsers, router]);
+
   const loadUsers = async () => {
     setIsLoading(true);
     try {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .order('created_at', { ascending: false });
@@ -74,6 +84,10 @@ export default function UsersPage() {
     admins: users.filter(u => u.role === 'admin').length,
     staff: users.filter(u => u.role === 'staff').length,
   };
+
+  if (!authLoading && !canManageUsers) {
+    return null;
+  }
 
   return (
     <div className="p-6 md:p-8 max-w-7xl mx-auto w-full">

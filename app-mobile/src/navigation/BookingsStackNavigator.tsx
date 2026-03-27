@@ -8,7 +8,7 @@ import { useTranslation } from 'react-i18next';
 export type BookingsStackParamList = {
   BookingHistory: undefined;
   ReturnScreen: { bookingId: string; assetName?: string };
-  DamageReport: { assetId: string; bookingId: string };
+  DamageReport: { assetId: string; bookingId: string; mode?: 'create' | 'edit' };
 };
 
 const Stack = createNativeStackNavigator<BookingsStackParamList>();

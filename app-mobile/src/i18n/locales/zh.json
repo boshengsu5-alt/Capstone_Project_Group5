@@ -117,6 +117,30 @@
     "tryCameraAgain": "再次尝试开启相机",
     "preparingCamera": "正在准备相机访问..."
   },
+  "pickupPhoto": {
+    "navTitle": "取货拍照",
+    "title": "📷 取货拍照",
+    "currentAsset": "正在取货：",
+    "step1": "拍摄照片",
+    "step2": "上传云端",
+    "step3": "确认保存",
+    "bannerTitle": "记录取货时设备状态",
+    "bannerText": "请拍摄设备取货时的实物照片，方便管理员对比使用前后的设备状态，判断是否存在损坏。",
+    "uploading": "正在上传至云端...",
+    "uploadFailed": "上传失败",
+    "uploadFailedGeneric": "照片上传失败，请重拍后重试。",
+    "retake": "重拍",
+    "retakeBtn": "🔄 重拍",
+    "uploadSuccess": "照片上传成功，点击下方按钮确认保存。",
+    "confirmSave": "确认保存照片",
+    "saveSuccess": "照片已保存",
+    "saveSuccessMsg": "「{{asset}}」的取货照片已保存！您现在可以使用设备了。",
+    "saveFailed": "保存失败",
+    "skip": "暂时跳过",
+    "skipTitle": "跳过取货拍照？",
+    "skipMsg": "跳过拍照将无法记录设备的初始状态。确定要跳过吗？",
+    "skipConfirm": "跳过"
+  },
   "review": {
     "editSuccess": "修改成功",
     "editSuccessMsg": "您的评价已更新！",
@@ -139,7 +163,12 @@
     "prompt": "提示",
     "network": "网络开小差了，请稍后再试",
     "authFailed": "邮箱或密码错误，请检查后再试",
-    "accountExists": "该账号已被注册"
+    "accountExists": "该账号已被注册",
+    "sessionExpired": "登录状态已失效，请重新登录后再试",
+    "permissionDenied": "当前账号没有执行此操作的权限",
+    "bookingConflict": "所选时间段已被占用，请重新选择日期或时间",
+    "duplicateBooking": "你已经提交过这台设备的预约，请先查看现有记录",
+    "serviceUnavailable": "预约服务暂时不可用，请稍后再试"
   },
   "nav": {
     "profile": "我的",
@@ -210,6 +239,9 @@
     "error": "加载预订信息失败",
     "retry": "重试",
     "disabledAsset": "该设备当前不可借用",
+    "selectionPending": "已选择开始日期",
+    "selectedRange": "已选择预约区间",
+    "clearSelection": "清除选择",
     "selectTime": "选择时间",
     "pickupTime": "取借时间",
     "returnTime": "归还时间",
@@ -238,6 +270,36 @@
     "emptyTitle": "暂无通知",
     "emptyMessage": "预约审核、归还提醒等通知会显示在这里",
     "back": "返回",
+    "damageSeverity": {
+      "minor": "轻微损坏",
+      "moderate": "中度损坏",
+      "severe": "严重损坏",
+      "unknown": "未知损坏"
+    },
+    "dynamic": {
+      "damageReported": {
+        "reported": {
+          "title": "损坏已上报",
+          "message": "管理员已为您借用的「{{asset}}」提交损坏报告，当前判定为{{severity}}，正在等待进一步审核。"
+        },
+        "investigating": {
+          "title": "损坏调查中",
+          "message": "您借用的「{{asset}}」损坏报告已进入调查阶段，调查完成后我们会继续通知您处理结果。"
+        },
+        "dismissed": {
+          "title": "损坏报告已驳回",
+          "message": "您借用的「{{asset}}」损坏报告已驳回，本次不会扣减信用分，也无需赔偿。"
+        },
+        "resolved": {
+          "title": "损坏处理结果",
+          "base": "您借用的「{{asset}}」损坏报告已核实，最终判定为{{severity}}。",
+          "damagePenalty": "损坏扣分：{{points}} 分。",
+          "returnBonusRevoked": "此前归还奖励已撤销：{{points}} 分。",
+          "totalCreditImpact": "本次信用分合计变动：-{{points}} 分。",
+          "compensation": "应赔偿金额：¥{{amount}}，请联系管理员完成线下赔偿。"
+        }
+      }
+    },
     "types": {
       "booking_approved": {
         "title": "预约已通过",
