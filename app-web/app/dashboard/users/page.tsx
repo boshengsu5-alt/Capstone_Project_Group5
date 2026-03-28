@@ -1,13 +1,16 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Fragment, useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Users as UsersIcon, Search, RefreshCw, Shield, GraduationCap, Briefcase, Star } from 'lucide-react';
+import { Users as UsersIcon, Search, RefreshCw, Shield, GraduationCap, Briefcase, Star, ChevronDown, ChevronUp } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/components/ui/Toast';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/components/providers/AuthContext';
 import type { Profile, UserRole } from '@/types/database';
+import { getUserDetailStats, type UserDetailStats } from '@/lib/userService';
+import UserExpandedRow from '@/components/users/UserExpandedRow';
+import UserCreditHistoryModal from '@/components/users/UserCreditHistoryModal';
 
 export default function UsersPage() {
   const { showToast } = useToast();
@@ -17,6 +20,11 @@ export default function UsersPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<'all' | UserRole>('all');
+  const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
+  const [detailMap, setDetailMap] = useState<Record<string, UserDetailStats>>({});
+  const [detailLoadingMap, setDetailLoadingMap] = useState<Record<string, boolean>>({});
+  const [detailErrorMap, setDetailErrorMap] = useState<Record<string, string>>({});
+  const [creditHistoryUser, setCreditHistoryUser] = useState<Profile | null>(null);
 
   useEffect(() => {
     if (!authLoading && !canManageUsers) {
@@ -24,7 +32,7 @@ export default function UsersPage() {
     }
   }, [authLoading, canManageUsers, router]);
 
-  const loadUsers = async () => {
+  const loadUsers = useCallback(async () => {
     setIsLoading(true);
     try {
       const { data, error } = await supabase
@@ -40,11 +48,45 @@ export default function UsersPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [showToast]);
 
   useEffect(() => {
-    loadUsers();
-  }, []);
+    void loadUsers();
+  }, [loadUsers]);
+
+  const loadDetailForUser = useCallback(async (userId: string, force = false) => {
+    if (!force && (detailMap[userId] || detailLoadingMap[userId])) {
+      return;
+    }
+
+    setDetailLoadingMap((current) => ({ ...current, [userId]: true }));
+    setDetailErrorMap((current) => {
+      const next = { ...current };
+      delete next[userId];
+      return next;
+    });
+
+    try {
+      const data = await getUserDetailStats(userId);
+      setDetailMap((current) => ({ ...current, [userId]: data }));
+    } catch (error) {
+      console.error('Failed to load user detail stats:', error);
+      const message = error instanceof Error ? error.message : 'Failed to load user details.';
+      setDetailErrorMap((current) => ({ ...current, [userId]: message }));
+      showToast('Failed to load user details.', 'error');
+    } finally {
+      setDetailLoadingMap((current) => ({ ...current, [userId]: false }));
+    }
+  }, [detailLoadingMap, detailMap, showToast]);
+
+  const handleToggleExpand = useCallback((user: Profile) => {
+    const nextExpanded = expandedUserId === user.id ? null : user.id;
+    setExpandedUserId(nextExpanded);
+
+    if (nextExpanded === user.id) {
+      void loadDetailForUser(user.id);
+    }
+  }, [expandedUserId, loadDetailForUser]);
 
   const filteredUsers = users.filter(user => {
     const matchesSearch =
@@ -190,53 +232,100 @@ export default function UsersPage() {
                   </td>
                 </tr>
               ) : (
-                filteredUsers.map((user) => (
-                  <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
-                    <td className="whitespace-nowrap py-4 pl-4 pr-3 sm:pl-6">
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold text-sm">
-                          {user.full_name?.[0]?.toUpperCase() || '?'}
-                        </div>
-                        <div>
-                          <p className="font-medium text-gray-900 dark:text-white">{user.full_name || 'Unnamed'}</p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">{user.email}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400 font-mono">
-                      {user.student_id || '-'}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">
-                      {user.department || '-'}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-4 text-sm">
-                      <span className={cn(
-                        "inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset capitalize",
-                        getRoleBadgeClass(user.role)
-                      )}>
-                        {getRoleIcon(user.role)}
-                        {user.role}
-                      </span>
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-4 text-sm">
-                      <div className="flex items-center gap-1.5">
-                        <Star className="w-3.5 h-3.5 text-amber-400" />
-                        <span className={cn("font-semibold", getCreditColor(user.credit_score))}>
-                          {user.credit_score}
-                        </span>
-                        <span className="text-gray-400 text-xs">/ 200</span>
-                      </div>
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">
-                      {new Date(user.created_at).toLocaleDateString()}
-                    </td>
-                  </tr>
-                ))
+                filteredUsers.map((user) => {
+                  const isExpanded = expandedUserId === user.id;
+
+                  return (
+                    <Fragment key={user.id}>
+                      <tr
+                        onClick={() => handleToggleExpand(user)}
+                        className={cn(
+                          'cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/50',
+                          isExpanded && 'bg-indigo-50/80 dark:bg-indigo-500/5'
+                        )}
+                      >
+                        <td className="py-4 pl-4 pr-3 sm:pl-6">
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="flex min-w-0 items-center gap-3">
+                              <div className="w-9 h-9 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold text-sm">
+                                {user.full_name?.[0]?.toUpperCase() || '?'}
+                              </div>
+                              <div className="min-w-0">
+                                <p className="truncate font-medium text-gray-900 dark:text-white">{user.full_name || 'Unnamed'}</p>
+                                <p className="truncate text-xs text-gray-500 dark:text-gray-400">{user.email}</p>
+                              </div>
+                            </div>
+                            <div className="hidden h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-400 shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-500 sm:flex">
+                              {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400 font-mono">
+                          {user.student_id || '-'}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">
+                          {user.department || '-'}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-4 text-sm">
+                          <span className={cn(
+                            "inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset capitalize",
+                            getRoleBadgeClass(user.role)
+                          )}>
+                            {getRoleIcon(user.role)}
+                            {user.role}
+                          </span>
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-4 text-sm">
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setExpandedUserId(user.id);
+                              void loadDetailForUser(user.id);
+                              setCreditHistoryUser(user);
+                            }}
+                            className="group inline-flex items-center gap-1.5 rounded-full border border-transparent px-3 py-1.5 transition hover:border-indigo-200 hover:bg-indigo-50 dark:hover:border-indigo-500/20 dark:hover:bg-indigo-500/10"
+                          >
+                            <Star className="w-3.5 h-3.5 text-amber-400 transition group-hover:scale-110" />
+                            <span className={cn("font-semibold", getCreditColor(user.credit_score))}>
+                              {user.credit_score}
+                            </span>
+                            <span className="text-gray-400 text-xs">/ 200</span>
+                          </button>
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-400">
+                          {new Date(user.created_at).toLocaleDateString()}
+                        </td>
+                      </tr>
+
+                      {isExpanded && (
+                        <tr className="bg-transparent">
+                          <td colSpan={6} className="px-4 py-4 sm:px-6">
+                            <UserExpandedRow
+                              user={user}
+                              stats={detailMap[user.id]}
+                              isLoading={Boolean(detailLoadingMap[user.id])}
+                              error={detailErrorMap[user.id]}
+                              onRetry={() => void loadDetailForUser(user.id, true)}
+                              onOpenCreditHistory={() => setCreditHistoryUser(user)}
+                            />
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  );
+                })
               )}
             </tbody>
           </table>
         </div>
       )}
+
+      <UserCreditHistoryModal
+        user={creditHistoryUser}
+        isOpen={Boolean(creditHistoryUser)}
+        onClose={() => setCreditHistoryUser(null)}
+      />
     </div>
   );
 }

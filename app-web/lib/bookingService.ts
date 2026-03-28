@@ -36,14 +36,17 @@ export type DamageReportWithDetails = DamageReport & {
 // ============================================================
 
 /**
- * Calculate overdue credit penalty using tiered daily rates.
- * 按分级日费率计算逾期信用分扣减。
+ * Calculate overdue credit penalty using tiered daily rates — FOR UI DISPLAY ONLY.
+ * 按分级日费率计算逾期信用分扣减 — 仅用于 UI 预览展示。
  *
- * Tiers (§7.1): 1-3d → -3/d, 4-7d → -5/d, >7d → -8/d, cap -50.
- * 分级：1-3天 -3/天，4-7天 -5/天，>7天 -8/天，封顶 50 分。
+ * ⚠️  IMPORTANT: Actual credit deductions are handled exclusively by the three-node
+ * PostgreSQL checkpoint system (check_overdue_bookings): Day 1 -10, Day 7 -15, Day 30 -25.
+ * This function is NOT called during processReturn() or acknowledgeReturnWithExistingDamage().
+ * 重要：实际扣分由数据库三节点检查系统统一处理（Day1 -10 / Day7 -15 / Day30 -25），
+ * 此函数不在归还核验流程中调用，仅供 UI 参考展示。
  *
  * @param overdueDays - Number of days overdue. 逾期天数
- * @returns Penalty as a positive number (caller applies as negative delta). 扣分绝对值（调用方取负）
+ * @returns Penalty as a positive number (for display only). 扣分绝对值（仅展示用）
  */
 export function calcOverduePenalty(overdueDays: number): number {
     if (overdueDays <= 0) return 0;
@@ -189,10 +192,14 @@ export const bookingService = {
 
         // 审批通过 → 资产状态同步为 borrowed，防止同一资产被重复审批
         if (booking) {
-            await (supabase as any)
+            const { error: assetError } = await (supabase as any)
                 .from('assets')
                 .update({ status: 'borrowed' })
                 .eq('id', (booking as any).asset_id);
+            // 资产状态更新失败不应回滚已完成的审批，但必须记录以便排查
+            if (assetError) {
+                console.error('approveBooking: failed to update asset status to borrowed:', assetError);
+            }
         }
 
         await auditService.logAction({
@@ -337,54 +344,11 @@ export const bookingService = {
             .update({ status: 'available' })
             .eq('id', (booking as any).asset_id);
 
-        // ── 逾期扣分（§7.1）──────────────────────────────────────
+        // ── 逾期扣分由三节点 check_overdue_bookings() cron 统一处理，此处不重复扣 ──
+        // Overdue credit deductions are handled exclusively by the checkpoint cron:
+        //   Day 1 -10 / Day 7 -15 / Day 30 -25. processReturn() only confirms physical return.
         const endDate = (booking as any).end_date as string | null;
         const actualReturn = (booking as any).actual_return_date as string | null;
-        const borrowerId = (booking as any).borrower_id as string | null;
-        const assetName = (booking as any).assets?.name ?? 'an asset';
-
-        if (endDate && actualReturn && borrowerId) {
-            const overdueDays = Math.round(
-                (new Date(actualReturn).getTime() - new Date(endDate).getTime()) / (1000 * 60 * 60 * 24)
-            );
-            const penalty = calcOverduePenalty(overdueDays);
-
-            if (penalty > 0) {
-                const delta = -penalty;
-
-                // 优先使用 RPC；若 RPC 不存在则直接更新字段
-                const { error: rpcErr } = await (supabase as any).rpc('update_credit_score', {
-                    p_user_id: borrowerId,
-                    p_delta: delta,
-                    p_reason: `overdue_${overdueDays}d`,
-                });
-
-                if (rpcErr) {
-                    const { data: profile } = await supabase
-                        .from('profiles')
-                        .select('credit_score')
-                        .eq('id', borrowerId)
-                        .single();
-                    if (profile) {
-                        const newScore = Math.max(0, Math.min(200, (profile as any).credit_score + delta));
-                        await (supabase as any)
-                            .from('profiles')
-                            .update({ credit_score: newScore })
-                            .eq('id', borrowerId);
-                    }
-                }
-
-                // 发逾期扣分通知给借用者
-                await (supabase as any).from('notifications').insert({
-                    user_id: borrowerId,
-                    type: 'overdue_alert',
-                    title: '逾期归还扣分通知',
-                    message: `您借用的「${assetName}」逾期 ${overdueDays} 天归还，已扣减信用分 ${penalty} 分。请按时归还设备，避免信用分持续降低。`,
-                    metadata: { booking_id: bookingId, overdue_days: overdueDays, penalty },
-                });
-            }
-        }
-        // ─────────────────────────────────────────────────────────
 
         await auditService.logAction({
             operation_type: 'VERIFY',
@@ -392,14 +356,11 @@ export const bookingService = {
             resource_id: bookingId,
             resource_name: (booking as any).assets?.name,
             change_description: (() => {
-                const end = (booking as any).end_date as string | null;
-                const actual = (booking as any).actual_return_date as string | null;
-                if (end && actual) {
+                if (endDate && actualReturn) {
                     const days = Math.round(
-                        (new Date(actual).getTime() - new Date(end).getTime()) / (1000 * 60 * 60 * 24)
+                        (new Date(actualReturn).getTime() - new Date(endDate).getTime()) / (1000 * 60 * 60 * 24)
                     );
-                    const pen = calcOverduePenalty(days);
-                    if (pen > 0) return `Admin verified the return (overdue ${days}d). Asset → available. Credit -${pen}.`;
+                    if (days > 0) return `Admin verified the return (overdue ${days}d). Asset → available. Overdue penalties already applied by checkpoint system.`;
                 }
                 return 'Admin verified the return as intact. Asset status set to available.';
             })(),
@@ -444,49 +405,8 @@ export const bookingService = {
             .update({ status: 'maintenance' })
             .eq('id', (booking as any).asset_id);
 
-        // 逾期扣分逻辑与 processReturn 相同
-        const endDate = (booking as any).end_date as string | null;
-        const actualReturn = (booking as any).actual_return_date as string | null;
-        const borrowerId = (booking as any).borrower_id as string | null;
-        const assetName = (booking as any).assets?.name ?? 'an asset';
-
-        if (endDate && actualReturn && borrowerId) {
-            const overdueDays = Math.round(
-                (new Date(actualReturn).getTime() - new Date(endDate).getTime()) / (1000 * 60 * 60 * 24)
-            );
-            const penalty = calcOverduePenalty(overdueDays);
-
-            if (penalty > 0) {
-                const { error: rpcErr } = await (supabase as any).rpc('update_credit_score', {
-                    p_user_id: borrowerId,
-                    p_delta: -penalty,
-                    p_reason: `overdue_${overdueDays}d`,
-                });
-
-                if (rpcErr) {
-                    const { data: profile } = await supabase
-                        .from('profiles')
-                        .select('credit_score')
-                        .eq('id', borrowerId)
-                        .single();
-                    if (profile) {
-                        const newScore = Math.max(0, Math.min(200, (profile as any).credit_score - penalty));
-                        await (supabase as any)
-                            .from('profiles')
-                            .update({ credit_score: newScore })
-                            .eq('id', borrowerId);
-                    }
-                }
-
-                await (supabase as any).from('notifications').insert({
-                    user_id: borrowerId,
-                    type: 'overdue_alert',
-                    title: '逾期归还扣分通知',
-                    message: `您借用的「${assetName}」逾期 ${overdueDays} 天归还，已扣减信用分 ${penalty} 分。`,
-                    metadata: { booking_id: bookingId, overdue_days: overdueDays, penalty },
-                });
-            }
-        }
+        // 逾期扣分由三节点 check_overdue_bookings() cron 统一处理，此处不重复扣
+        // Same as processReturn: overdue credit management is checkpoint system's responsibility.
 
         await auditService.logAction({
             operation_type: 'VERIFY',
@@ -563,7 +483,8 @@ export const bookingService = {
             .eq('id', bookingId);
 
         // 资产进入维护状态，同时根据损坏程度更新 condition (minor→fair, moderate→poor, severe→damaged)
-        const conditionMap: Record<string, string> = { minor: 'fair', moderate: 'poor', severe: 'damaged' };
+        // lost 时资产状态暂为 maintenance，等管理员确认后在 updateDamageReportStatus 改为 retired
+        const conditionMap: Record<string, string> = { minor: 'fair', moderate: 'poor', severe: 'damaged', lost: 'damaged' };
         await (supabase as any)
             .from('assets')
             .update({ status: 'maintenance', condition: conditionMap[severity] ?? 'poor' })
@@ -714,7 +635,7 @@ export const bookingService = {
     async updateDamageReportStatus(id: string, status: string, notes: string, severity: string): Promise<boolean> {
         const { data: report } = await supabase
             .from('damage_reports')
-            .select('severity, booking_id, status, asset_id')
+            .select('severity, booking_id, status, asset_id, reporter_id, auto_generated')
             .eq('id', id)
             .single();
 
@@ -794,10 +715,14 @@ export const bookingService = {
         }
 
         // 首次进入 resolved 时扣减信用分并发送最终处理通知，确保只扣一次
+        // §5.3 三场景扣分逻辑（lost 特殊处理）：
+        //   场景一：auto_generated=true（系统30天判定）→ 0分（逾期系统已扣满-50）
+        //   场景二：reporter_id==borrower_id（用户主动自报）→ -30分（诚信从轻）
+        //   场景三：reporter_id!=borrower_id（管理员发现调包）→ -50分（欺诈重罚）
+        let resolvedDelta = 0; // 供审计日志使用
         if (status === 'resolved') {
-            // 扣分标准 §5.3：minor -5, moderate -15, severe -30（使用最终 severity）
-            const severityMap: Record<string, number> = { minor: -5, moderate: -15, severe: -30 };
-            const delta = severityMap[severity] ?? -10;
+            const isAutoGenerated = ((report as any).auto_generated as boolean) ?? false;
+            const reporterId = ((report as any).reporter_id as string) ?? '';
 
             const { data: booking } = await supabase
                 .from('bookings')
@@ -806,44 +731,88 @@ export const bookingService = {
                 .single();
 
             if (booking) {
-                await applyCreditDelta(
-                    (booking as any).borrower_id,
-                    delta,
-                    `damage_${severity}`,
-                );
+                const borrowerId = (booking as any).borrower_id as string;
 
-                const returnBonusDelta = await getReturnBonusRevocationDelta(
-                    (booking as any).borrower_id,
-                    (report as any).booking_id,
-                );
-                if (returnBonusDelta > 0) {
-                    await applyCreditDelta(
-                        (booking as any).borrower_id,
-                        -returnBonusDelta,
-                        `damage_return_bonus_reversal_${(report as any).booking_id}`,
+                // 根据场景计算 delta
+                let delta: number;
+                if (severity === 'lost') {
+                    if (isAutoGenerated) {
+                        delta = 0; // 场景一：逾期系统已扣满，不重复扣
+                    } else if (reporterId === borrowerId) {
+                        delta = -30; // 场景二：用户主动申报，从轻
+                    } else {
+                        delta = -50; // 场景三：管理员发现调包，重罚
+                    }
+                } else {
+                    const severityMap: Record<string, number> = { minor: -5, moderate: -15, severe: -30 };
+                    delta = severityMap[severity] ?? -10;
+                }
+                resolvedDelta = delta;
+
+                // 信用分扣减（delta=0 时跳过，避免无意义记录）
+                let returnBonusDelta = 0;
+                if (delta !== 0) {
+                    await applyCreditDelta(borrowerId, delta, `damage_${severity}`);
+
+                    returnBonusDelta = await getReturnBonusRevocationDelta(
+                        borrowerId,
+                        (report as any).booking_id,
                     );
+                    if (returnBonusDelta > 0) {
+                        await applyCreditDelta(
+                            borrowerId,
+                            -returnBonusDelta,
+                            `damage_return_bonus_reversal_${(report as any).booking_id}`,
+                        );
+                    }
                 }
 
-                // 计算赔偿金额（复用折旧公式 §5.2）并写入通知
+                // 计算赔偿金额（§5.2 公式）
+                // lost 场景：用户自报 → 折旧价；系统/管理员 → 全款
                 const price = (booking as any).assets?.purchase_price as number | null;
                 const purchaseDate = (booking as any).assets?.purchase_date as string | null;
                 let compensation: number | null = null;
                 if (price != null) {
-                    const years = purchaseDate
-                        ? (Date.now() - new Date(purchaseDate).getTime()) / (1000 * 60 * 60 * 24 * 365.25)
-                        : 2;
-                    const depRatio = years <= 1 ? 1.0 : years <= 3 ? 0.8 : years <= 5 ? 0.5 : 0.2;
-                    const coef = { minor: 0.2, moderate: 0.5, severe: 1.0 }[severity] ?? 0.5;
-                    compensation = Math.round(price * depRatio * coef);
+                    if (severity === 'lost') {
+                        const isUserSelfReport = !isAutoGenerated && reporterId === borrowerId;
+                        if (isUserSelfReport) {
+                            const years = purchaseDate
+                                ? (Date.now() - new Date(purchaseDate).getTime()) / (1000 * 60 * 60 * 24 * 365.25)
+                                : 2;
+                            const depRatio = years <= 1 ? 1.0 : years <= 3 ? 0.8 : years <= 5 ? 0.5 : 0.2;
+                            compensation = Math.round(price * depRatio); // 折旧价
+                        } else {
+                            compensation = Math.round(price); // 全款（无折旧）
+                        }
+                    } else {
+                        const years = purchaseDate
+                            ? (Date.now() - new Date(purchaseDate).getTime()) / (1000 * 60 * 60 * 24 * 365.25)
+                            : 2;
+                        const depRatio = years <= 1 ? 1.0 : years <= 3 ? 0.8 : years <= 5 ? 0.5 : 0.2;
+                        const coef = { minor: 0.2, moderate: 0.5, severe: 1.0 }[severity] ?? 0.5;
+                        compensation = Math.round(price * depRatio * coef);
+                    }
+                }
+
+                // 确认丢失 → 资产标记为 retired（不可再借）
+                if (severity === 'lost') {
+                    await (supabase as any)
+                        .from('assets')
+                        .update({ status: 'retired', condition: 'damaged' })
+                        .eq('id', (report as any).asset_id);
                 }
 
                 const assetName = (booking as any).assets?.name ?? '设备';
                 const totalCreditDelta = delta - returnBonusDelta;
+                // lost+auto_generated 时 delta=0，通知措辞特殊处理（只告知赔偿，不说扣分）
+                const creditMsg = delta === 0
+                    ? '（逾期信用分已扣满，本次不额外扣减）'
+                    : `Damage penalty: ${Math.abs(delta)} points.${returnBonusDelta > 0 ? ` Previous return bonus revoked: ${returnBonusDelta} points.` : ''} Total credit impact: ${Math.abs(totalCreditDelta)} points.`;
                 await (supabase as any).from('notifications').insert({
-                    user_id: (booking as any).borrower_id,
+                    user_id: borrowerId,
                     type: 'damage_reported',
-                    title: 'Damage Review Result — Credit Updated',
-                    message: `Damage to "${assetName}" has been confirmed as ${getSeverityLabel(severity)}. Damage penalty: ${Math.abs(delta)} points.${returnBonusDelta > 0 ? ` Previous return bonus revoked: ${returnBonusDelta} points.` : ''} Total credit impact: ${Math.abs(totalCreditDelta)} points.${compensation != null ? ` Compensation due: ¥${compensation.toLocaleString()}.` : ''}`,
+                    title: severity === 'lost' ? '设备丢失已确认 — 请处理赔偿' : 'Damage Review Result — Credit Updated',
+                    message: `Damage to "${assetName}" has been confirmed as ${getSeverityLabel(severity)}. ${creditMsg}${compensation != null ? ` Compensation due: ¥${compensation.toLocaleString()}.` : ''}`,
                     metadata: {
                         booking_id: (report as any).booking_id,
                         asset_id: (report as any).asset_id,
@@ -873,10 +842,11 @@ export const bookingService = {
             resolved: 'Resolved',
             dismissed: 'Dismissed',
         };
-        const severityMapAudit: Record<string, number> = { minor: -5, moderate: -15, severe: -30 };
         let auditDesc = `Damage report status: ${statusLabels[previousStatus] ?? previousStatus} → ${statusLabels[status] ?? status}. Severity: ${severity}.`;
         if (status === 'resolved') {
-            auditDesc += ` Credit delta: ${severityMapAudit[severity] ?? -10}.`;
+            auditDesc += resolvedDelta === 0
+                ? ' Credit delta: 0 (auto-generated lost report, overdue system already capped at -50).'
+                : ` Credit delta: ${resolvedDelta}.`;
         } else if (status === 'dismissed') {
             auditDesc += ' No credit deduction.';
         }

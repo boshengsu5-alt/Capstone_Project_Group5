@@ -10,7 +10,7 @@
 | 003 | BookingService | 创建预约存在潜在并发竞争风险 | Bosheng | Bosheng | Fixed | RPC `activate_booking` 使用 FOR UPDATE 行锁 |
 | 004 | AssetDetail | 状态标签颜色硬编码，未统一使用主题色 | Yuxuan | - | Pending | 建议使用 `theme.colors.success` |
 | 005 | Auth/Login | 缺少"忘记密码"重置功能 | Cunjun | - | Deferred | 展会优先级低，延至后续迭代 |
-| 006 | CalendarView | 无法直接清除已选日期范围 | Bosheng | - | Pending | 只能通过重选来覆盖 |
+| 006 | CalendarView | 无法直接清除已选日期范围 | Bosheng | Bosheng | Fixed | Day 6 复测确认：已有"清除选择"红色按钮（clearSelection），Verified |
 | 007 | Web/Dashboard | recharts 依赖未安装，TS 编译失败 | Bosheng | Bosheng | Fixed | Day 9 修复，npm install recharts |
 | 008 | Web/Dashboard | 隐式 any 类型参数导致编译警告 | Bosheng | Bosheng | Fixed | Day 9 修复，Legend formatter 加类型注解 |
 | 009 | Web/Layout | Dashboard 无路由保护，学生可访问管理后台 | Bosheng | Bosheng | Fixed | Day 9 修复，layout.tsx 加 auth + admin 校验 |
@@ -19,8 +19,10 @@
 | 012 | Web/Bookings | BookingTable 缺少 overdue/cancelled 状态标签 | Bosheng | Bosheng | Fixed | Day 9 修复，补充两种状态颜色 |
 | 013 | Web/Dashboard | Dashboard 缺少 KPI 统计卡片 | Bosheng | Bosheng | Fixed | Day 9 修复，新增 4 个计数卡 |
 | 014 | Mobile/BookingForm | 提交前缺少日期有效性前端校验 | Bosheng | Bosheng | Fixed | Day 9 修复，补充空日期和倒序检测 |
-| 015 | Web/API | `/api/assets` 路由无鉴权，任何人可增删改查资产 (Critical) | Bosheng | Bosheng | Fixed | Day 3 交叉测试发现。新增 `serverAuth.ts` + `authFetch.ts`，API 路由验证 admin token |
-| 016 | Web/Middleware | 无 middleware.ts，dashboard 路由保护完全依赖客户端 JS | Bosheng | Bosheng | Fixed | Day 3 交叉测试发现。新增 `middleware.ts`，cookie 机制拦截未登录访问 |
-| 017 | Web/Login | student 账号可成功登录 Web 端，只在 dashboard 层才被拦截 | Bosheng | Bosheng | Fixed | Day 3 交叉测试发现。login 页登录后立即检查 admin 角色，非 admin 显示错误 |
+| 015 | Web/API | `/api/assets` 路由无鉴权，任何人可增删改查资产 (Critical) | Bosheng | Bosheng | Fixed | Day 3 交叉测试发现。新增 `serverAuth.ts` + `authFetch.ts`，API 路由验证 admin token。Day 6 Verified |
+| 016 | Web/Middleware | 无 middleware.ts，dashboard 路由保护完全依赖客户端 JS | Bosheng | Bosheng | Fixed | Day 3 交叉测试发现。新增 `middleware.ts`，cookie 机制拦截未登录访问。Day 6 Verified |
+| 017 | Web/Login | student 账号可成功登录 Web 端，只在 dashboard 层才被拦截 | Bosheng | Bosheng | Fixed | Day 3 交叉测试发现。login 页登录后立即检查 admin 角色，非 admin 显示错误。Day 6 Verified |
 | 018 | DB/Trigger | `prevent_credit_tampering` 触发器在 SECURITY DEFINER 函数内 auth.uid() 返回 NULL，导致所有信用分变更被静默还原（Critical） | Bosheng | Bosheng | Fixed | Day 4 E2E 联调前发现。migration 012 改用 `current_user` 判断，放行来自 SECURITY DEFINER 函数的信用分修改。需在 Supabase 应用 `012_fix_credit_tampering_trigger.sql` |
+| 019 | Mobile/BookingForm | 提交页 subtitle 显示原始 UUID 而非设备名称，用户无法确认借用了哪个设备 | Bosheng | Bosheng | Fixed | Day 6 自由探索发现。HomeStackParamList 新增 assetName 参数，AssetDetailScreen 传参，BookingFormScreen 显示设备名 |
+| 020 | Full-stack/Damage | 损坏报告缺少"设备丢失"选项，严重程度枚举不完整，信用扣分逻辑未覆盖 lost=-50 | Bosheng | Bosheng | Fixed | Day 6 修复。DB migration 018 扩展 CHECK 约束，supabase.ts 补 'lost' 类型，移动端 DamageReportScreen 新增丢失选项（2×2 网格），Web DamageTable/DamageSeverityModal 新增 lost 选项（系数1.0，-50分），bookingService severityMap 补全 |
 | | | | | | | |

@@ -104,9 +104,9 @@ export default function UserDropdown({ email }: UserDropdownProps) {
         {/* Avatar with purple gradient border */}
         <div className="relative p-[2px] rounded-full bg-gradient-to-br from-purple-600 via-violet-500 to-amber-400 transition-transform duration-200 group-hover:scale-110">
           <div className="h-8 w-8 rounded-full bg-gray-900 overflow-hidden flex items-center justify-center border border-gray-950">
-            {user?.user_metadata?.avatar_url ? (
+            {(profile?.avatar_url || user?.user_metadata?.avatar_url) ? (
               <img 
-                src={user.user_metadata.avatar_url} 
+                src={profile?.avatar_url || user?.user_metadata?.avatar_url} 
                 alt="Avatar" 
                 className="h-full w-full object-cover"
               />

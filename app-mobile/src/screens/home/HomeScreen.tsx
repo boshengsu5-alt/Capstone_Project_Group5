@@ -65,8 +65,13 @@ export default function HomeScreen({ navigation, route }: Props) {
   // 从 CategoryScreen 传入的分类筛选 ID
   const categoryId = route.params?.categoryId;
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
+  const fetchData = useCallback(async (isRefresh = false) => {
+    if (isRefresh) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
+
     setError(false);
     setPage(0);
     setHasMore(true);
@@ -82,9 +87,12 @@ export default function HomeScreen({ navigation, route }: Props) {
       setCategories(categoriesData);
       setHasMore(assetsData.length >= PAGE_SIZE);
     } catch (err) {
-      setError(true);
+      if (!isRefresh) {
+        setError(true);
+      }
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, [categoryId]);
 
@@ -105,9 +113,7 @@ export default function HomeScreen({ navigation, route }: Props) {
   }, [page, loadingMore, hasMore, categoryId]);
 
   const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await fetchData();
-    setRefreshing(false);
+    await fetchData(true);
   }, [fetchData]);
 
   React.useEffect(() => {
@@ -220,6 +226,7 @@ export default function HomeScreen({ navigation, route }: Props) {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <View pointerEvents="none" style={styles.topBackground} />
       <FlatList
         data={assets}
         renderItem={renderProduct}
@@ -246,8 +253,16 @@ export default function HomeScreen({ navigation, route }: Props) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: theme.colors.primary,
+    backgroundColor: theme.colors.background,
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+  },
+  topBackground: {
+    position: 'absolute',
+    top: Platform.OS === 'android' ? -(StatusBar.currentHeight ?? 0) : 0,
+    left: 0,
+    right: 0,
+    height: 440 + (Platform.OS === 'android' ? (StatusBar.currentHeight ?? 0) : 0),
+    backgroundColor: theme.colors.primary,
   },
   loadingContainer: {
     flex: 1,
@@ -356,6 +371,7 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
   },
   listContent: {
+    flexGrow: 1,
     backgroundColor: theme.colors.background,
     paddingBottom: theme.spacing.lg,
   },

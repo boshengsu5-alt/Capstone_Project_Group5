@@ -12,6 +12,7 @@ export type HomeStackParamList = {
   AssetDetailScreen: { id: string };
   BookingFormScreen: {
     assetId: string;
+    assetName: string;
     startDate: string;
     endDate: string;
   };

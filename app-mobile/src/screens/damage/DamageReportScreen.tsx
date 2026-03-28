@@ -28,6 +28,7 @@ const SEVERITY_OPTIONS: { value: DamageSeverity; label: string; emoji: string; c
   { value: 'minor',    label: '轻微损坏', emoji: '🟡', color: '#F59E0B' },
   { value: 'moderate', label: '中度损坏', emoji: '🟠', color: '#F97316' },
   { value: 'severe',   label: '严重损坏', emoji: '🔴', color: theme.colors.danger },
+  { value: 'lost',     label: '设备丢失', emoji: '❌', color: '#991B1B' },
 ];
 
 export default function DamageReportScreen() {
@@ -136,7 +137,8 @@ export default function DamageReportScreen() {
       alertManager.alert('描述太短', '请至少用10个字描述损坏情况');
       return;
     }
-    if (photoUris.length === 0) {
+    // 丢失情况无法拍照，照片为可选；其他损坏类型必须提供照片作为证据
+    if (severity !== 'lost' && photoUris.length === 0) {
       alertManager.alert('缺少照片', '请上传至少一张损坏区域照片');
       return;
     }
@@ -262,7 +264,9 @@ export default function DamageReportScreen() {
 
         {/* 损坏照片 */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>📸 损坏区域照片（必填）</Text>
+          <Text style={styles.sectionTitle}>
+            📸 损坏区域照片（{severity === 'lost' ? '选填' : '必填'}）
+          </Text>
 
           <View style={styles.photoGrid}>
             {photoUris.map((uri, index) => (
@@ -351,9 +355,11 @@ const styles = StyleSheet.create({
   infoLabel: { fontSize: 13, color: theme.colors.gray },
   infoValue: { fontSize: 13, color: theme.colors.text, fontWeight: '600', maxWidth: '70%' },
 
-  severityRow: { flexDirection: 'row', gap: 10 },
+  // 4 个选项排 2×2 网格，flexWrap 自动换行
+  severityRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   severityChip: {
-    flex: 1,
+    // 每行两个，gap=10，总宽 = (container - 2*padding - gap) / 2
+    width: '48%',
     alignItems: 'center',
     paddingVertical: 12,
     borderRadius: 12,

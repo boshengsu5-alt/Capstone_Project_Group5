@@ -2,9 +2,8 @@
 
 import React from 'react';
 import { CheckCircle, AlertTriangle, ImageIcon, Calendar, Clock, ExternalLink } from 'lucide-react';
-import { calcOverduePenalty } from '@/lib/bookingService';
-import { formatDateTime, formatDateTimeRange } from '@/lib/dateTime';
 import type { BookingWithDetails } from '@/lib/bookingService';
+import { formatDateTime, formatDateTimeRange } from '@/lib/dateTime';
 
 interface ReturnVerifyProps {
     booking: BookingWithDetails;
@@ -107,7 +106,7 @@ export default function ReturnVerify({ booking, onVerify, onAcknowledgeWithDamag
                                 <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-500/10 text-red-400 border border-red-500/20">
                                     Overdue {overdueDays} day{overdueDays !== 1 ? 's' : ''}
                                     <span className="text-red-300 opacity-80">
-                                        · 预计扣 -{calcOverduePenalty(overdueDays!)} 分
+                                        · 扣分已由系统自动处理
                                     </span>
                                 </span>
                             ) : (

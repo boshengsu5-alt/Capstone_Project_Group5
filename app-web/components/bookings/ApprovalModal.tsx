@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { BookingWithDetails, calcOverduePenalty } from '@/lib/bookingService';
+import { BookingWithDetails } from '@/lib/bookingService';
 import { formatDateTime, formatDateTimeRange } from '@/lib/dateTime';
 import {
     X, Calendar, Clock, User, QrCode, ImageIcon,
@@ -46,8 +46,6 @@ export default function ApprovalModal({ isOpen, booking, onClose, onApprove, onR
     const overdueDays = booking.actual_return_date && booking.end_date
         ? Math.max(0, daysBetween(booking.end_date, booking.actual_return_date))
         : null;
-    const overduePenalty = overdueDays ? calcOverduePenalty(overdueDays) : 0;
-
     // Borrow duration
     const borrowDays = daysBetween(booking.start_date, booking.end_date);
 
@@ -178,7 +176,7 @@ export default function ApprovalModal({ isOpen, booking, onClose, onApprove, onR
                                     <span className="text-sm text-gray-300">{formatDateTime(booking.actual_return_date)}</span>
                                     {overdueDays != null && overdueDays > 0 ? (
                                         <span className="text-xs font-semibold text-red-400 bg-red-500/10 border border-red-500/20 px-2 py-0.5 rounded-full">
-                                            逾期 {overdueDays} 天 · 扣 {overduePenalty} 分
+                                            逾期 {overdueDays} 天 · 扣分已由系统处理
                                         </span>
                                     ) : (
                                         <span className="text-xs font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">

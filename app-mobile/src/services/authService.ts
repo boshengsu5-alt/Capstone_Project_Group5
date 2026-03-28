@@ -1,5 +1,11 @@
 import { Session } from '@supabase/supabase-js';
 import { supabase } from './supabase';
+import type { CreditScoreLog, Profile } from '../../../database/types/supabase';
+
+// 手写 Database 类型与客户端泛型在 update 场景下存在推断问题。
+// 这里沿用项目里其它 service 的做法，使用 db 别名规避类型噪音。
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const db = supabase as any;
 
 // ============================================================
 // Auth Service — 认证服务
@@ -94,4 +100,75 @@ export async function getMyProfile() {
 
   if (error) throw error;
   return data;
+}
+
+type UpdateMyProfileInput = {
+  full_name?: string;
+  student_id?: string | null;
+  department?: string;
+  phone?: string;
+  avatar_url?: string;
+};
+
+/**
+ * Update current user's profile fields.
+ * 更新当前用户的个人资料字段。
+ */
+export async function updateMyProfile(updates: UpdateMyProfileInput): Promise<Profile> {
+  const user = await getCurrentUser();
+
+  const { data, error } = await db
+    .from('profiles')
+    .update(updates)
+    .eq('id', user.id)
+    .select('*')
+    .single();
+
+  if (error) throw error;
+
+  const authMetadata: Record<string, string> = {};
+  if (typeof updates.full_name === 'string') authMetadata.full_name = updates.full_name;
+  // 避免把较大的 data URI 写入 auth metadata，资料表才是头像主数据源。
+  if (typeof updates.avatar_url === 'string' && !updates.avatar_url.startsWith('data:')) {
+    authMetadata.avatar_url = updates.avatar_url;
+  }
+
+  if (Object.keys(authMetadata).length > 0) {
+    const { error: authError } = await supabase.auth.updateUser({ data: authMetadata });
+    if (authError) {
+      console.warn('[authService] Failed to sync auth metadata:', authError.message);
+    }
+  }
+
+  return data as Profile;
+}
+
+/**
+ * Get current user's credit score change history, newest first.
+ * 获取当前用户的信用分变动历史，按时间倒序排列。
+ *
+ * @returns Array of credit score log records. 信用分变动日志数组
+ */
+export async function getCreditScoreLogs(): Promise<CreditScoreLog[]> {
+  const user = await getCurrentUser();
+
+  const { data, error } = await supabase
+    .from('credit_score_logs')
+    .select('*')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return (data ?? []) as CreditScoreLog[];
+}
+
+/**
+ * Update the current user's password.
+ * 修改当前用户的密码。
+ *
+ * @param newPassword - New password (min 6 chars). 新密码（至少6位）
+ */
+export async function updatePassword(newPassword: string): Promise<void> {
+  const { error } = await supabase.auth.updateUser({ password: newPassword });
+  if (error) throw error;
 }

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../services/supabase';
 import { getUnreadCount } from '../services/notificationService';
+import { getAppSettings } from '../services/appSettingsService';
 import { useToast } from './ToastContext';
 import { Session } from '@supabase/supabase-js';
 
@@ -67,16 +68,21 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
           filter: `user_id=eq.${session.user.id}`,
         },
         (payload) => {
-          if (__DEV__) console.log('[NotificationContext] New notification received:', payload);
-          setUnreadCount((prev) => prev + 1);
+          void (async () => {
+            if (__DEV__) console.log('[NotificationContext] New notification received:', payload);
+            setUnreadCount((prev) => prev + 1);
 
-          const newNotification = payload.new as Record<string, unknown>;
-          // 根据通知类型显示对应 toast，避免硬编码资产种类
-          if (newNotification.type === 'booking_approved') {
-            showToast('您的借用申请已获批！');
-          } else if (newNotification.type === 'booking_rejected') {
-            showToast('您的借用申请已被拒绝，请查看通知了解原因。');
-          }
+            const settings = await getAppSettings();
+            if (!settings.showInAppAlerts) return;
+
+            const newNotification = payload.new as Record<string, unknown>;
+            // 根据通知类型显示对应 toast，避免硬编码资产种类
+            if (newNotification.type === 'booking_approved') {
+              showToast('您的借用申请已获批！');
+            } else if (newNotification.type === 'booking_rejected') {
+              showToast('您的借用申请已被拒绝，请查看通知了解原因。');
+            }
+          })();
         }
       )
       .on(

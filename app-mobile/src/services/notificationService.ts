@@ -6,6 +6,161 @@ import type { Notification } from '../../../database/types/supabase';
 // 用 db 别名统一绕过类型推断问题，运行时行为不受影响
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase as any;
+const DAY_IN_MS = 1000 * 60 * 60 * 24;
+
+type BookingForOverdueNotification = {
+  id: string;
+  end_date: string;
+  actual_return_date: string | null;
+  assets: { name: string } | null;
+};
+
+function getMetadataString(metadata: unknown, key: string): string | null {
+  if (!metadata || typeof metadata !== 'object') return null;
+  const value = (metadata as Record<string, unknown>)[key];
+  return typeof value === 'string' && value.trim().length > 0 ? value : null;
+}
+
+function getMetadataNumber(metadata: unknown, key: string): number | null {
+  if (!metadata || typeof metadata !== 'object') return null;
+  const value = (metadata as Record<string, unknown>)[key];
+
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string' && value.trim().length > 0) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  return null;
+}
+
+function computeOverdueDays(endDate: string, actualReturnDate?: string | null): number {
+  const end = new Date(endDate);
+  const reference = actualReturnDate ? new Date(actualReturnDate) : new Date();
+
+  if (Number.isNaN(end.getTime()) || Number.isNaN(reference.getTime()) || reference <= end) {
+    return 0;
+  }
+
+  return Math.max(1, Math.ceil((reference.getTime() - end.getTime()) / DAY_IN_MS));
+}
+
+async function enrichOverdueNotifications(notifications: Notification[]): Promise<Notification[]> {
+  const overdueNotifications = notifications.filter((n) => n.type === 'overdue_alert');
+  if (overdueNotifications.length === 0) return notifications;
+
+  // ── 路径一：已有 booking_id —— 直接批量拉取 ──────────────────
+  const bookingIds = Array.from(new Set(
+    overdueNotifications
+      .map((n) => getMetadataString(n.metadata, 'booking_id'))
+      .filter((id): id is string => Boolean(id))
+  ));
+
+  const bookingMap = new Map<string, BookingForOverdueNotification>();
+  if (bookingIds.length > 0) {
+    const { data } = await db
+      .from('bookings')
+      .select('id, end_date, actual_return_date, assets(name)')
+      .in('id', bookingIds);
+    if (data) {
+      (data as BookingForOverdueNotification[]).forEach((b) => bookingMap.set(b.id, b));
+    }
+  }
+
+  // ── 路径二：只有 asset_id 的老格式通知 ── 按 asset_id + user_id 回查 ──
+  // Old check_overdue_bookings() only stored asset_id in metadata (pre-019 format).
+  // 老版函数只存了 asset_id，通过资产+用户联合查询找到对应借用记录。
+  const assetOnlyIds = Array.from(new Set(
+    overdueNotifications
+      .filter((n) => !getMetadataString(n.metadata, 'booking_id') && getMetadataString(n.metadata, 'asset_id'))
+      .map((n) => getMetadataString(n.metadata, 'asset_id')!)
+  ));
+
+  // notificationId → BookingForOverdueNotification (best-match booking)
+  const assetFallbackMap = new Map<string, BookingForOverdueNotification & { id: string }>();
+  if (assetOnlyIds.length > 0) {
+    const userIds = Array.from(new Set(
+      overdueNotifications
+        .filter((n) => !getMetadataString(n.metadata, 'booking_id') && getMetadataString(n.metadata, 'asset_id'))
+        .map((n) => n.user_id)
+    ));
+
+    const { data: assetBookings } = await db
+      .from('bookings')
+      .select('id, asset_id, borrower_id, end_date, actual_return_date, assets(name)')
+      .in('asset_id', assetOnlyIds)
+      .in('borrower_id', userIds)
+      .order('end_date', { ascending: false });
+
+    if (assetBookings) {
+      for (const notif of overdueNotifications) {
+        if (getMetadataString(notif.metadata, 'booking_id')) continue;
+        const assetId = getMetadataString(notif.metadata, 'asset_id');
+        if (!assetId) continue;
+
+        // 取 end_date < 通知创建时间 的最近一条借用
+        const match = (assetBookings as any[]).find(
+          (b) => b.asset_id === assetId
+            && b.borrower_id === notif.user_id
+            && b.end_date < notif.created_at
+        );
+        if (match) {
+          assetFallbackMap.set(notif.id, {
+            id: match.id,
+            end_date: match.end_date,
+            actual_return_date: match.actual_return_date,
+            assets: match.assets,
+          });
+        }
+      }
+    }
+  }
+
+  // ── 统一补全每条逾期通知的 metadata ────────────────────────────
+  return notifications.map((notification) => {
+    if (notification.type !== 'overdue_alert') return notification;
+
+    // 找到对应的 booking 数据
+    const bookingId = getMetadataString(notification.metadata, 'booking_id');
+    const booking: BookingForOverdueNotification | undefined = bookingId
+      ? bookingMap.get(bookingId)
+      : assetFallbackMap.get(notification.id);
+
+    if (!booking) return notification;
+
+    const nextMetadata: Record<string, unknown> = { ...(notification.metadata ?? {}) };
+
+    // 老格式通知补写 booking_id，方便下次直接走路径一
+    if (!bookingId) nextMetadata.booking_id = booking.id;
+
+    if (!getMetadataString(nextMetadata, 'asset_name') && booking.assets?.name) {
+      nextMetadata.asset_name = booking.assets.name;
+    }
+
+    const currentOverdueDays =
+      getMetadataNumber(nextMetadata, 'overdue_days')
+      ?? getMetadataNumber(nextMetadata, 'days_overdue');
+
+    if (currentOverdueDays == null) {
+      nextMetadata.overdue_days = computeOverdueDays(booking.end_date, booking.actual_return_date);
+    }
+
+    const penalty = getMetadataNumber(nextMetadata, 'penalty');
+    const creditDelta = getMetadataNumber(nextMetadata, 'credit_delta');
+
+    // Legacy overdue reminders only stored booking/asset IDs. Keep the historical -10 deduction visible.
+    if (penalty == null && creditDelta == null) {
+      nextMetadata.penalty = 10;
+      nextMetadata.credit_delta = -10;
+    } else if (penalty != null && creditDelta == null) {
+      nextMetadata.credit_delta = -Math.abs(penalty);
+    } else if (penalty == null && creditDelta != null) {
+      nextMetadata.penalty = Math.abs(creditDelta);
+    }
+
+    return { ...notification, metadata: nextMetadata };
+  });
+}
 
 // ============================================================
 // Notification Service — 通知服务
@@ -27,7 +182,7 @@ export async function getMyNotifications(): Promise<Notification[]> {
     .order('created_at', { ascending: false });
 
   if (error) throw error;
-  return (data ?? []) as unknown as Notification[];
+  return enrichOverdueNotifications((data ?? []) as unknown as Notification[]);
 }
 
 /**

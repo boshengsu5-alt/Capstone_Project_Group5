@@ -45,7 +45,7 @@ export default function DamageReportsPage() {
             showToast('No data to export', 'info');
             return;
         }
-        const severityMap: Record<string, string> = { minor: '轻微', moderate: '中等', severe: '严重' };
+        const severityMap: Record<string, string> = { minor: '轻微', moderate: '中等', severe: '严重', lost: '丢失' };
         const exportData = reports.map(r => ({
             'Asset': r.assets?.name || 'N/A',
             'Borrower': r.bookings?.profiles?.full_name || r.profiles?.full_name || 'N/A',

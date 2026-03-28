@@ -21,6 +21,7 @@ export type {
     Booking,
     DamageReport,
     Notification,
+    CreditScoreLog,
     Review,
     AuditLog,
     ProfileInsert,

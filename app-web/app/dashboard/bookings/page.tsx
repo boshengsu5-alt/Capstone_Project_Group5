@@ -116,7 +116,7 @@ export default function BookingsPage() {
         setIsDamageModalOpen(true);
     };
 
-    const handleDamageSeveritySelect = async (severity: 'minor' | 'moderate' | 'severe', description: string) => {
+    const handleDamageSeveritySelect = async (severity: 'minor' | 'moderate' | 'severe' | 'lost', description: string) => {
         if (!damageTargetBooking) return;
         setIsDamageModalOpen(false);
         setDamageTargetBooking(null);

@@ -68,14 +68,111 @@
     "logoutConfirm": "确认退出",
     "logoutConfirmMessage": "确定要退出登录吗？",
     "cancel": "取消",
-    "logout": "退出",
+    "logout": "退出登录",
     "logoutFailed": "退出失败",
     "creditScore": "信用分",
+    "creditScoreDetail": "查看明细",
+    "creditLevelExcellent": "信用优秀",
+    "creditLevelGood": "信用良好",
+    "creditLevelWarning": "信用注意",
+    "creditLevelRisk": "信用风险",
     "studentId": "学号",
     "department": "学院",
     "notSet": "未设置",
     "notifications": "消息通知",
-    "settings": "设置"
+    "editProfile": "编辑资料",
+    "changePassword": "修改密码",
+    "helpManual": "帮助手册",
+    "sectionAccount": "账户",
+    "sectionPreferences": "偏好"
+  },
+  "editProfile": {
+    "loadFailed": "资料加载失败，请稍后重试",
+    "saveFailed": "保存失败，请稍后再试",
+    "successTitle": "保存成功",
+    "successMessage": "个人资料已更新",
+    "successMessageWithAvatarFallback": "个人资料已更新。当前环境未配置头像存储，头像已使用兼容方式保存。",
+    "ok": "好的",
+    "avatarHint": "支持拍照或从相册选择头像",
+    "changeAvatar": "更换头像",
+    "avatarSourceTitle": "更换头像",
+    "avatarSourceMessage": "请选择头像来源",
+    "takePhoto": "拍照",
+    "chooseFromLibrary": "从相册选择",
+    "cameraPermission": "需要相机权限才能拍照，请在系统设置中开启",
+    "libraryPermission": "需要相册权限才能选择图片，请在系统设置中开启",
+    "basicInfo": "基本信息",
+    "academicInfo": "学籍信息",
+    "accountInfo": "账号信息",
+    "fullName": "姓名",
+    "fullNamePlaceholder": "请输入姓名",
+    "phone": "手机号",
+    "phonePlaceholder": "请输入手机号",
+    "studentId": "学号",
+    "studentIdPlaceholder": "请输入学号",
+    "department": "学院 / 专业",
+    "departmentPlaceholder": "请输入学院或专业",
+    "email": "邮箱",
+    "role": "账号类型",
+    "roleStudent": "学生",
+    "roleAdmin": "管理员",
+    "roleStaff": "工作人员",
+    "readOnlyHint": "邮箱与账号绑定，当前版本暂不支持修改。",
+    "nameRequired": "请先填写姓名",
+    "save": "保存修改"
+  },
+  "appSettings": {
+    "loadFailed": "设置加载失败，请稍后重试",
+    "saveFailed": "设置保存失败，请稍后重试",
+    "sectionBehavior": "基础参数",
+    "sectionSupport": "支持与信息",
+    "showInAppAlerts": "应用内提醒",
+    "showInAppAlertsHint": "控制顶部消息提醒弹窗是否显示",
+    "confirmBeforeLogout": "退出前确认",
+    "confirmBeforeLogoutHint": "退出登录前弹出确认提示",
+    "resetSettings": "重置基础设置",
+    "resetSettingsHint": "将本页基础参数恢复为默认值",
+    "resetConfirmTitle": "重置设置",
+    "resetConfirmMessage": "确定要将这些基础设置恢复为默认值吗？",
+    "resetSuccess": "基础设置已恢复默认值",
+    "about": "关于 UniGear",
+    "aboutHint": "面向校园场景的设备借用与管理系统",
+    "version": "当前版本"
+  },
+  "creditScoreLog": {
+    "navTitle": "信用分明细",
+    "currentScore": "当前信用分",
+    "balanceAfter": "余额：{{score}} 分",
+    "empty": "暂无信用分变动记录",
+    "emptyHint": "归还设备、逾期等操作会产生信用分变动",
+    "loadFailed": "加载失败，请下拉刷新重试",
+    "reasons": {
+      "return_bonus": "按时归还奖励",
+      "overdue_booking": "借用逾期扣分",
+      "overdue_day1": "逾期第1天扣分",
+      "overdue_day7": "逾期第7天扣分",
+      "overdue_day30_lost": "逾期30天判定丢失",
+      "damage_minor": "轻微损坏扣分",
+      "damage_moderate": "中度损坏扣分",
+      "damage_severe": "严重损坏扣分",
+      "admin_manual": "管理员手动调整",
+      "unknown": "信用分变动"
+    }
+  },
+  "changePassword": {
+    "navTitle": "修改密码",
+    "newPassword": "新密码",
+    "newPasswordPlaceholder": "请输入新密码（至少6位）",
+    "confirmPassword": "确认新密码",
+    "confirmPasswordPlaceholder": "请再次输入新密码",
+    "submit": "确认修改",
+    "submitting": "修改中...",
+    "successTitle": "修改成功",
+    "successMessage": "密码已更新，请用新密码重新登录。",
+    "ok": "好的",
+    "errorTooShort": "密码长度至少6位",
+    "errorNotMatch": "两次输入的密码不一致",
+    "errorFailed": "修改失败"
   },
   "scan": {
     "title": "设备扫码",
@@ -172,14 +269,76 @@
   },
   "nav": {
     "profile": "我的",
+    "editProfile": "编辑资料",
     "notifications": "消息通知",
     "notificationDetail": "通知详情",
+    "creditScoreLog": "信用分明细",
+    "changePassword": "修改密码",
+    "helpManual": "帮助手册",
     "category": "分类",
     "assetDetail": "物品详情",
     "bookingForm": "借用申请",
     "back": "返回",
     "returnAsset": "归还设备",
     "reportDamage": "损坏报修"
+  },
+  "helpManual": {
+    "title": "UniGear 帮助手册",
+    "intro": "本页整理了当前系统中的借用、归还、逾期、信用分与赔偿规则，可直接作为项目计划书或答辩说明的统一口径。",
+    "note": "若项目文档前文与本页规则存在旧版本差异，请以本页及当前系统实现为准。赔偿金额为系统估算值，最终以管理员核验结果为准。",
+    "sections": {
+      "status": {
+        "title": "状态说明",
+        "items": [
+          "待审批：用户已提交预约，等待管理员审核。",
+          "已批准：管理员已通过预约，用户可在借用开始日及之后扫码取货。",
+          "已借用：用户已完成扫码激活，借用周期正式开始。",
+          "已逾期：超过应还日期仍未归还，系统会按节点自动扣减信用分。",
+          "已归还：用户已提交归还并完成系统记录。",
+          "已取消 / 暂停中：取消代表预约终止；暂停中通常表示设备维修导致预约被临时挂起。"
+        ]
+      },
+      "borrowing": {
+        "title": "借用与取货规则",
+        "items": [
+          "用户需在设备详情页选择日期后提交预约申请，系统会先检查时间冲突，再创建借用记录。",
+          "借用记录默认先进入“待审批”，只有管理员通过后才会变成“已批准”。",
+          "用户不能在开始日期之前提前取货；到达开始日期后，需现场扫码确认取货。",
+          "扫码确认后，借用状态会从“已批准”变成“已借用”，系统开始计算借用周期。",
+          "当前版本支持记录取货照片，用于留存设备交接时的初始状态。"
+        ]
+      },
+      "returning": {
+        "title": "归还与损坏处理",
+        "items": [
+          "处于“已借用”或“已逾期”的记录都可以发起归还，归还时需要上传设备照片。",
+          "若设备有问题，用户可提交损坏报修。轻微/中度/严重损坏需要上传证据照片，设备丢失场景可不上传照片。",
+          "损坏报告的处理流转为：open（待处理）→ investigating（核验中）→ resolved（确认成立）或 dismissed（驳回）。",
+          "管理员确认损坏成立后，系统会根据严重程度扣减信用分，并按规则计算赔偿金额。",
+          "如果设备先被正常归还、后续又确认存在损坏，系统可能撤销此前的 +5 归还奖励。"
+        ]
+      },
+      "credit": {
+        "title": "信用分规则",
+        "items": [
+          "用户信用分默认 100 分，系统限制范围为 0 到 200 分。",
+          "正常归还设备后，系统奖励 +5 分。",
+          "逾期扣分采用三节点机制：逾期第 1 天扣 10 分，逾期满 7 天再扣 15 分，逾期满 30 天再扣 25 分，逾期总扣分封顶 50 分。",
+          "普通损坏扣分规则为：轻微损坏 -5 分，中度损坏 -15 分，严重损坏 -30 分。",
+          "设备丢失分三种情况：逾期 30 天系统自动判定丢失时不再额外扣分；用户主动上报丢失扣 -30 分；管理员确认恶意调包或严重丢失可扣 -50 分。"
+        ]
+      },
+      "compensation": {
+        "title": "赔偿规则",
+        "items": [
+          "有购置价的设备，系统按“赔偿金额 = 购置价 × 折旧率 × 损坏系数”进行估算。",
+          "折旧率按设备年限计算：1 年内 100%，1-3 年 80%，3-5 年 50%，5 年以上 20%。",
+          "损坏系数为：轻微损坏 0.2，中度损坏 0.5，严重损坏 1.0。",
+          "设备丢失时，若属于用户主动自报，则按折旧后的价格计算；若属于系统自动判定或管理员确认的丢失，则按设备全价赔偿，不计折旧。",
+          "若设备未录入购置价格，系统不会自动给出赔偿金额，需由管理员线下核验后确认。"
+        ]
+      }
+    }
   },
   "assetDetail": {
     "loading": "正在加载设备详情...",
@@ -276,7 +435,24 @@
       "severe": "严重损坏",
       "unknown": "未知损坏"
     },
+    "detail": {
+      "overdueSection": "逾期详情",
+      "asset": "设备名称",
+      "overdueDays": "逾期天数",
+      "creditImpact": "信用分变化",
+      "daysValue": "{{days}} 天",
+      "creditDeductionValue": "-{{points}} 分"
+    },
     "dynamic": {
+      "overdueAlert": {
+        "title": "逾期归还扣分通知",
+        "lostTitle": "设备已被判定为丢失",
+        "assetLine": "设备名称：{{asset}}",
+        "daysLine": "逾期天数：{{days}} 天",
+        "creditPenaltyLine": "已扣信用分：{{points}} 分。",
+        "reminder": "请尽快归还设备，避免产生更多扣分。",
+        "lostReminder": "逾期超过 30 天，系统已自动判定为丢失，请立即联系管理员处理赔偿事宜。"
+      },
       "damageReported": {
         "reported": {
           "title": "损坏已上报",

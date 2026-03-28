@@ -18,8 +18,8 @@ export default function ReturnsPage() {
     // 损坏程度弹窗：等待管理员选择严重程度
     const [damageTargetBooking, setDamageTargetBooking] = useState<BookingWithDetails | null>(null);
 
-    // 逾期确认弹窗：逾期归还时展示扣分预警，等待管理员二次确认
-    const [overdueConfirm, setOverdueConfirm] = useState<{ booking: BookingWithDetails; penalty: number; days: number } | null>(null);
+    // 逾期确认弹窗：逾期归还时提示管理员，等待二次确认（扣分已由系统自动处理）
+    const [overdueConfirm, setOverdueConfirm] = useState<{ booking: BookingWithDetails; days: number } | null>(null);
 
     const loadReturns = async () => {
         setIsLoading(true);
@@ -60,10 +60,9 @@ export default function ReturnsPage() {
             const overdueDays = Math.round(
                 (new Date(booking.actual_return_date).getTime() - new Date(booking.end_date).getTime()) / (1000 * 60 * 60 * 24)
             );
-            const penalty = calcOverduePenalty(overdueDays);
-            if (penalty > 0) {
-                // 逾期：暂存待确认，弹出提示
-                setOverdueConfirm({ booking, penalty, days: overdueDays });
+            if (overdueDays > 0) {
+                // 逾期归还：弹出提示，告知管理员逾期扣分已由系统三节点 cron 自动处理
+                setOverdueConfirm({ booking, days: overdueDays });
                 return;
             }
         }
@@ -110,7 +109,7 @@ export default function ReturnsPage() {
         await executeReturn(id);
     };
 
-    const handleDamageSeveritySelect = async (severity: 'minor' | 'moderate' | 'severe', description: string) => {
+    const handleDamageSeveritySelect = async (severity: 'minor' | 'moderate' | 'severe' | 'lost', description: string) => {
         if (!damageTargetBooking) return;
         const bookingId = damageTargetBooking.id;
         setDamageTargetBooking(null);
@@ -259,8 +258,8 @@ export default function ReturnsPage() {
                                 <AlertCircle className="h-5 w-5 text-amber-400" />
                             </div>
                             <div>
-                                <h2 className="text-base font-bold text-white">逾期归还 — 信用分扣减</h2>
-                                <p className="text-xs text-gray-500 mt-0.5">确认前请核查逾期天数</p>
+                                <h2 className="text-base font-bold text-white">逾期归还确认</h2>
+                                <p className="text-xs text-gray-500 mt-0.5">逾期扣分已由系统自动处理</p>
                             </div>
                         </div>
 
@@ -270,7 +269,10 @@ export default function ReturnsPage() {
                                 借用人：{overdueConfirm.booking.profiles?.full_name ?? 'Unknown'}
                             </p>
                             <p className="text-xs text-amber-400 font-semibold mt-1">
-                                逾期 {overdueConfirm.days} 天 · 将扣减 {overdueConfirm.penalty} 信用分
+                                逾期 {overdueConfirm.days} 天归还
+                            </p>
+                            <p className="text-xs text-gray-500 mt-0.5">
+                                系统已按三节点规则自动扣分（Day 1 / Day 7 / Day 30），此处仅确认物品实际归还。
                             </p>
                         </div>
 
@@ -285,7 +287,7 @@ export default function ReturnsPage() {
                                 onClick={handleOverdueConfirm}
                                 className="flex-1 rounded-xl bg-amber-500/20 border border-amber-500/30 py-2.5 text-sm font-semibold text-amber-300 hover:bg-amber-500/30 transition-colors"
                             >
-                                确认扣分并归还
+                                确认归还
                             </button>
                         </div>
                     </div>

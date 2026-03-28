@@ -8,12 +8,12 @@ import type { BookingWithDetails } from '@/lib/bookingService';
 interface DamageSeverityModalProps {
     isOpen: boolean;
     booking: BookingWithDetails | null;
-    onSelect: (severity: 'minor' | 'moderate' | 'severe', description: string) => void;
+    onSelect: (severity: 'minor' | 'moderate' | 'severe' | 'lost', description: string) => void;
     onClose: () => void;
 }
 
 // 损坏系数，与 DamageTable.tsx 保持一致 (§5.2)
-const DAMAGE_COEFFICIENT: Record<string, number> = { minor: 0.2, moderate: 0.5, severe: 1.0 };
+const DAMAGE_COEFFICIENT: Record<string, number> = { minor: 0.2, moderate: 0.5, severe: 1.0, lost: 1.0 };
 
 /**
  * Compute asset age label and depreciation rate from purchase date.
@@ -33,7 +33,7 @@ function getDepreciationInfo(purchaseDate: string | null): { ratio: number; ageL
     return { ratio: 0.2, ageLabel, rateLabel: '20%' };
 }
 
-// 信用分扣减标准参照 §5.3 (minor:-5, moderate:-15, severe:-30)
+// 信用分扣减标准参照 §5.3 (minor:-5, moderate:-15, severe:-30, lost:-50)
 const SEVERITY_OPTIONS = [
     {
         value: 'minor' as const,
@@ -65,6 +65,16 @@ const SEVERITY_OPTIONS = [
         bg: 'bg-red-500/5 hover:bg-red-500/15',
         badgeBg: 'bg-red-500/10 text-red-400',
     },
+    {
+        value: 'lost' as const,
+        label: 'Equipment Lost',
+        labelCn: '设备丢失',
+        points: -50,
+        color: 'text-rose-300',
+        border: 'border-rose-800/50',
+        bg: 'bg-rose-900/10 hover:bg-rose-900/25',
+        badgeBg: 'bg-rose-900/30 text-rose-300',
+    },
 ];
 
 /**
@@ -84,9 +94,15 @@ export default function DamageSeverityModal({ isOpen, booking, onSelect, onClose
 
     const depr = getDepreciationInfo(booking.assets?.purchase_date ?? null);
     const price = booking.assets?.purchase_price ?? null;
-    const getCompensation = (coef: number) => price != null ? `¥${Math.round(price * depr.ratio * coef)}` : null;
+    // 此弹窗只在管理员归还验证时使用，reporter 始终为管理员（≠ borrower）
+    // lost 场景属于「管理员发现调包」→ 全款赔偿，不计折旧
+    const getCompensation = (severity: string, coef: number) => {
+        if (price == null) return null;
+        if (severity === 'lost') return `¥${price.toLocaleString()}`;
+        return `¥${Math.round(price * depr.ratio * coef).toLocaleString()}`;
+    };
 
-    const handleSelect = (severity: 'minor' | 'moderate' | 'severe') => {
+    const handleSelect = (severity: 'minor' | 'moderate' | 'severe' | 'lost') => {
         // 描述为必填项
         if (!description.trim()) {
             setShowError(true);
@@ -182,9 +198,9 @@ export default function DamageSeverityModal({ isOpen, booking, onSelect, onClose
                                 </span>
                             </div>
                             <div className="flex items-center gap-2 flex-shrink-0">
-                                {getCompensation(DAMAGE_COEFFICIENT[opt.value]) && (
+                                {getCompensation(opt.value, DAMAGE_COEFFICIENT[opt.value]) && (
                                     <span className="text-xs text-gray-400 font-mono">
-                                        {getCompensation(DAMAGE_COEFFICIENT[opt.value])}
+                                        {getCompensation(opt.value, DAMAGE_COEFFICIENT[opt.value])}
                                     </span>
                                 )}
                                 <span className={`rounded-lg px-2.5 py-1 text-xs font-bold ${opt.badgeBg}`}>

@@ -95,7 +95,7 @@ export default function SettingsPage() {
           
           <div className="relative z-10 flex flex-col md:flex-row items-center gap-8">
             <AvatarUpload 
-              currentAvatarUrl={user?.user_metadata?.avatar_url} 
+              currentAvatarUrl={profile?.avatar_url || user?.user_metadata?.avatar_url} 
               onUploadSuccess={(url) => {
                 setUser((currentUser) => {
                   if (!currentUser) return currentUser;

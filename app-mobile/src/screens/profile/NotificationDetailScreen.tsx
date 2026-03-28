@@ -12,9 +12,8 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { ProfileStackParamList } from '../../navigation/ProfileStackNavigator';
 import { theme } from '../../theme';
-import type { NotificationType } from '../../../../database/types/supabase';
 import { useTranslation } from 'react-i18next';
-import { getNotificationText } from '../../utils/notificationText';
+import { getNotificationText, getOverdueNotificationDetails } from '../../utils/notificationText';
 
 const TYPE_CONFIG: Record<string, { icon: string; color: string }> = {
   booking_approved: { icon: 'checkmark-circle', color: '#10b981' },
@@ -46,6 +45,9 @@ export default function NotificationDetailScreen({ navigation, route }: Props) {
   const { notification } = route.params;
   const config = TYPE_CONFIG[notification.type] ?? TYPE_CONFIG.system;
   const { title, message } = getNotificationText(t, notification);
+  const overdueDetails = notification.type === 'overdue_alert'
+    ? getOverdueNotificationDetails(notification)
+    : null;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -68,6 +70,39 @@ export default function NotificationDetailScreen({ navigation, route }: Props) {
 
         {/* 分割线 */}
         <View style={styles.divider} />
+
+        {overdueDetails ? (
+          <View style={styles.detailCard}>
+            <Text style={styles.detailCardTitle}>{t('notifications.detail.overdueSection')}</Text>
+
+            {overdueDetails.assetName ? (
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>{t('notifications.detail.asset')}</Text>
+                <Text style={styles.detailValue}>{overdueDetails.assetName}</Text>
+              </View>
+            ) : null}
+
+            {typeof overdueDetails.overdueDays === 'number' ? (
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>{t('notifications.detail.overdueDays')}</Text>
+                <Text style={styles.detailValue}>
+                  {t('notifications.detail.daysValue', { days: overdueDetails.overdueDays })}
+                </Text>
+              </View>
+            ) : null}
+
+            {typeof overdueDetails.deductedPoints === 'number' ? (
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>{t('notifications.detail.creditImpact')}</Text>
+                <Text style={[styles.detailValue, styles.detailDanger]}>
+                  {t('notifications.detail.creditDeductionValue', {
+                    points: overdueDetails.deductedPoints,
+                  })}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+        ) : null}
 
         {/* 消息正文 */}
         <Text style={styles.message}>{message}</Text>
@@ -128,6 +163,41 @@ const styles = StyleSheet.create({
     height: StyleSheet.hairlineWidth,
     backgroundColor: '#E5E7EB',
     marginBottom: theme.spacing.lg,
+  },
+  detailCard: {
+    width: '100%',
+    backgroundColor: theme.colors.inputBackground,
+    borderRadius: 16,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.lg,
+  },
+  detailCardTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: theme.colors.text,
+    marginBottom: theme.spacing.sm,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    paddingVertical: 6,
+    gap: theme.spacing.md,
+  },
+  detailLabel: {
+    fontSize: 13,
+    color: theme.colors.gray,
+  },
+  detailValue: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.text,
+    textAlign: 'right',
+    lineHeight: 20,
+  },
+  detailDanger: {
+    color: theme.colors.danger,
   },
   message: {
     fontSize: 15,

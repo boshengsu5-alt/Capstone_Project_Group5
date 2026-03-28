@@ -90,6 +90,8 @@ const styles = StyleSheet.create({
     color: '#A5B4FC',
     marginTop: 12,
     letterSpacing: 1,
+    textAlign: 'center',
+    paddingHorizontal: 32,
   },
   loadingText: {
     position: 'absolute',

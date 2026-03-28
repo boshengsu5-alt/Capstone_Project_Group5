@@ -18,7 +18,7 @@ function formatDateTime(dt: string): string {
 }
 
 export default function BookingFormScreen({ route, navigation }: Props) {
-  const { assetId, startDate, endDate } = route.params;
+  const { assetId, assetName, startDate, endDate } = route.params;
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async () => {
@@ -58,7 +58,7 @@ export default function BookingFormScreen({ route, navigation }: Props) {
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
         <Text style={styles.title}>提交借用申请</Text>
-        <Text style={styles.subtitle}>正在为设备 ID: {assetId} 办理借用</Text>
+        <Text style={styles.subtitle}>{assetName}</Text>
 
         <View style={styles.card}>
           <View style={styles.dateRow}>

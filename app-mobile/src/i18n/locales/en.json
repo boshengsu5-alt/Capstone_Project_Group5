@@ -68,14 +68,111 @@
     "logoutConfirm": "Logout Confirmation",
     "logoutConfirmMessage": "Are you sure you want to logout?",
     "cancel": "Cancel",
-    "logout": "Logout",
+    "logout": "Log Out",
     "logoutFailed": "Logout failed",
     "creditScore": "Credit",
+    "creditScoreDetail": "View Details",
+    "creditLevelExcellent": "Excellent",
+    "creditLevelGood": "Good",
+    "creditLevelWarning": "Warning",
+    "creditLevelRisk": "At Risk",
     "studentId": "Student ID",
     "department": "Department",
     "notSet": "Not Set",
     "notifications": "Notifications",
-    "settings": "Settings"
+    "editProfile": "Edit Profile",
+    "changePassword": "Change Password",
+    "helpManual": "Help Manual",
+    "sectionAccount": "Account",
+    "sectionPreferences": "Preferences"
+  },
+  "editProfile": {
+    "loadFailed": "Failed to load profile, please try again later",
+    "saveFailed": "Failed to save changes, please try again later",
+    "successTitle": "Profile Updated",
+    "successMessage": "Your profile has been updated",
+    "successMessageWithAvatarFallback": "Your profile was updated. Avatar storage is not configured in this environment, so the avatar was saved using a compatibility fallback.",
+    "ok": "OK",
+    "avatarHint": "Take a photo or choose one from your library",
+    "changeAvatar": "Change Avatar",
+    "avatarSourceTitle": "Change Avatar",
+    "avatarSourceMessage": "Choose where to get your new avatar",
+    "takePhoto": "Take Photo",
+    "chooseFromLibrary": "Choose from Library",
+    "cameraPermission": "Camera permission is required. Please enable it in system settings.",
+    "libraryPermission": "Photo library permission is required. Please enable it in system settings.",
+    "basicInfo": "Basic Information",
+    "academicInfo": "Academic Information",
+    "accountInfo": "Account Information",
+    "fullName": "Full Name",
+    "fullNamePlaceholder": "Enter your full name",
+    "phone": "Phone Number",
+    "phonePlaceholder": "Enter your phone number",
+    "studentId": "Student ID",
+    "studentIdPlaceholder": "Enter your student ID",
+    "department": "Department / Major",
+    "departmentPlaceholder": "Enter your department or major",
+    "email": "Email",
+    "role": "Account Type",
+    "roleStudent": "Student",
+    "roleAdmin": "Administrator",
+    "roleStaff": "Staff",
+    "readOnlyHint": "Email is tied to your account and cannot be changed here yet.",
+    "nameRequired": "Please enter your name first",
+    "save": "Save Changes"
+  },
+  "appSettings": {
+    "loadFailed": "Failed to load settings, please try again later",
+    "saveFailed": "Failed to save settings, please try again later",
+    "sectionBehavior": "Core Settings",
+    "sectionSupport": "Support & Info",
+    "showInAppAlerts": "In-App Alerts",
+    "showInAppAlertsHint": "Control whether top reminder banners are shown",
+    "confirmBeforeLogout": "Confirm Before Logout",
+    "confirmBeforeLogoutHint": "Show a confirmation prompt before signing out",
+    "resetSettings": "Reset Core Settings",
+    "resetSettingsHint": "Restore the settings on this page to their defaults",
+    "resetConfirmTitle": "Reset Settings",
+    "resetConfirmMessage": "Are you sure you want to restore these settings to their defaults?",
+    "resetSuccess": "Core settings have been restored to defaults",
+    "about": "About UniGear",
+    "aboutHint": "A campus equipment borrowing and management system",
+    "version": "Version"
+  },
+  "creditScoreLog": {
+    "navTitle": "Credit History",
+    "currentScore": "Current Credit Score",
+    "balanceAfter": "Balance: {{score}} pts",
+    "empty": "No credit score changes yet",
+    "emptyHint": "Returning devices, overdue events, etc. will appear here",
+    "loadFailed": "Failed to load, pull to refresh",
+    "reasons": {
+      "return_bonus": "On-time return bonus",
+      "overdue_booking": "Overdue deduction",
+      "overdue_day1": "Day 1 overdue deduction",
+      "overdue_day7": "Day 7 overdue deduction",
+      "overdue_day30_lost": "Day 30 lost item deduction",
+      "damage_minor": "Minor damage deduction",
+      "damage_moderate": "Moderate damage deduction",
+      "damage_severe": "Severe damage deduction",
+      "admin_manual": "Admin adjustment",
+      "unknown": "Credit score change"
+    }
+  },
+  "changePassword": {
+    "navTitle": "Change Password",
+    "newPassword": "New Password",
+    "newPasswordPlaceholder": "Enter new password (min 6 characters)",
+    "confirmPassword": "Confirm Password",
+    "confirmPasswordPlaceholder": "Re-enter new password",
+    "submit": "Confirm Change",
+    "submitting": "Updating...",
+    "successTitle": "Password Updated",
+    "successMessage": "Your password has been changed. Please log in again with the new password.",
+    "ok": "OK",
+    "errorTooShort": "Password must be at least 6 characters",
+    "errorNotMatch": "Passwords do not match",
+    "errorFailed": "Failed to update password"
   },
   "scan": {
     "title": "Scan Device",
@@ -172,14 +269,76 @@
   },
   "nav": {
     "profile": "Profile",
+    "editProfile": "Edit Profile",
     "notifications": "Notifications",
     "notificationDetail": "Notification Detail",
+    "creditScoreLog": "Credit History",
+    "changePassword": "Change Password",
+    "helpManual": "Help Manual",
     "category": "Category",
     "assetDetail": "Asset Detail",
     "bookingForm": "Booking Application",
     "back": "Back",
     "returnAsset": "Return Asset",
     "reportDamage": "Report Damage"
+  },
+  "helpManual": {
+    "title": "UniGear Help Manual",
+    "intro": "This page summarizes the current borrowing, return, overdue, credit-score, and compensation rules implemented in the system. It can be used directly in the project handbook or presentation.",
+    "note": "If earlier project documents differ from this page, follow this page and the current system implementation. Compensation amounts are estimates and remain subject to final admin verification.",
+    "sections": {
+      "status": {
+        "title": "Status Guide",
+        "items": [
+          "Pending: the user has submitted a reservation and is waiting for admin review.",
+          "Approved: the reservation has been approved, and the user may scan to pick up on or after the start date.",
+          "Active: the user has completed QR activation and the borrowing period has officially started.",
+          "Overdue: the due date has passed without a return, and the system will deduct credit at checkpoint nodes.",
+          "Returned: the user has completed the return flow and the system has recorded the return.",
+          "Cancelled / Suspended: cancelled means the reservation has ended; suspended usually means maintenance has temporarily paused the booking."
+        ]
+      },
+      "borrowing": {
+        "title": "Borrowing & Pickup Rules",
+        "items": [
+          "Users submit reservation requests from the asset detail page after choosing a date range. The system checks for conflicts before creating the booking.",
+          "A new booking first enters Pending. It becomes Approved only after admin review.",
+          "Users cannot pick up items before the booking start date. Pickup requires an on-site QR scan.",
+          "After scan confirmation, the booking changes from Approved to Active and the borrowing period starts.",
+          "The current version also supports pickup photo records to preserve the initial handover condition of the asset."
+        ]
+      },
+      "returning": {
+        "title": "Return & Damage Handling",
+        "items": [
+          "Bookings in Active or Overdue status can be returned, and a return photo is required during the process.",
+          "If the asset has problems, the user may submit a damage report. Minor, moderate, and severe damage require evidence photos, while lost-item cases may omit photos.",
+          "Damage reports follow this flow: open → investigating → resolved or dismissed.",
+          "When an admin confirms the damage, the system deducts credit according to severity and estimates compensation under the defined rules.",
+          "If a returned asset is later confirmed damaged, the previous +5 return bonus may be revoked."
+        ]
+      },
+      "credit": {
+        "title": "Credit Score Rules",
+        "items": [
+          "Users start with 100 credit points, and the score is limited to the range 0 to 200.",
+          "A normal successful return grants +5 credit points.",
+          "Overdue penalties use a three-checkpoint system: Day 1 deducts 10 points, Day 7 deducts another 15, and Day 30 deducts another 25, with overdue deductions capped at 50 total.",
+          "Standard damage penalties are: minor damage -5, moderate damage -15, severe damage -30.",
+          "Lost-item penalties vary by scenario: no extra loss penalty is applied when the system auto-classifies an item as lost after 30 overdue days; self-reported loss deducts -30; admin-confirmed malicious swap or serious loss can deduct -50."
+        ]
+      },
+      "compensation": {
+        "title": "Compensation Rules",
+        "items": [
+          "For assets with a recorded purchase price, the system estimates compensation using: Purchase Price × Depreciation Rate × Damage Coefficient.",
+          "Depreciation rates are based on service life: within 1 year = 100%, 1-3 years = 80%, 3-5 years = 50%, over 5 years = 20%.",
+          "Damage coefficients are: minor 0.2, moderate 0.5, severe 1.0.",
+          "For lost items, self-reported loss uses the depreciated price, while system-auto-lost or admin-confirmed loss uses the full purchase price with no depreciation.",
+          "If the asset has no recorded purchase price, the system cannot calculate compensation automatically and an admin must verify it offline."
+        ]
+      }
+    }
   },
   "assetDetail": {
     "loading": "Loading device details...",
@@ -270,7 +429,24 @@
       "severe": "severe damage",
       "unknown": "unknown damage"
     },
+    "detail": {
+      "overdueSection": "Overdue Details",
+      "asset": "Asset",
+      "overdueDays": "Overdue days",
+      "creditImpact": "Credit change",
+      "daysValue": "{{days}} day(s)",
+      "creditDeductionValue": "-{{points}} points"
+    },
     "dynamic": {
+      "overdueAlert": {
+        "title": "Overdue Return Penalty",
+        "lostTitle": "Asset Declared as Lost",
+        "assetLine": "Asset: {{asset}}",
+        "daysLine": "Overdue days: {{days}}",
+        "creditPenaltyLine": "Credit deducted: {{points}} points.",
+        "reminder": "Please return the asset as soon as possible to avoid further penalties.",
+        "lostReminder": "Overdue for more than 30 days. The system has automatically declared this asset lost. Please contact an admin immediately to arrange compensation."
+      },
       "damageReported": {
         "reported": {
           "title": "Damage Report Filed",

@@ -329,6 +329,7 @@ export default function AssetDetailScreen({ route, navigation }: Props) {
             if (selectedDates && isBookable) {
               navigation.navigate('BookingFormScreen', {
                 assetId: asset.id,
+                assetName: asset.name,
                 startDate: selectedDates.startDate,
                 endDate: selectedDates.endDate
               });
