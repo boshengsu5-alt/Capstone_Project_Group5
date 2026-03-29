@@ -25,12 +25,9 @@ export default function ReturnsPage() {
         setIsLoading(true);
         try {
             const allBookings = await bookingService.getBookings();
-            // 筛选待验证的归还：active 且有归还照片，或 returned 未验证
-            // 排除已验证的（rejection_reason === 'VERIFIED'）
+            // 筛选待验证的归还：用户已填写归还日期/照片，但管理员还未标记 status 为 returned
             const pendingReturns = allBookings.filter(b =>
-                ((b.status === 'active' && b.return_photo_url) ||
-                b.status === 'returned') &&
-                b.rejection_reason !== 'VERIFIED'
+                (b.actual_return_date || b.return_photo_url) && b.status !== 'returned'
             );
 
             setReturns(pendingReturns);

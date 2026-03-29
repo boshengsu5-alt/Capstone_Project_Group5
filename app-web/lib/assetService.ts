@@ -6,7 +6,6 @@ import { auditService } from './auditService';
 // 需要在查询处使用 eslint-disable 绕过，函数签名仍保持完整类型安全
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase as any;
-
 // ============================================================
 // Asset Query. 资产查询
 // ============================================================
@@ -15,24 +14,24 @@ const db = supabase as any;
 export async function getAssets(): Promise<Asset[]> {
   // 1. First attempt with Logical Delete filter
   try {
-    const { data, error } = await db
+    const { data, error } = await supabase
       .from('assets')
       .select('*, categories(*)')
       .eq('is_archived', false)
       .order('created_at', { ascending: false });
 
-    if (!error) return data ?? [];
+    if (!error) return (data as Asset[]) ?? [];
 
     // 2. If column missing, fallback to unfiltered list but log a LOUD warning
     if (error.message?.includes('column assets.is_archived does not exist')) {
       console.warn('⚠️ DATABASE SCHEMA OUT OF SYNC: is_archived column is missing. Please run the SQL migration.');
-      const { data: fallbackData, error: fallbackError } = await db
+      const { data: fallbackData, error: fallbackError } = await supabase
         .from('assets')
         .select('*, categories(*)')
         .order('created_at', { ascending: false });
       
       if (fallbackError) throw fallbackError;
-      return fallbackData ?? [];
+      return (fallbackData as Asset[]) ?? [];
     }
 
     throw error;
@@ -66,11 +65,12 @@ export async function createAsset(formData: CreateAssetFormData): Promise<Asset>
   let finalCategoryId = formData.category_id;
 
   if (!finalCategoryId) {
-    const { data: categories } = await db
+    const { data: categoriesData } = await supabase
       .from('categories')
       .select('id')
       .limit(1);
-
+    
+    const categories = categoriesData as Array<{ id: string }>;
     if (categories && categories.length > 0) {
       finalCategoryId = categories[0].id;
     } else {
@@ -92,25 +92,29 @@ export async function createAsset(formData: CreateAssetFormData): Promise<Asset>
     images: formData.images ?? [],
   };
 
-  const { data: insertedAsset, error } = await db
+  const { data: insertedAssetData, error } = await (supabase as any)
     .from('assets')
     .insert([insertPayload])
     .select()
     .single();
+
+  const insertedAsset = insertedAssetData as Asset | null;
 
   if (error) {
     console.error('Error creating asset:', error);
     throw new Error(error.message);
   }
 
-  // Audit log
-  await auditService.logAction({
-    operation_type: 'CREATE',
-    resource_type: 'asset',
-    resource_id: insertedAsset.id,
-    resource_name: insertedAsset.name,
-    change_description: `Created new asset: ${insertedAsset.name} in ${insertedAsset.location || 'unspecified location'}`
-  });
+  if (insertedAsset) {
+    // Audit log
+    await auditService.logAction({
+      operation_type: 'CREATE',
+      resource_type: 'asset',
+      resource_id: insertedAsset.id,
+      resource_name: insertedAsset.name,
+      change_description: `Created new asset: ${insertedAsset.name} in ${insertedAsset.location || 'unspecified location'}`
+    });
+  }
 
   return insertedAsset as Asset;
 }
@@ -127,25 +131,29 @@ export async function updateAsset(id: string, updates: AssetUpdate): Promise<Ass
   try {
     if (!id || !updates) throw new Error('ID and updates are required');
     
-    const { data: updatedAsset, error } = await db
+    const { data: updatedAssetData, error } = await (supabase as any)
       .from('assets')
       .update(updates)
       .eq('id', id)
       .select()
       .single();
 
+    const updatedAsset = updatedAssetData as Asset | null;
+
     if (error) {
       throw new Error(error.message);
     }
 
     // Audit log
-    await auditService.logAction({
-      operation_type: 'UPDATE',
-      resource_type: 'asset',
-      resource_id: id,
-      resource_name: updatedAsset.name,
-      change_description: `Updated asset fields: ${Object.keys(updates).join(', ')}`
-    });
+    if (updatedAsset) {
+      await auditService.logAction({
+        operation_type: 'UPDATE',
+        resource_type: 'asset',
+        resource_id: id,
+        resource_name: updatedAsset.name,
+        change_description: `Updated asset fields: ${Object.keys(updates).join(', ')}`
+      });
+    }
 
     return updatedAsset as Asset;
   } catch (err: any) {
@@ -164,11 +172,13 @@ export async function updateAsset(id: string, updates: AssetUpdate): Promise<Ass
 export async function deleteAsset(id: string): Promise<boolean> {
   try {
     // Get asset info first — check status and get name for logging
-    const { data: asset } = await db
+    const { data: assetData } = await supabase
       .from('assets')
       .select('name, status')
       .eq('id', id)
       .single();
+    
+    const asset = assetData as { name: string; status: string } | null;
 
     // 🔒 Guard: forbid archival of borrowed assets (they must be returned first)
     if (asset?.status === 'borrowed') {
@@ -178,7 +188,7 @@ export async function deleteAsset(id: string): Promise<boolean> {
     }
 
     // 🔄 Logical Delete: Use dedicated boolean column
-    const { error } = await db
+    const { error } = await (supabase as any)
       .from('assets')
       .update({ 
         is_archived: true,
