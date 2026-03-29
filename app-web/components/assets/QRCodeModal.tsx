@@ -2,7 +2,7 @@
 
 import React, { useRef } from 'react';
 import { QRCodeCanvas } from 'qrcode.react';
-import { X, Download, ShieldCheck } from 'lucide-react';
+import { X, Download, ShieldCheck, Printer } from 'lucide-react';
 
 interface QRCodeModalProps {
   asset: {
@@ -16,6 +16,10 @@ interface QRCodeModalProps {
 export default function QRCodeModal({ asset, onClose }: QRCodeModalProps) {
   const qrRef = useRef<HTMLCanvasElement>(null);
 
+  const handlePrint = () => {
+    window.print();
+  };
+
   const handleDownload = () => {
     if (!qrRef.current) return;
 
@@ -23,31 +27,25 @@ export default function QRCodeModal({ asset, onClose }: QRCodeModalProps) {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Design dimensions for the "Smart Label"
-    // We want a vertical label: [Name] \n [QR Code] \n [ID]
     const padding = 40;
     const qrSize = 300;
     const labelWidth = qrSize + padding * 2;
-    const labelHeight = 500; // Adjusted for text and QR
+    const labelHeight = 500;
 
     canvas.width = labelWidth;
     canvas.height = labelHeight;
 
-    // Background - Clean White for printing
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, labelWidth, labelHeight);
 
-    // Border
     ctx.strokeStyle = '#e2e8f0';
     ctx.lineWidth = 2;
     ctx.strokeRect(5, 5, labelWidth - 10, labelHeight - 10);
 
-    // Asset Name
     ctx.fillStyle = '#0f172a';
     ctx.font = 'bold 24px sans-serif';
     ctx.textAlign = 'center';
     
-    // Wrap text if name is too long
     const words = asset.name.split(' ');
     let line = '';
     let y = 60;
@@ -64,21 +62,17 @@ export default function QRCodeModal({ asset, onClose }: QRCodeModalProps) {
     }
     ctx.fillText(line.trim(), labelWidth / 2, y);
 
-    // Draw QR Code
     const qrCanvas = qrRef.current;
     ctx.drawImage(qrCanvas, padding, 140, qrSize, qrSize);
 
-    // Asset ID / QR Value
     ctx.fillStyle = '#64748b';
     ctx.font = '16px monospace';
     ctx.fillText(asset.serial_number || asset.qr_code || 'N/A', labelWidth / 2, 470);
 
-    // Branding / Logo placeholder small
     ctx.fillStyle = '#a855f7';
     ctx.font = 'italic bold 12px sans-serif';
     ctx.fillText('UniGear IT Asset', labelWidth / 2, 490);
 
-    // Trigger Download
     const link = document.createElement('a');
     link.download = `Label_${asset.qr_code || asset.name}.png`;
     link.href = canvas.toDataURL('image/png');
@@ -87,14 +81,50 @@ export default function QRCodeModal({ asset, onClose }: QRCodeModalProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop */}
+      {/* Print-only Style */}
+      <style jsx global>{`
+        @media print {
+          /* Hide everything by default */
+          body * {
+            visibility: hidden !important;
+          }
+          /* Only show the print label and its children */
+          .printable-label, .printable-label * {
+            visibility: visible !important;
+          }
+          /* Position the label at the top-left for the printer */
+          .printable-label {
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 50mm !important;
+            height: 30mm !important;
+            background: white !important;
+            margin: 0 !important;
+            padding: 2mm !important;
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+            border: 1px solid #000 !important;
+            box-sizing: border-box !important;
+          }
+          /* Reset page margins for the label printer */
+          @page {
+            size: 50mm 30mm;
+            margin: 0;
+          }
+        }
+      `}</style>
+
+      {/* Backdrop (Hidden on print) */}
       <div 
-        className="absolute inset-0 bg-black/60 backdrop-blur-md transition-opacity"
+        className="absolute inset-0 bg-black/60 backdrop-blur-md transition-opacity no-print"
         onClick={onClose}
       />
 
-      {/* Modal Container */}
-      <div className="relative w-full max-w-md bg-gray-900/90 border border-purple-500/30 rounded-3xl overflow-hidden shadow-[0_0_40px_rgba(139,92,246,0.3)] backdrop-blur-2xl animate-in zoom-in-95 duration-300">
+      {/* Modal Container (Hidden on print) */}
+      <div className="relative w-full max-w-md bg-gray-900/90 border border-purple-500/30 rounded-3xl overflow-hidden shadow-[0_0_40px_rgba(139,92,246,0.3)] backdrop-blur-2xl animate-in zoom-in-95 duration-300 no-print">
         
         {/* Header */}
         <div className="px-6 py-5 border-b border-white/5 flex items-center justify-between bg-white/5">
@@ -112,7 +142,7 @@ export default function QRCodeModal({ asset, onClose }: QRCodeModalProps) {
           </button>
         </div>
 
-        {/* Content */}
+        {/* Content Section (On-screen Preview) */}
         <div className="p-8 flex flex-col items-center text-center">
           <div className="mb-6">
             <h4 className="text-xl font-bold text-white mb-2">{asset.name}</h4>
@@ -136,25 +166,68 @@ export default function QRCodeModal({ asset, onClose }: QRCodeModalProps) {
                 No QR Data
               </div>
             )}
-            {/* Inner glow effect for QR container */}
             <div className="absolute inset-0 rounded-2xl border border-purple-500/10 pointer-events-none" />
           </div>
 
           <p className="mt-6 text-xs text-gray-500 italic">
-            Scan with any QR reader to identify this asset in the system.
+            Ready for labels? Click print to output directly to your printer.
           </p>
         </div>
 
         {/* Actions */}
-        <div className="px-8 pb-8 pt-0">
+        <div className="px-8 pb-8 pt-0 flex flex-col gap-3">
+          <button
+            onClick={handlePrint}
+            disabled={!asset.qr_code}
+            className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-2xl shadow-lg shadow-indigo-600/20 transition-all active:scale-[0.98] disabled:opacity-50"
+          >
+            <Printer className="w-5 h-5" />
+            Print Label (50x30mm)
+          </button>
           <button
             onClick={handleDownload}
             disabled={!asset.qr_code}
-            className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-500 hover:to-violet-500 text-white font-bold rounded-2xl shadow-[0_0_20px_rgba(139,92,246,0.4)] transition-all active:scale-[0.98] group disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white font-semibold rounded-2xl border border-white/10 transition-all active:scale-[0.98] disabled:opacity-50"
           >
-            <Download className="w-5 h-5 group-hover:-translate-y-1 transition-transform" />
-            Download Smart Tag
+            <Download className="w-4 h-4" />
+            Download PNG
           </button>
+        </div>
+      </div>
+
+      {/* HIDDEN PRINTABLE LABEL - Triggered by window.print() */}
+      <div className="printable-label hidden print:flex flex-row items-center gap-2 p-1 border-[0.5px] border-gray-200 print:border-none print:p-0">
+        {/* Left: QR Code (Occupies most of the height) */}
+        <div className="h-full flex items-center justify-center pl-1">
+          {asset.qr_code && (
+            <QRCodeCanvas
+              value={asset.qr_code}
+              size={94} // Approx 25mm on paper at 96dpi (fits well in 30mm height)
+              level="H"
+              includeMargin={false}
+            />
+          )}
+        </div>
+
+        {/* Right: Asset Details (Vertical stack) */}
+        <div className="flex-1 flex flex-col justify-between h-full py-1 pr-1 border-l border-black/5 pl-2 overflow-hidden">
+          <div className="flex flex-col gap-0.5">
+            <div className="text-[6pt] font-black italic uppercase text-indigo-700 tracking-wider">
+              UniGear IT
+            </div>
+            <div className="text-[10pt] font-extrabold text-black leading-tight line-clamp-2 break-words">
+              {asset.name}
+            </div>
+          </div>
+          
+          <div className="flex flex-col gap-0.5 mt-auto">
+            <div className="text-[6pt] font-mono font-bold text-gray-500 uppercase tracking-tighter truncate bg-gray-50 px-1 border border-black/5 rounded-sm">
+              SN: {asset.serial_number || asset.qr_code || 'N/A'}
+            </div>
+            <div className="text-[4.5pt] font-medium text-gray-400 text-right italic">
+              {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+            </div>
+          </div>
         </div>
       </div>
     </div>
