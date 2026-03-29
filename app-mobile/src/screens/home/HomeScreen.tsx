@@ -159,7 +159,9 @@ export default function HomeScreen({ navigation, route }: Props) {
             style={styles.langButton}
             onPress={() => i18n.changeLanguage(i18n.language === 'en' ? 'zh' : 'en')}
           >
-            <Text style={styles.langButtonText}>{i18n.language?.startsWith('en') ? '中文' : 'EN'}</Text>
+            <Text style={styles.langButtonText}>
+              {i18n.language?.startsWith('en') ? t('common.languageChineseShort') : t('common.languageEnglishShort')}
+            </Text>
           </TouchableOpacity>
         </View>
         <TouchableOpacity 

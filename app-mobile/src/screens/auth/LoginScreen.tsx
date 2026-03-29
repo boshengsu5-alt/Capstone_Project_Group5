@@ -15,10 +15,12 @@ import { theme } from '../../theme';
 import { signIn } from '../../services/authService';
 import { AuthStackParamList } from '../../navigation/AuthStackNavigator';
 import { getDisplayErrorMessage } from '../../utils/errorHandler';
+import { useTranslation } from 'react-i18next';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Login'>;
 
 export default function LoginScreen({ navigation }: Props) {
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -28,13 +30,13 @@ export default function LoginScreen({ navigation }: Props) {
     setErrorMsg('');
 
     if (!email.trim() || !password.trim()) {
-      setErrorMsg('请填写邮箱和密码');
+      setErrorMsg(t('auth.login.errorMissingFields'));
       return;
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email.trim())) {
-      setErrorMsg('请输入有效的邮箱地址');
+      setErrorMsg(t('auth.login.errorInvalidEmail'));
       return;
     }
 
@@ -62,16 +64,16 @@ export default function LoginScreen({ navigation }: Props) {
               <Text style={styles.logoText}>U</Text>
             </View>
             <Text style={styles.brandName}>UniGear</Text>
-            <Text style={styles.slogan}>高校智能资产租赁平台</Text>
+            <Text style={styles.slogan}>{t('auth.login.slogan')}</Text>
           </View>
 
           {/* Form */}
           <View style={styles.form}>
             <View style={styles.inputContainer}>
-              <Text style={styles.label}>邮箱</Text>
+              <Text style={styles.label}>{t('auth.login.emailLabel')}</Text>
               <TextInput
                 style={styles.input}
-                placeholder="请输入学校邮箱"
+                placeholder={t('auth.login.emailPlaceholder')}
                 placeholderTextColor="#9CA3AF"
                 value={email}
                 onChangeText={setEmail}
@@ -82,10 +84,10 @@ export default function LoginScreen({ navigation }: Props) {
             </View>
 
             <View style={styles.inputContainer}>
-              <Text style={styles.label}>密码</Text>
+              <Text style={styles.label}>{t('auth.login.passwordLabel')}</Text>
               <TextInput
                 style={styles.input}
-                placeholder="请输入密码"
+                placeholder={t('auth.login.passwordPlaceholder')}
                 placeholderTextColor="#9CA3AF"
                 value={password}
                 onChangeText={setPassword}
@@ -105,7 +107,7 @@ export default function LoginScreen({ navigation }: Props) {
               {loading ? (
                 <ActivityIndicator color="#fff" />
               ) : (
-                <Text style={styles.loginButtonText}>登 录</Text>
+                <Text style={styles.loginButtonText}>{t('auth.login.submit')}</Text>
               )}
             </TouchableOpacity>
 
@@ -114,7 +116,7 @@ export default function LoginScreen({ navigation }: Props) {
               onPress={() => navigation.navigate('Register')}
             >
               <Text style={styles.registerText}>
-                还没有账号？<Text style={styles.registerHighlight}>立即注册</Text>
+                {t('auth.login.noAccount')}<Text style={styles.registerHighlight}>{t('auth.login.registerAction')}</Text>
               </Text>
             </TouchableOpacity>
           </View>

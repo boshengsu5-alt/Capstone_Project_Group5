@@ -311,49 +311,8 @@ export async function checkAndSendReturnReminders(): Promise<void> {
  * 在借用记录页加载时静默调用（无需 await）。
  */
 export async function checkSuspendedBookingsExpiring(): Promise<void> {
-  const user = await getCurrentUser();
-
-  // 拉取当前用户所有 suspended 且 rejection_reason = ASSET_MAINTENANCE 的预约
-  const { data: bookings, error } = await db
-    .from('bookings')
-    .select('id, start_date, assets(name)')
-    .eq('borrower_id', user.id)
-    .eq('status', 'suspended')
-    .eq('rejection_reason', 'ASSET_MAINTENANCE');
-
-  if (error || !bookings || bookings.length === 0) return;
-
-  const now = new Date();
-  // 12 小时截止窗口
-  const deadline = new Date(now.getTime() + 12 * 60 * 60 * 1000);
-
-  for (const booking of bookings as { id: string; start_date: string; assets: { name: string } | null }[]) {
-    const startDate = new Date(booking.start_date);
-
-    // 取货日在 12h 内（或已过）→ 触发自动取消
-    if (startDate <= deadline) {
-      const assetName = booking.assets?.name ?? '设备';
-      const isPast = startDate <= now;
-
-      // 发紧急通知
-      await db.from('notifications').insert({
-        user_id: user.id,
-        type: 'booking_cancelled',
-        title: isPast ? '预约已自动取消' : '紧急通知：预约即将自动取消',
-        message: isPast
-          ? `您预约的「${assetName}」取货日已过，设备仍在维修中，预约已自动取消。如需借用请重新预约。`
-          : `您预约的「${assetName}」取货日（${startDate.toLocaleDateString('en-CA')}）不足 12 小时，设备仍在维修中，预约将自动取消。`,
-        is_read: false,
-        metadata: { booking_id: booking.id },
-      });
-
-      // 自动取消
-      await db
-        .from('bookings')
-        .update({ status: 'cancelled', rejection_reason: 'ASSET_MAINTENANCE_EXPIRED' })
-        .eq('id', booking.id);
-    }
-  }
+  const { error } = await db.rpc('check_suspended_maintenance_bookings');
+  if (error) throw error;
 }
 
 /**

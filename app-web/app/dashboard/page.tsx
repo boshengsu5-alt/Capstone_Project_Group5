@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import Header from '@/components/layout/Header';
+import QRCodeModal from '@/components/assets/QRCodeModal';
 import { cn } from '@/lib/utils';
 import { Asset } from '@/types/database';
 import { getAssets } from '@/lib/assetService';
@@ -41,6 +42,7 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
+  const [selectedAssetForQR, setSelectedAssetForQR] = useState<Asset | null>(null);
 
   const fetchData = async () => {
     try {
@@ -439,11 +441,19 @@ export default function DashboardPage() {
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                           {asset.qr_code && (
-                             <div className="p-1 bg-white rounded shadow-sm opacity-80 hover:opacity-100 transition-opacity">
-                                <QRCodeSVG value={asset.qr_code} size={24} />
+                           {asset.qr_code ? (
+                             <div
+                               className="group relative w-10 h-10 cursor-pointer flex-shrink-0"
+                               onClick={() => setSelectedAssetForQR(asset)}
+                               title="Click to view QR label"
+                             >
+                               <QRCodeSVG
+                                 value={asset.qr_code}
+                                 size={40}
+                                 className="transition-transform duration-300 group-hover:scale-110 bg-white p-1 rounded shadow-sm hover:ring-2 hover:ring-purple-500/50"
+                               />
                              </div>
-                           )}
+                           ) : null}
                            <span className="text-xs font-mono text-gray-400 bg-gray-800 px-2 py-1 rounded">
                               {asset.serial_number || 'NO-SN'}
                            </span>
@@ -454,17 +464,31 @@ export default function DashboardPage() {
                       </td>
                       <td className="px-6 py-4">
                         <span className={cn(
-                          "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border",
-                          asset.status === 'available' && "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
-                          asset.status === 'borrowed' && "bg-amber-500/10 text-amber-400 border-amber-500/20",
-                          asset.status === 'maintenance' && "bg-rose-500/10 text-rose-400 border-rose-500/20",
-                          asset.status === 'retired' && "bg-gray-500/10 text-gray-400 border-gray-500/20"
+                          "inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset capitalize",
+                          asset.status === 'available' && "bg-green-500/10 text-green-400 ring-green-500/20",
+                          asset.status === 'borrowed' && "bg-blue-500/10 text-blue-400 ring-blue-500/20",
+                          asset.status === 'maintenance' && "bg-yellow-500/10 text-yellow-400 ring-yellow-500/20",
+                          asset.status === 'retired' && "bg-red-500/10 text-red-400 ring-red-500/20"
                         )}>
-                          {asset.status === 'borrowed' ? t('status.borrowed') : (t(`status.${asset.status}`) || asset.status)}
+                          {asset.status}
                         </span>
                       </td>
-                      <td className="px-6 py-4 capitalize">
-                         <span className="text-sm font-medium text-gray-300">{asset.condition || 'Unknown'}</span>
+                      <td className="px-6 py-4">
+                        {(() => {
+                          const condBadge: Record<string, { color: string; label: string }> = {
+                            new:     { color: 'bg-emerald-500/10 text-emerald-400 ring-emerald-500/20', label: 'New' },
+                            good:    { color: 'bg-blue-500/10 text-blue-400 ring-blue-500/20',         label: 'Good' },
+                            fair:    { color: 'bg-amber-500/10 text-amber-400 ring-amber-500/20',     label: 'Fair' },
+                            poor:    { color: 'bg-orange-500/10 text-orange-400 ring-orange-500/20',  label: 'Poor' },
+                            damaged: { color: 'bg-red-500/10 text-red-400 ring-red-500/20',           label: 'Damaged' },
+                          };
+                          const b = condBadge[asset.condition] ?? { color: 'bg-gray-500/10 text-gray-400 ring-gray-500/20', label: asset.condition };
+                          return (
+                            <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset ${b.color}`}>
+                              {b.label}
+                            </span>
+                          );
+                        })()}
                       </td>
                       <td className="px-6 py-4 text-right">
                         <button className="text-gray-500 hover:text-white transition-colors text-xs font-bold uppercase tracking-widest">
@@ -480,6 +504,13 @@ export default function DashboardPage() {
         </section>
 
       </main>
+
+      {selectedAssetForQR && (
+        <QRCodeModal
+          asset={selectedAssetForQR}
+          onClose={() => setSelectedAssetForQR(null)}
+        />
+      )}
     </div>
   );
 }

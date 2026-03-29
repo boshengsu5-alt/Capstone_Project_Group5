@@ -51,6 +51,7 @@ export default function AssetsPage() {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [assetToDelete, setAssetToDelete] = useState<AssetWithCategory | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [pendingDamageAssetIds, setPendingDamageAssetIds] = useState<string[]>([]);
 
   // Re-list modal state — for putting maintenance assets back to available (维护资产重新上架)
   const [assetToRelist, setAssetToRelist] = useState<AssetWithCategory | null>(null);
@@ -59,8 +60,12 @@ export default function AssetsPage() {
   const fetchAssets = async () => {
     try {
       setIsLoading(true);
-      const data = await getAssets();
+      const [data, pendingDamageIds] = await Promise.all([
+        getAssets(),
+        bookingService.getPendingDamageAssetIds(),
+      ]);
       setAssets(data as AssetWithCategory[]);
+      setPendingDamageAssetIds(pendingDamageIds);
     } catch (error) {
       console.error('Failed to fetch assets', error);
       showToast(getErrorMessage(error, 'Failed to load assets'), 'error');
@@ -172,7 +177,6 @@ export default function AssetsPage() {
       '品相状况 (Condition)': conditionMap[asset.condition] || asset.condition,
       '序列号 (S/N)': asset.serial_number || 'N/A',
       '二维码 ID (QR)': asset.qr_code || 'N/A',
-      '采购价格 (Price)': asset.purchase_price ? `¥${Number(asset.purchase_price).toFixed(2)}` : '¥0.00',
       '存放位置 (Location)': asset.location || 'N/A',
       '采购日期 (Purchase Date)': asset.purchase_date ? new Date(asset.purchase_date).toLocaleDateString() : 'N/A',
       '保修状态 (Warranty)': warrantyMap[asset.warranty_status] || asset.warranty_status,
@@ -182,7 +186,7 @@ export default function AssetsPage() {
     }));
 
     // Define column widths for Excel
-    const columnWidths = [25, 15, 20, 15, 20, 20, 15, 20, 15, 15, 15, 30, 25];
+    const columnWidths = [25, 15, 20, 15, 20, 20, 20, 15, 15, 15, 30, 25];
 
     try {
       await exportToExcel(
@@ -396,9 +400,20 @@ export default function AssetsPage() {
                                 {asset.status === 'maintenance' && (
                                   <button
                                     onClick={() => handleRelistClick(asset)}
-                                    className="text-emerald-600 hover:text-emerald-900 dark:text-emerald-400 dark:hover:text-emerald-300 font-semibold"
+                                    disabled={pendingDamageAssetIds.includes(asset.id)}
+                                    className={cn(
+                                      "font-semibold",
+                                      pendingDamageAssetIds.includes(asset.id)
+                                        ? "cursor-not-allowed text-gray-400 dark:text-gray-500"
+                                        : "text-emerald-600 hover:text-emerald-900 dark:text-emerald-400 dark:hover:text-emerald-300"
+                                    )}
+                                    title={
+                                      pendingDamageAssetIds.includes(asset.id)
+                                        ? 'Resolve the open damage report before re-listing this asset.'
+                                        : 'Re-list this repaired asset'
+                                    }
                                   >
-                                    Re-list
+                                    {pendingDamageAssetIds.includes(asset.id) ? 'Damage Review Pending' : 'Re-list'}
                                   </button>
                                 )}
                                 <button

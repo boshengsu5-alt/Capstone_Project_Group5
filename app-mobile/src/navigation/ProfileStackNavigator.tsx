@@ -7,6 +7,7 @@ import CreditScoreLogScreen from '../screens/profile/CreditScoreLogScreen';
 import ChangePasswordScreen from '../screens/profile/ChangePasswordScreen';
 import EditProfileScreen from '../screens/profile/EditProfileScreen';
 import HelpManualScreen from '../screens/profile/SettingsScreen';
+import CompensationCenterScreen from '../screens/profile/CompensationCenterScreen';
 import type { Notification } from '../../../database/types/supabase';
 import { useTranslation } from 'react-i18next';
 
@@ -18,6 +19,7 @@ export type ProfileStackParamList = {
   CreditScoreLog: undefined;
   ChangePassword: undefined;
   HelpManual: undefined;
+  Compensation: { focusCaseId?: string; focusBookingId?: string } | undefined;
 };
 
 const Stack = createNativeStackNavigator<ProfileStackParamList>();
@@ -56,6 +58,11 @@ export default function ProfileStackNavigator() {
         name="HelpManual"
         component={HelpManualScreen}
         options={{ headerShown: true, title: t('nav.helpManual') }}
+      />
+      <Stack.Screen
+        name="Compensation"
+        component={CompensationCenterScreen}
+        options={{ headerShown: true, title: t('nav.compensation') }}
       />
     </Stack.Navigator>
   );

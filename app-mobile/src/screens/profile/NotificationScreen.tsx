@@ -25,7 +25,11 @@ type Props = {
 };
 
 // 将 ISO 时间字符串转成易读格式
-function formatTime(dateStr: string): string {
+function formatTime(
+  dateStr: string,
+  t: (key: string, options?: Record<string, unknown>) => string,
+  language: string
+): string {
   const date = new Date(dateStr);
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
@@ -33,15 +37,15 @@ function formatTime(dateStr: string): string {
   const diffHour = Math.floor(diffMs / 3600000);
   const diffDay = Math.floor(diffMs / 86400000);
 
-  if (diffMin < 1) return '刚刚';
-  if (diffMin < 60) return `${diffMin}分钟前`;
-  if (diffHour < 24) return `${diffHour}小时前`;
-  if (diffDay < 7) return `${diffDay}天前`;
-  return date.toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' });
+  if (diffMin < 1) return t('notifications.time.justNow');
+  if (diffMin < 60) return t('notifications.time.minutesAgo', { count: diffMin });
+  if (diffHour < 24) return t('notifications.time.hoursAgo', { count: diffHour });
+  if (diffDay < 7) return t('notifications.time.daysAgo', { count: diffDay });
+  return date.toLocaleDateString(language?.startsWith('zh') ? 'zh-CN' : 'en-US', { month: 'numeric', day: 'numeric' });
 }
 
 export default function NotificationScreen({ navigation }: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -130,7 +134,7 @@ export default function NotificationScreen({ navigation }: Props) {
               <NotificationItem
                 title={title}
                 message={message}
-                time={formatTime(item.created_at)}
+                time={formatTime(item.created_at, t, i18n.language)}
                 type={item.type}
                 isRead={item.is_read}
                 onPress={() => handlePressItem(item)}

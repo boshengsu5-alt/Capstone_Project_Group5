@@ -72,7 +72,10 @@ export const getCurrentUser = async (): Promise<User | null> => {
   try {
     const { data: { user }, error } = await supabase.auth.getUser();
     if (error) {
-      console.error('getCurrentUser Error:', error.message);
+      const isMissingSession = error.message === 'Auth session missing!';
+      if (!isMissingSession) {
+        console.error('getCurrentUser Error:', error.message);
+      }
       // 如果是 Refresh Token 错误，返回 null 触发重定向
       return null;
     }

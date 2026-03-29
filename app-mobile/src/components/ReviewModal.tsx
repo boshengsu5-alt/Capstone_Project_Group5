@@ -19,6 +19,7 @@ import { theme } from '../theme';
 import { submitReview, updateReview } from '../services/bookingService';
 import type { Review } from '../../../database/types/supabase';
 import { useTranslation } from 'react-i18next';
+import { getDisplayErrorMessage } from '../utils/errorHandler';
 
 interface ReviewModalProps {
   visible: boolean;
@@ -68,7 +69,7 @@ export default function ReviewModal({
       onSuccess();
       onClose();
     } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : t('review.systemBusy');
+      const msg = getDisplayErrorMessage(error) || t('review.systemBusy');
       alertManager.alert(isEditMode ? t('review.editFailed') : t('review.submitFailed'), msg);
     } finally {
       setIsSubmitting(false);

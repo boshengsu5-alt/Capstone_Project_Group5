@@ -3,7 +3,7 @@
 import type { FC } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Package, ClipboardList, RotateCcw, AlertTriangle, ScrollText, Users, X } from 'lucide-react';
+import { LayoutDashboard, Package, ClipboardList, RotateCcw, AlertTriangle, ScrollText, Users, X, BadgeDollarSign } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useLanguage } from '@/components/providers/LanguageProvider';
 import { useAuth } from '@/components/providers/AuthContext';
@@ -26,6 +26,7 @@ const Sidebar: FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
     { name: t('sidebar.bookings'), href: '/dashboard/bookings', icon: ClipboardList },
     { name: t('sidebar.returns'), href: '/dashboard/returns', icon: RotateCcw },
     { name: t('sidebar.damage'), href: '/dashboard/damage', icon: AlertTriangle },
+    { name: t('sidebar.compensation'), href: '/dashboard/compensation', icon: BadgeDollarSign },
     ...(canViewAuditLogs ? [
       { name: t('sidebar.audit'), href: '/dashboard/audit-logs', icon: ScrollText },
     ] : []),

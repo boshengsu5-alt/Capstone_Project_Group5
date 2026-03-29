@@ -31,6 +31,8 @@ export type BookingStatus =
     | 'approved'
     | 'rejected'
     | 'active'
+    | 'lost_reported'
+    | 'lost'
     | 'returned'
     | 'overdue'
     | 'cancelled'
@@ -42,13 +44,37 @@ export type DamageSeverity = 'minor' | 'moderate' | 'severe' | 'lost';
 /** Damage report status. 损坏报告状态 */
 export type DamageReportStatus = 'open' | 'investigating' | 'resolved' | 'dismissed';
 
+/** Compensation case status. 赔偿主状态 */
+export type CompensationStatus =
+    | 'under_review'
+    | 'awaiting_signature'
+    | 'awaiting_payment'
+    | 'partially_paid'
+    | 'paid'
+    | 'waived';
+
+/** Compensation record type. 赔偿记录类型 */
+export type CompensationRecordType =
+    | 'assessment'
+    | 'status_update'
+    | 'signature'
+    | 'payment'
+    | 'adjustment'
+    | 'note';
+
 /** Notification type. 通知类型 */
 export type NotificationType =
     | 'booking_approved'
     | 'booking_rejected'
+    | 'booking_pending'    // 学生提交预约，等待管理员审批
+    | 'booking_suspended'
+    | 'booking_restored'
+    | 'booking_cancelled'
+    | 'return_submitted'   // 学生提交归还，等待管理员验证
     | 'return_reminder'
     | 'overdue_alert'
     | 'damage_reported'
+    | 'compensation_update'
     | 'review_reply'
     | 'system';
 
@@ -175,6 +201,44 @@ export interface CreditScoreLog {
     created_at: string;
 }
 
+/** Compensation case row. 赔偿主档 */
+export interface CompensationCase {
+    id: string;
+    damage_report_id: string;
+    booking_id: string;
+    asset_id: string;
+    liable_user_id: string;
+    status: CompensationStatus;
+    assessed_amount: number | null;
+    agreed_amount: number | null;
+    paid_amount: number;
+    currency: string;
+    payment_reference: string;
+    due_date: string | null;
+    contact_person: string;
+    contact_email: string;
+    contact_phone: string;
+    contact_office: string;
+    office_hours: string;
+    admin_notes: string;
+    created_at: string;
+    updated_at: string;
+}
+
+/** Compensation record row. 赔偿明细记录 */
+export interface CompensationRecord {
+    id: string;
+    compensation_case_id: string;
+    record_type: CompensationRecordType;
+    title: string;
+    description: string;
+    amount: number | null;
+    payment_method: string;
+    reference_no: string;
+    created_by: string | null;
+    created_at: string;
+}
+
 /** Review row. 评价行 */
 export interface Review {
     id: string;
@@ -219,6 +283,8 @@ export type BookingInsert = Omit<Booking, 'id' | 'created_at' | 'updated_at' | '
 export type DamageReportInsert = Omit<DamageReport, 'id' | 'created_at' | 'updated_at' | 'status' | 'resolution_notes'>;
 export type NotificationInsert = Omit<Notification, 'id' | 'created_at' | 'is_read'>;
 export type CreditScoreLogInsert = Omit<CreditScoreLog, 'id' | 'created_at'>;
+export type CompensationCaseInsert = Omit<CompensationCase, 'id' | 'created_at' | 'updated_at'>;
+export type CompensationRecordInsert = Omit<CompensationRecord, 'id' | 'created_at'>;
 export type ReviewInsert = Omit<Review, 'id' | 'created_at'>;
 export type ReviewReplyInsert = Omit<ReviewReply, 'id' | 'created_at'>;
 export type AuditLogInsert = Omit<AuditLog, 'id' | 'created_at'>;
@@ -233,6 +299,7 @@ export type AssetUpdate = Partial<Omit<Asset, 'id' | 'created_at' | 'updated_at'
 export type BookingUpdate = Partial<Omit<Booking, 'id' | 'created_at' | 'updated_at'>>;
 export type DamageReportUpdate = Partial<Omit<DamageReport, 'id' | 'created_at' | 'updated_at'>>;
 export type NotificationUpdate = Partial<Pick<Notification, 'is_read'>>;
+export type CompensationCaseUpdate = Partial<Omit<CompensationCase, 'id' | 'created_at' | 'updated_at'>>;
 export type ReviewUpdate = Partial<Pick<Review, 'rating' | 'comment'>>;
 
 // ============================================================
@@ -284,6 +351,18 @@ export interface Database {
                 Update: never;
                 Relationships: [];
             };
+            compensation_cases: {
+                Row: CompensationCase;
+                Insert: CompensationCaseInsert;
+                Update: CompensationCaseUpdate;
+                Relationships: [];
+            };
+            compensation_records: {
+                Row: CompensationRecord;
+                Insert: CompensationRecordInsert;
+                Update: never;
+                Relationships: [];
+            };
             reviews: {
                 Row: Review;
                 Insert: ReviewInsert;
@@ -317,6 +396,10 @@ export interface Database {
                 Args: Record<string, never>;
                 Returns: void;
             };
+            check_suspended_maintenance_bookings: {
+                Args: Record<string, never>;
+                Returns: void;
+            };
             update_credit_score: {
                 Args: { p_user_id: string; p_delta: number; p_reason: string };
                 Returns: void;
@@ -334,6 +417,8 @@ export interface Database {
             booking_status: BookingStatus;
             damage_severity: DamageSeverity;
             damage_report_status: DamageReportStatus;
+            compensation_status: CompensationStatus;
+            compensation_record_type: CompensationRecordType;
             notification_type: NotificationType;
         };
         CompositeTypes: {};

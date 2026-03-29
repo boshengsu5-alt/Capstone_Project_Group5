@@ -33,6 +33,8 @@
       "returned": "Returned",
       "active": "Active",
       "overdue": "Overdue",
+      "lost_reported": "Lost Pending Confirmation",
+      "lost": "Loss Confirmed",
       "pending": "Pending",
       "approved": "Approved",
       "rejected": "Rejected",
@@ -54,7 +56,18 @@
     "scanToPickUp": "Pick Up",
     "photoReturn": "Return",
     "damageReport": "Report",
+    "compensationStatus": "Compensation",
+    "compensationWaitingStatus": "Awaiting Compensation",
+    "compensationCompletedStatus": "Completed",
+    "compensationOutstanding": "Pending amount ¥{{amount}}",
+    "compensationInProgress": "This damage case is in the compensation workflow. Tap to view details",
+    "compensationSettled": "This compensation case is settled. Tap to view details",
+    "lostReportedTitle": "Lost report pending confirmation",
+    "lostReportedHint": "The normal return flow is paused right now. If you find the device, edit the report and change it from lost to a normal damage type to restore the return button.",
+    "lostFinalTitle": "Final loss confirmed",
+    "lostFinalHint": "This booking has been closed as a confirmed loss. Return is no longer available, but you can still follow the compensation process here.",
     "editReview": "Edit Review",
+    "editDamage": "Edit Damage Report",
     "leaveReview": "Add Review",
     "noBookings": "No Bookings",
     "noBookingsMessage": "You haven't borrowed anything yet. Go check out the homepage!",
@@ -80,11 +93,18 @@
     "department": "Department",
     "notSet": "Not Set",
     "notifications": "Notifications",
+    "compensationCenter": "Compensation Details",
     "editProfile": "Edit Profile",
     "changePassword": "Change Password",
     "helpManual": "Help Manual",
     "sectionAccount": "Account",
-    "sectionPreferences": "Preferences"
+    "sectionPreferences": "Preferences",
+    "switchToEnglish": "English",
+    "switchToChinese": "中文",
+    "compensationSummaryTitle": "Compensation",
+    "compensationSummaryHint": "Track assessed amounts, payment progress, and offline settlement instructions",
+    "compensationClear": "No active compensation needed",
+    "compensationActiveCases": "{{count}} case(s) in progress"
   },
   "editProfile": {
     "loadFailed": "Failed to load profile, please try again later",
@@ -167,6 +187,8 @@
     "confirmPasswordPlaceholder": "Re-enter new password",
     "submit": "Confirm Change",
     "submitting": "Updating...",
+    "show": "Show",
+    "hide": "Hide",
     "successTitle": "Password Updated",
     "successMessage": "Your password has been changed. Please log in again with the new password.",
     "ok": "OK",
@@ -256,16 +278,177 @@
     "saveChanges": "Save Changes",
     "submitReview": "Submit Review"
   },
+  "common": {
+    "ok": "OK",
+    "cancel": "Cancel",
+    "retry": "Retry",
+    "languageEnglishShort": "EN",
+    "languageChineseShort": "中文"
+  },
+  "auth": {
+    "login": {
+      "slogan": "Smart campus asset lending platform",
+      "emailLabel": "Email",
+      "emailPlaceholder": "Enter your school email",
+      "passwordLabel": "Password",
+      "passwordPlaceholder": "Enter your password",
+      "submit": "Sign In",
+      "noAccount": "Don't have an account yet?",
+      "registerAction": "Create one",
+      "errorMissingFields": "Please enter both email and password",
+      "errorInvalidEmail": "Please enter a valid email address"
+    },
+    "register": {
+      "alertTitle": "Notice",
+      "invalidEmailTitle": "Invalid Email",
+      "successTitle": "Registration Successful",
+      "successMessage": "Please check your email to verify your account, then sign in.",
+      "goLogin": "Go to Login",
+      "failed": "Registration Failed",
+      "title": "Create Account",
+      "subtitle": "Join UniGear and start borrowing smarter",
+      "fullNameLabel": "Full Name",
+      "fullNamePlaceholder": "Enter your real name",
+      "emailLabel": "Email",
+      "emailPlaceholder": "Enter your school email",
+      "passwordLabel": "Password",
+      "passwordPlaceholder": "At least 6 characters",
+      "confirmPasswordLabel": "Confirm Password",
+      "confirmPasswordPlaceholder": "Enter your password again",
+      "submit": "Sign Up",
+      "existingAccount": "Already have an account?",
+      "loginAction": "Back to Login",
+      "errorMissingFields": "Please complete all required fields",
+      "errorInvalidEmail": "Please enter a valid email address, for example name@school.edu",
+      "errorPasswordMismatch": "The two passwords do not match",
+      "errorPasswordTooShort": "Password must be at least 6 characters"
+    }
+  },
+  "bookingForm": {
+    "title": "Submit Booking Request",
+    "startTime": "Pickup Time",
+    "endTime": "Return Time",
+    "submit": "Confirm and Submit",
+    "missingDateTitle": "Dates Missing",
+    "missingDateMessage": "Please select a borrowing start and end date in the calendar first",
+    "invalidDateTitle": "Invalid Date",
+    "invalidDateMessage": "The selected date is invalid. Please choose again.",
+    "endBeforeStartMessage": "The end date cannot be earlier than the start date",
+    "successTitle": "Submitted",
+    "successMessage": "Your booking request has been submitted and is awaiting admin approval.",
+    "failedTitle": "Submission Failed"
+  },
+  "return": {
+    "steps": {
+      "photo": "Take Item Photo",
+      "upload": "Upload to Cloud",
+      "confirm": "Confirm Return"
+    },
+    "uploadedTitle": "Photo Uploaded to Cloud",
+    "uploadedLabel": "Return proof URL (saved to the ticket):",
+    "uploadedHint": "This link has already been attached to your return ticket. Please keep it for reference.",
+    "title": "📦 Return Asset",
+    "currentAsset": "Returning:",
+    "infoTitle": "A physical photo is required",
+    "infoMessage": "To clearly record the asset condition at return time, the system requires one physical photo before the return can be completed.",
+    "uploading": "Uploading return photo…",
+    "retake": "🔄 Retake",
+    "confirm": "Confirm Asset Return",
+    "successTitle": "Return Successful",
+    "successMessage": "Asset \"{{asset}}\" has been returned successfully.\n\nThe return photo has been archived with the ticket. Thank you for using UniGear.",
+    "done": "Done",
+    "lockedHint": "The return button will unlock after the photo upload succeeds",
+    "uploadFailedTitle": "Upload Failed",
+    "uploadFailedMessage": "Something went wrong while uploading the photo. Please retake it and try again.",
+    "failedTitle": "Return Failed"
+  },
+  "damageReport": {
+    "severity": {
+      "minor": "Minor Damage",
+      "moderate": "Moderate Damage",
+      "severe": "Severe Damage",
+      "lost": "Lost Asset"
+    },
+    "duplicateTitle": "Cannot Submit Again",
+    "duplicateMessage": "This damage report has already been processed and cannot be submitted again.",
+    "loadFailedTitle": "Load Failed",
+    "loadFailedMessage": "Failed to load the damage report.",
+    "addPhotoTitle": "Add Damage Photo",
+    "addPhotoMessage": "Choose a source",
+    "takePhoto": "Take Photo",
+    "chooseFromLibrary": "Choose from Library",
+    "permissionDeniedTitle": "Permission Required",
+    "cameraPermissionMessage": "Camera access is required to take photos. Please enable it in system settings.",
+    "libraryPermissionMessage": "Photo library access is required to select images. Please enable it in system settings.",
+    "descriptionTooShortTitle": "Description Too Short",
+    "descriptionTooShortMessage": "Please use at least 10 characters to describe the damage.",
+    "missingPhotoTitle": "Photo Required",
+    "missingPhotoMessage": "Please upload at least one photo of the damaged area.",
+    "cannotEditTitle": "Cannot Edit",
+    "cannotEditMessage": "There is no editable damage report for this booking.",
+    "updatedTitle": "Damage Report Updated",
+    "submittedTitle": "Damage Report Submitted",
+    "updatedMessage": "Your previous damage report has been updated. Staff will continue the review using the latest details.",
+    "updatedLostMessage": "Your lost-item report has been updated. If the device is still missing, this booking stays in lost-pending-confirmation. If you changed it back to a normal damage type, the normal return flow is restored automatically.",
+    "submittedMessage": "Thanks for the report. Staff will review it within 1-2 working days and notify you about any credit impact.",
+    "submittedLostMessage": "Your lost-item report has been submitted. Until an admin confirms the final loss, this booking will stay in lost-pending-confirmation. If you find the device later, come back and edit this report to restore the normal return flow.",
+    "submitFailedTitle": "Submission Failed",
+    "withdrawButton": "Withdraw Report",
+    "withdrawConfirmTitle": "Withdraw this damage report?",
+    "withdrawConfirmMessage": "This will mark the report as withdrawn. If the normal borrowing or return flow was paused because of this report, the system will restore it automatically.",
+    "withdrawConfirmAction": "Withdraw",
+    "withdrawnTitle": "Damage report withdrawn",
+    "withdrawnMessage": "This report has been withdrawn successfully. The related borrowing or return flow will resume automatically based on the current booking state.",
+    "withdrawFailedTitle": "Withdraw failed",
+    "networkError": "Network error. Please try again later.",
+    "loading": "Loading damage report…",
+    "editBannerTitle": "An open damage report already exists",
+    "editBannerText": "You are editing the existing report. Saving here will update the original record instead of creating a second one.",
+    "editLostBannerText": "You are editing a lost-item report. If the device has been found, change the severity from lost to a normal damage type and the normal return flow will be restored automatically.",
+    "infoSection": "📋 Report Info",
+    "bookingId": "Booking ID",
+    "assetId": "Asset ID",
+    "severitySection": "⚠️ Damage Severity",
+    "descriptionSection": "📝 Description (minimum 10 characters)",
+    "descriptionPlaceholder": "Describe the damage in detail, for example: the front lens is cracked, visible glass fragments remain in the gap, and the camera can no longer focus properly…",
+    "charCount": "{{count}} / 10 minimum characters",
+    "photoSection": "📸 Damage Photos ({{requirement}})",
+    "photoRequired": "Required",
+    "photoOptional": "Optional",
+    "addPhoto": "Add Photo",
+    "photoHint": "Up to 5 photos. Images will be uploaded to the school evidence archive.",
+    "submitUpdate": "Update Damage Report",
+    "submitCreate": "Submit Damage Report",
+    "disclaimer": "After submission, staff will manually verify the case and it may affect your credit score. Please submit only accurate information."
+  },
+  "photoCapture": {
+    "loading": "Loading camera...",
+    "permissionRequired": "Camera access is required to take the return photo",
+    "grantPermission": "Enable Camera",
+    "retake": "Retake Photo"
+  },
+  "errorView": {
+    "defaultMessage": "Loading failed. Please check your network connection.",
+    "retry": "Tap to Retry"
+  },
+  "errorBoundary": {
+    "title": "This component crashed",
+    "message": "This feature is temporarily unavailable because of an unexpected issue.",
+    "reset": "Try restarting it"
+  },
   "errors": {
     "prompt": "Prompt",
     "network": "Network is wandering, please try again later",
     "authFailed": "Invalid email or password, please check and try again",
     "accountExists": "This account is already registered",
     "sessionExpired": "Your session has expired. Please sign in again",
+    "loginRequired": "Please sign in before continuing",
     "permissionDenied": "Your account does not have permission to do that",
     "bookingConflict": "The selected time range is no longer available. Please choose another slot",
     "duplicateBooking": "You already have a booking request for this asset",
-    "serviceUnavailable": "Booking service is temporarily unavailable. Please try again later"
+    "serviceUnavailable": "Booking service is temporarily unavailable. Please try again later",
+    "damageReportClosed": "This damage report has already been processed and can no longer be resubmitted",
+    "uploadFailed": "Upload failed. Please try again later"
   },
   "nav": {
     "profile": "Profile",
@@ -275,12 +458,90 @@
     "creditScoreLog": "Credit History",
     "changePassword": "Change Password",
     "helpManual": "Help Manual",
+    "compensation": "Compensation Details",
     "category": "Category",
     "assetDetail": "Asset Detail",
     "bookingForm": "Booking Application",
     "back": "Back",
     "returnAsset": "Return Asset",
     "reportDamage": "Report Damage"
+  },
+  "compensation": {
+    "title": "Compensation Center",
+    "subtitle": "Review every damage-related compensation case, the signed amount, payment progress, and the exact offline settlement steps.",
+    "emptyTitle": "No compensation cases",
+    "emptyMessage": "There are currently no compensation cases assigned to you. If a damage review requires payment later, it will appear here.",
+    "activeCases": "Open cases",
+    "totalPaid": "Recorded paid",
+    "totalOutstanding": "Outstanding",
+    "caseReference": "Reference",
+    "status": {
+      "under_review": "Under review",
+      "awaiting_signature": "Awaiting signature",
+      "awaiting_payment": "Awaiting payment",
+      "partially_paid": "Partially paid",
+      "paid": "Paid",
+      "waived": "Waived"
+    },
+    "money": {
+      "assessed": "Assessed amount",
+      "agreed": "Signed amount",
+      "paid": "Recorded paid",
+      "outstanding": "Outstanding"
+    },
+    "labels": {
+      "liableUser": "Liable user",
+      "damageSeverity": "Damage severity",
+      "damageStatus": "Damage status",
+      "bookingPeriod": "Booking period",
+      "dueDate": "Payment deadline",
+      "contactPerson": "Contact person",
+      "contactEmail": "Contact email",
+      "contactPhone": "Phone",
+      "contactOffice": "Office",
+      "officeHours": "Office hours",
+      "paymentReference": "Payment reference"
+    },
+    "guideTitle": "Settlement Guide",
+    "steps": {
+      "reviewTitle": "1. Wait for the final review",
+      "reviewBody": "The asset office checks the pickup/return photos, the written damage report, and the original purchase price before confirming the official compensation amount.",
+      "signatureTitle": "2. Sign the acknowledgement form",
+      "signatureBody": "Bring your student ID, the booking screenshot, and the case reference to the listed office. Staff will confirm the signed amount and issue the payment reference.",
+      "paymentTitle": "3. Complete the payment",
+      "paymentBody": "After the form is signed, pay at the campus finance desk or by the approved transfer method shared by staff. Always include the compensation reference in your payment note.",
+      "closureTitle": "4. Wait for finance confirmation",
+      "closureBody": "Once finance records the payment, the admin updates the case in the web portal and the mobile app will reflect the new status. Any remaining balance will continue to show here."
+    },
+    "recordsTitle": "Compensation Records",
+    "recordsEmpty": "No compensation records yet. Signature updates, payments, and status changes will appear here.",
+    "recordType": {
+      "assessment": "Assessment",
+      "status_update": "Status update",
+      "signature": "Signature",
+      "payment": "Payment",
+      "adjustment": "Adjustment",
+      "note": "Note"
+    },
+    "paymentMethod": "Payment method",
+    "referenceNo": "Receipt / transfer ref",
+    "adminNotes": "Admin notes",
+    "damageSeverity": {
+      "minor": "Minor damage",
+      "moderate": "Moderate damage",
+      "severe": "Severe damage",
+      "lost": "Lost asset"
+    },
+    "damageReportStatus": {
+      "open": "Open",
+      "investigating": "Investigating",
+      "resolved": "Resolved",
+      "dismissed": "Dismissed"
+    },
+    "unknownAsset": "Unknown asset",
+    "pendingAmount": "Pending",
+    "expandDetails": "Expand details",
+    "collapseDetails": "Collapse details"
   },
   "helpManual": {
     "title": "UniGear Help Manual",
@@ -427,11 +688,27 @@
       "minor": "minor damage",
       "moderate": "moderate damage",
       "severe": "severe damage",
+      "lost": "lost asset",
       "unknown": "unknown damage"
+    },
+    "time": {
+      "justNow": "Just now",
+      "minutesAgo": "{{count}} min ago",
+      "hoursAgo": "{{count}} hr ago",
+      "daysAgo": "{{count}} day(s) ago"
     },
     "detail": {
       "overdueSection": "Overdue Details",
+      "compensationSection": "Compensation Progress",
       "asset": "Asset",
+      "caseStatus": "Case status",
+      "assessedAmount": "Assessed amount",
+      "agreedAmount": "Signed amount",
+      "paidAmount": "Recorded paid",
+      "outstandingAmount": "Outstanding amount",
+      "paymentAmount": "New payment",
+      "dueDate": "Due date",
+      "paymentReference": "Payment reference",
       "overdueDays": "Overdue days",
       "creditImpact": "Credit change",
       "daysValue": "{{days}} day(s)",
@@ -468,6 +745,47 @@
           "totalCreditImpact": "Total credit impact this time: -{{points}} points.",
           "compensation": "Compensation due: ¥{{amount}}. Please contact the admin to settle it offline."
         }
+      },
+      "compensationUpdate": {
+        "shared": {
+          "assetLine": "Asset: {{asset}}",
+          "statusLine": "Status: {{status}}",
+          "assessedLine": "Assessed amount: {{amount}}",
+          "agreedLine": "Signed amount: {{amount}}",
+          "paidLine": "Recorded paid: {{amount}}",
+          "outstandingLine": "Outstanding amount: {{amount}}",
+          "paymentLine": "New payment recorded: {{amount}}",
+          "dueDateLine": "Due date: {{date}}",
+          "referenceLine": "Payment reference: {{reference}}"
+        },
+        "underReview": {
+          "title": "Compensation Case Opened",
+          "message": "The asset office is reviewing the damage evidence and purchase value. You will be notified again once the final amount is confirmed."
+        },
+        "awaitingSignature": {
+          "title": "Signature Required",
+          "message": "Please contact the asset office and bring your student ID plus the booking record to sign the compensation acknowledgement form."
+        },
+        "awaitingPayment": {
+          "title": "Compensation Payment Required",
+          "message": "The signed amount is confirmed. Please complete the offline payment before the due date and include the compensation reference."
+        },
+        "partiallyPaid": {
+          "title": "Partial Payment Recorded",
+          "message": "A partial payment has been recorded. Please complete the remaining balance to close the case."
+        },
+        "paid": {
+          "title": "Compensation Settled",
+          "message": "Finance has confirmed the full payment. This compensation case is now closed."
+        },
+        "waived": {
+          "title": "Compensation Waived",
+          "message": "The case has been updated to waived status. No further payment is required."
+        },
+        "paymentRecorded": {
+          "title": "Payment Recorded",
+          "message": "A new compensation payment has been registered. Open the compensation detail page to review the balance and record log."
+        }
       }
     },
     "types": {
@@ -494,6 +812,30 @@
       "review_reply": {
         "title": "Review Reply",
         "message": "You have received a reply to your review."
+      },
+      "booking_pending": {
+        "title": "New booking pending",
+        "message": "A new booking request is waiting for admin review."
+      },
+      "booking_suspended": {
+        "title": "Booking suspended",
+        "message": "Your booking has been temporarily suspended due to maintenance."
+      },
+      "booking_restored": {
+        "title": "Booking restored",
+        "message": "Your booking has been restored after the asset became available again."
+      },
+      "booking_cancelled": {
+        "title": "Booking cancelled",
+        "message": "Your booking status has been updated to cancelled."
+      },
+      "return_submitted": {
+        "title": "Return awaiting verification",
+        "message": "A return has been submitted and is waiting for admin verification."
+      },
+      "compensation_update": {
+        "title": "Compensation update",
+        "message": "Your compensation case has a new amount, status, or payment progress update."
       },
       "system": {
         "title": "System Notification",

@@ -12,6 +12,7 @@ import { getAssetByQrCode, getAssetBySerialNumber } from '../../services/assetSe
 import { findApprovedBookingForAsset, findPendingBookingForAsset, findSuspendedBookingForAsset, activateBooking } from '../../services/bookingService';
 import { theme } from '../../theme';
 import { useTranslation } from 'react-i18next';
+import { getDisplayErrorMessage } from '../../utils/errorHandler';
 
 export default function ScanScreen() {
   const { t } = useTranslation();
@@ -105,7 +106,7 @@ export default function ScanScreen() {
                       assetName: asset.name,
                     });
                   } catch (err: unknown) {
-                    const msg = err instanceof Error ? err.message : t('scan.pickUpFailedTryAgain');
+                    const msg = getDisplayErrorMessage(err) || t('scan.pickUpFailedTryAgain');
                     alertManager.alert(t('scan.pickUpFailed'), msg, [
                       { text: t('scan.ok'), onPress: () => { setIsScanning(true); } },
                     ]);
@@ -202,7 +203,7 @@ export default function ScanScreen() {
       setIsProcessing(false);
       handleScan(asset.qr_code ?? asset.id);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : t('scan.queryFailedTryAgain');
+      const msg = getDisplayErrorMessage(err) || t('scan.queryFailedTryAgain');
       alertManager.alert(t('scan.queryFailed'), msg);
       setIsProcessing(false);
     }

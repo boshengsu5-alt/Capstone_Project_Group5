@@ -1,6 +1,6 @@
 import { supabase } from './supabase';
 import { getCurrentUser } from './authService';
-import type { DamageReport, DamageSeverity } from '../../../database/types/supabase';
+import type { CompensationStatus, DamageReport, DamageSeverity } from '../../../database/types/supabase';
 import { uploadFile } from './storageService';
 
 // 手写 Database 类型与 Supabase 客户端泛型不完全兼容，
@@ -12,6 +12,97 @@ export type MyDamageReport = Pick<
   DamageReport,
   'id' | 'booking_id' | 'asset_id' | 'description' | 'severity' | 'photo_urls' | 'status'
 >;
+
+export type MyCompensationCaseSummary = {
+  id: string;
+  booking_id: string;
+  status: CompensationStatus;
+  assessed_amount: number | null;
+  agreed_amount: number | null;
+  paid_amount: number;
+  created_at: string;
+};
+
+function normalizeBookingLostState<T extends {
+  status: string;
+  rejection_reason?: string | null;
+  damage_reports?: Array<{ status: string; severity: string }> | null;
+  end_date?: string | null;
+  actual_return_date?: string | null;
+}>(booking: T): T {
+  const reports = Array.isArray(booking.damage_reports) ? booking.damage_reports : [];
+  const hasUnresolvedLost = reports.some(
+    (report) => report.severity === 'lost' && (report.status === 'open' || report.status === 'investigating')
+  );
+  const hasResolvedLost = reports.some(
+    (report) => report.severity === 'lost' && report.status === 'resolved'
+  );
+
+  if (hasUnresolvedLost) {
+    return {
+      ...booking,
+      status: 'lost_reported',
+      rejection_reason: 'LOST_REPORTED',
+    };
+  }
+
+  if (hasResolvedLost) {
+    return {
+      ...booking,
+      status: 'lost',
+      rejection_reason: 'LOST_CONFIRMED',
+    };
+  }
+
+  if (booking.status === 'approved' && reports.length > 0) {
+    const resumeStatus =
+      booking.actual_return_date
+        ? 'returned'
+        : booking.end_date && new Date(booking.end_date).getTime() < Date.now()
+          ? 'overdue'
+          : 'active';
+
+    return {
+      ...booking,
+      status: resumeStatus,
+      rejection_reason: resumeStatus === 'returned' ? 'VERIFIED' : booking.rejection_reason ?? '',
+    };
+  }
+
+  return booking;
+}
+
+// ============================================================
+// Admin Notification Helper. 管理员通知辅助函数
+// ============================================================
+
+/**
+ * Send a notification to all admin and staff users (fire-and-forget).
+ * 向所有 admin/staff 用户发送通知（非关键路径，失败不影响主流程）
+ */
+async function notifyAdmins(
+  type: string,
+  title: string,
+  message: string,
+  metadata: Record<string, unknown>
+): Promise<void> {
+  const { data: admins } = await db
+    .from('profiles')
+    .select('id')
+    .in('role', ['admin', 'staff']);
+
+  if (!admins?.length) return;
+
+  await db.from('notifications').insert(
+    admins.map((a: { id: string }) => ({
+      user_id: a.id,
+      type,
+      title,
+      message,
+      metadata,
+    }))
+  );
+}
 
 // ============================================================
 // Booking Service — 借用管理服务
@@ -55,6 +146,15 @@ export async function createBooking(
     .single();
 
   if (fetchError) throw fetchError;
+
+  // 通知所有管理员有新预约待审批
+  notifyAdmins(
+    'booking_pending',
+    '📦 New Booking Request',
+    `A new equipment booking request has been submitted and awaits approval.`,
+    { booking_id: newBookingId, asset_id: assetId }
+  ).catch(() => {});
+
   return data;
 }
 
@@ -67,14 +167,23 @@ export async function createBooking(
 export async function getMyBookings() {
   const user = await getCurrentUser();
 
+  const { error: suspendedCheckError } = await db.rpc('check_suspended_maintenance_bookings');
+  if (suspendedCheckError) {
+    console.warn('Failed to run suspended maintenance booking check:', suspendedCheckError.message);
+  }
+
   const { data, error } = await db
     .from('bookings')
-    .select('*, assets(name, images), damage_reports(id, status)')
+    .select('*, assets(name, images), damage_reports(id, status, severity), compensation_cases(id, booking_id, status, assessed_amount, agreed_amount, paid_amount, created_at)')
     .eq('borrower_id', user.id)
     .order('created_at', { ascending: false });
 
   if (error) throw error;
-  return data ?? [];
+  return ((data ?? []) as Array<{
+    status: string;
+    rejection_reason?: string | null;
+    damage_reports?: Array<{ status: string; severity: string }> | null;
+  }>).map(normalizeBookingLostState);
 }
 
 export async function getMyDamageReportByBookingId(bookingId: string): Promise<MyDamageReport | null> {
@@ -104,6 +213,14 @@ export async function updateOwnDamageReport(
     p_description: description,
     p_severity: severity,
     p_photo_urls: photoUrls,
+  });
+
+  if (error) throw error;
+}
+
+export async function withdrawOwnDamageReport(reportId: string) {
+  const { error } = await db.rpc('withdraw_own_damage_report', {
+    p_report_id: reportId,
   });
 
   if (error) throw error;
@@ -208,6 +325,14 @@ export async function returnAsset(bookingId: string, photoUrl: string) {
   });
 
   if (error) throw error;
+
+  // 通知管理员有归还待验证
+  notifyAdmins(
+    'return_submitted',
+    '🔄 Return Awaiting Verification',
+    `A borrower has submitted a return photo. Please verify the equipment condition.`,
+    { booking_id: bookingId }
+  ).catch(() => {});
 }
 
 /**
@@ -231,17 +356,19 @@ export async function submitDamageReport(
 
   if (existingReport) {
     if (existingReport.status !== 'open' && existingReport.status !== 'investigating') {
-      throw new Error('该损坏报告已处理完成，不能重复提交');
+      if (existingReport.status !== 'dismissed') {
+        throw new Error('该损坏报告已处理完成，不能重复提交');
+      }
+    } else {
+      await updateOwnDamageReport(existingReport.id, description, severity, photoUrls);
+      return {
+        ...existingReport,
+        asset_id: assetId,
+        description,
+        severity,
+        photo_urls: photoUrls,
+      };
     }
-
-    await updateOwnDamageReport(existingReport.id, description, severity, photoUrls);
-    return {
-      ...existingReport,
-      asset_id: assetId,
-      description,
-      severity,
-      photo_urls: photoUrls,
-    };
   }
 
   const user = await getCurrentUser();
@@ -260,6 +387,15 @@ export async function submitDamageReport(
     .single();
 
   if (error) throw error;
+
+  // 通知管理员有新损坏报告
+  notifyAdmins(
+    'damage_reported',
+    '⚠️ New Damage Report Filed',
+    `A damage report has been submitted. Severity: ${severity}. Please review in the Damage Reports section.`,
+    { booking_id: bookingId, asset_id: assetId, severity }
+  ).catch(() => {});
+
   return data;
 }
 
@@ -338,6 +474,11 @@ export async function findPendingBookingForAsset(assetId: string) {
  */
 export async function findSuspendedBookingForAsset(assetId: string) {
   const user = await getCurrentUser();
+
+  const { error: suspendedCheckError } = await db.rpc('check_suspended_maintenance_bookings');
+  if (suspendedCheckError) {
+    console.warn('Failed to run suspended maintenance booking check:', suspendedCheckError.message);
+  }
 
   const { data, error } = await db
     .from('bookings')

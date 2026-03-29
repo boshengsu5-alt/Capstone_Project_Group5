@@ -20,6 +20,7 @@ import { theme } from '../../theme';
 import { signOut, getMyProfile } from '../../services/authService';
 import { DEFAULT_APP_SETTINGS, getAppSettings } from '../../services/appSettingsService';
 import { getUnreadCount } from '../../services/notificationService';
+import { getMyCompensationSummary, type CompensationSummary } from '../../services/compensationService';
 import { handleApiError } from '../../utils/errorHandler';
 import type { Profile } from '../../../../database/types/supabase';
 import { useTranslation } from 'react-i18next';
@@ -46,6 +47,10 @@ function creditLevelKey(score: number): string {
   if (score >= 60) return 'profile.creditLevelGood';
   if (score >= 40) return 'profile.creditLevelWarning';
   return 'profile.creditLevelRisk';
+}
+
+function formatMoney(amount: number): string {
+  return `¥${amount.toLocaleString()}`;
 }
 
 // ============================================================
@@ -89,6 +94,12 @@ export default function ProfileScreen({ navigation }: Props) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [appSettings, setAppSettings] = useState(DEFAULT_APP_SETTINGS);
+  const [compensationSummary, setCompensationSummary] = useState<CompensationSummary>({
+    totalCases: 0,
+    activeCases: 0,
+    totalOutstanding: 0,
+    totalPaid: 0,
+  });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
@@ -101,14 +112,16 @@ export default function ProfileScreen({ navigation }: Props) {
     }
 
     try {
-      const [profileData, count, settings] = await Promise.all([
+      const [profileData, count, settings, nextCompensationSummary] = await Promise.all([
         getMyProfile(),
         getUnreadCount(),
         getAppSettings(),
+        getMyCompensationSummary(),
       ]);
       setProfile(profileData as unknown as Profile);
       setUnreadCount(count);
       setAppSettings(settings);
+      setCompensationSummary(nextCompensationSummary);
     } catch (err) {
       alertManager.alert(t('profile.prompt'), t('profile.loadFailed'));
     } finally {
@@ -161,6 +174,29 @@ export default function ProfileScreen({ navigation }: Props) {
   }
 
   const score = profile?.credit_score ?? 100;
+  const hasCompensationCase = compensationSummary.totalCases > 0;
+  const hasOutstanding = compensationSummary.totalOutstanding > 0;
+  const hasActiveCompensation = compensationSummary.activeCases > 0 || hasOutstanding;
+  const compensationTone = hasOutstanding
+    ? {
+        accent: theme.colors.danger,
+        accentSoft: '#FEF2F2',
+        pillBg: '#FEE2E2',
+      }
+    : hasActiveCompensation
+      ? {
+          accent: '#D97706',
+          accentSoft: '#FFFBEB',
+          pillBg: '#FEF3C7',
+        }
+      : {
+          accent: theme.colors.success,
+          accentSoft: '#ECFDF5',
+          pillBg: '#D1FAE5',
+        };
+  const compensationHeadline = hasActiveCompensation
+    ? formatMoney(compensationSummary.totalOutstanding)
+    : t('profile.compensationClear');
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -250,6 +286,68 @@ export default function ProfileScreen({ navigation }: Props) {
               </View>
             </TouchableOpacity>
 
+            <TouchableOpacity
+              style={styles.compensationCard}
+              onPress={() => navigation.navigate('Compensation')}
+              activeOpacity={0.9}
+            >
+              <View style={styles.compensationHeader}>
+                <View style={[styles.compensationBadge, { backgroundColor: compensationTone.pillBg }]}>
+                  <Ionicons name="receipt-outline" size={15} color={compensationTone.accent} />
+                  <Text style={[styles.compensationBadgeText, { color: compensationTone.accent }]}>
+                    {t('profile.compensationSummaryTitle')}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={theme.colors.gray} />
+              </View>
+
+              <View style={styles.compensationBody}>
+                <View style={styles.compensationMain}>
+                  <Text
+                    style={[
+                      styles.compensationAmount,
+                      { color: hasCompensationCase ? compensationTone.accent : theme.colors.text },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {compensationHeadline}
+                  </Text>
+                  <Text style={styles.compensationHint}>{t('profile.compensationSummaryHint')}</Text>
+                </View>
+
+                <View style={[styles.compensationStatusPill, { backgroundColor: compensationTone.accentSoft }]}>
+                  <Text style={[styles.compensationStatusPillText, { color: compensationTone.accent }]}>
+                    {hasCompensationCase
+                      ? hasActiveCompensation
+                        ? t('profile.compensationActiveCases', { count: compensationSummary.activeCases })
+                        : t('profile.compensationClear')
+                      : t('profile.compensationClear')}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.compensationStatsRow}>
+                <View style={styles.compensationStat}>
+                  <Text style={styles.compensationStatLabel}>{t('compensation.totalOutstanding')}</Text>
+                  <Text style={[styles.compensationStatValue, { color: hasOutstanding ? compensationTone.accent : theme.colors.text }]}>
+                    {formatMoney(compensationSummary.totalOutstanding)}
+                  </Text>
+                </View>
+                <View style={styles.compensationDivider} />
+                <View style={styles.compensationStat}>
+                  <Text style={styles.compensationStatLabel}>{t('compensation.totalPaid')}</Text>
+                  <Text style={[styles.compensationStatValue, { color: theme.colors.success }]}>
+                    {formatMoney(compensationSummary.totalPaid)}
+                  </Text>
+                </View>
+                <View style={styles.compensationDivider} />
+                <View style={styles.compensationStat}>
+                  <Text style={styles.compensationStatLabel}>{t('compensation.activeCases')}</Text>
+                  <Text style={styles.compensationStatValue}>{compensationSummary.activeCases}</Text>
+                </View>
+              </View>
+            </TouchableOpacity>
+
             {/* ── 账户分组 ── */}
             <View style={styles.sectionLabel}>
               <Text style={styles.sectionLabelText}>{t('profile.sectionAccount')}</Text>
@@ -276,7 +374,7 @@ export default function ProfileScreen({ navigation }: Props) {
             <View style={styles.menuSection}>
               <MenuItem
                 icon="language-outline"
-                label={i18n.language === 'zh' ? 'English' : '中文'}
+                label={i18n.language === 'zh' ? t('profile.switchToEnglish') : t('profile.switchToChinese')}
                 onPress={() => i18n.changeLanguage(i18n.language === 'zh' ? 'en' : 'zh')}
                 rightContent={
                   <Ionicons name="swap-horizontal" size={18} color={theme.colors.gray} />
@@ -483,6 +581,94 @@ const styles = StyleSheet.create({
   creditDetailText: {
     fontSize: 13,
     color: theme.colors.gray,
+  },
+  compensationCard: {
+    marginHorizontal: theme.spacing.md,
+    marginTop: theme.spacing.md,
+    borderRadius: 20,
+    backgroundColor: '#FFFFFF',
+    padding: theme.spacing.md,
+    shadowColor: '#111827',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 14,
+    elevation: 4,
+  },
+  compensationHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  compensationBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  compensationBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  compensationBody: {
+    marginTop: 14,
+    flexDirection: 'row',
+    gap: theme.spacing.sm,
+    alignItems: 'flex-start',
+  },
+  compensationMain: {
+    flex: 1,
+  },
+  compensationAmount: {
+    fontSize: 28,
+    fontWeight: '800',
+    lineHeight: 34,
+  },
+  compensationHint: {
+    marginTop: 8,
+    fontSize: 13,
+    lineHeight: 20,
+    color: theme.colors.gray,
+  },
+  compensationStatusPill: {
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    maxWidth: 132,
+  },
+  compensationStatusPillText: {
+    fontSize: 12,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  compensationStatsRow: {
+    marginTop: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 16,
+    backgroundColor: '#F9FAFB',
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+  },
+  compensationStat: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 4,
+  },
+  compensationStatLabel: {
+    fontSize: 11,
+    color: theme.colors.gray,
+  },
+  compensationStatValue: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: theme.colors.text,
+  },
+  compensationDivider: {
+    width: StyleSheet.hairlineWidth,
+    alignSelf: 'stretch',
+    backgroundColor: '#E5E7EB',
   },
 
   // 分组标题

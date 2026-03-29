@@ -6,6 +6,7 @@ import { theme } from '../../theme';
 import { createBooking } from '../../services/bookingService';
 import { handleApiError } from '../../utils/errorHandler';
 import { alertManager } from '../../utils/alertManager';
+import { useTranslation } from 'react-i18next';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'BookingFormScreen'>;
 
@@ -18,25 +19,26 @@ function formatDateTime(dt: string): string {
 }
 
 export default function BookingFormScreen({ route, navigation }: Props) {
+  const { t } = useTranslation();
   const { assetId, assetName, startDate, endDate } = route.params;
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async () => {
     // 前端日期校验防御：确保日期参数合法
     if (!startDate || !endDate) {
-      alertManager.alert('日期缺失', '请先在日历上选择借用起止日期');
+      alertManager.alert(t('bookingForm.missingDateTitle'), t('bookingForm.missingDateMessage'));
       return;
     }
 
     const startAt = new Date(startDate);
     const endAt = new Date(endDate);
     if (Number.isNaN(startAt.getTime()) || Number.isNaN(endAt.getTime())) {
-      alertManager.alert('日期错误', '所选日期无效，请重新选择');
+      alertManager.alert(t('bookingForm.invalidDateTitle'), t('bookingForm.invalidDateMessage'));
       return;
     }
 
     if (endAt.getTime() < startAt.getTime()) {
-      alertManager.alert('日期错误', '结束日期不能早于开始日期');
+      alertManager.alert(t('bookingForm.invalidDateTitle'), t('bookingForm.endBeforeStartMessage'));
       return;
     }
 
@@ -44,11 +46,11 @@ export default function BookingFormScreen({ route, navigation }: Props) {
       setIsSubmitting(true);
       await createBooking(assetId, startDate, endDate);
 
-      alertManager.alert('提交成功', '预约申请已提交，等待管理员审批！', [
-        { text: '确定', onPress: () => navigation.popToTop() },
+      alertManager.alert(t('bookingForm.successTitle'), t('bookingForm.successMessage'), [
+        { text: t('common.ok'), onPress: () => navigation.popToTop() },
       ]);
     } catch (error: unknown) {
-      handleApiError(error, '提交失败');
+      handleApiError(error, t('bookingForm.failedTitle'));
     } finally {
       setIsSubmitting(false);
     }
@@ -57,16 +59,16 @@ export default function BookingFormScreen({ route, navigation }: Props) {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-        <Text style={styles.title}>提交借用申请</Text>
+        <Text style={styles.title}>{t('bookingForm.title')}</Text>
         <Text style={styles.subtitle}>{assetName}</Text>
 
         <View style={styles.card}>
           <View style={styles.dateRow}>
-            <Text style={styles.dateLabel}>取借时间</Text>
+            <Text style={styles.dateLabel}>{t('bookingForm.startTime')}</Text>
             <Text style={styles.dateValue}>{formatDateTime(startDate)}</Text>
           </View>
           <View style={styles.dateRow}>
-            <Text style={styles.dateLabel}>归还时间</Text>
+            <Text style={styles.dateLabel}>{t('bookingForm.endTime')}</Text>
             <Text style={styles.dateValue}>{formatDateTime(endDate)}</Text>
           </View>
         </View>
@@ -79,7 +81,7 @@ export default function BookingFormScreen({ route, navigation }: Props) {
           {isSubmitting ? (
             <ActivityIndicator color={theme.colors.background} />
           ) : (
-            <Text style={styles.submitButtonText}>确认并提交</Text>
+            <Text style={styles.submitButtonText}>{t('bookingForm.submit')}</Text>
           )}
         </TouchableOpacity>
       </View>

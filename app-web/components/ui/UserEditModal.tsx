@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
-import { X, Shield, GraduationCap, Star, AlertCircle, Loader2 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import React, { useEffect, useState } from 'react';
+import { X, Shield, GraduationCap, Briefcase, Star, AlertCircle, Loader2 } from 'lucide-react';
 import { useToast } from '@/components/ui/Toast';
 import { cn } from '@/lib/utils';
+import { updateUserProfile } from '@/lib/userService';
 import type { Profile, UserRole } from '@/types/database';
 
 interface UserEditModalProps {
@@ -19,35 +19,46 @@ export default function UserEditModal({ user, isOpen, onClose, onSuccess }: User
   const [role, setRole] = useState<UserRole>(user.role);
   const [creditScore, setCreditScore] = useState<number>(user.credit_score);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const hasChanges = role !== user.role || creditScore !== user.credit_score;
+
+  useEffect(() => {
+    setRole(user.role);
+    setCreditScore(user.credit_score);
+    setIsSubmitting(false);
+  }, [user]);
 
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!hasChanges) {
+      showToast('No changes to save.', 'info');
+      onClose();
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
-      const { error } = await (supabase as any)
-        .from('profiles')
-        .update({
-          role,
-          credit_score: creditScore,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', user.id);
-
-      if (error) throw error;
+      await updateUserProfile({
+        userId: user.id,
+        role,
+        creditScore,
+        currentRole: user.role,
+        currentCreditScore: user.credit_score,
+      });
 
       showToast('User profile updated successfully!', 'success');
-      // Wait for the parent to refresh the data before we close the modal
       await onSuccess();
-      onClose(); // Explicitly close the modal after success
-    } catch (err: any) {
+      onClose();
+    } catch (err: unknown) {
       console.error('Update error:', err);
-      showToast(err.message || 'Failed to update user profile', 'error');
-      setIsSubmitting(false); // Only reset on error if we want to keep it loading on success
+      const message = err instanceof Error ? err.message : 'Failed to update user profile';
+      showToast(message, 'error');
+    } finally {
+      setIsSubmitting(false);
     }
-    // Note: We don't setIsSubmitting(false) in the finally block if we are closing the modal
   };
 
   return (
@@ -73,8 +84,8 @@ export default function UserEditModal({ user, isOpen, onClose, onSuccess }: User
               <Shield className="w-4 h-4" />
               User Role
             </label>
-            <div className="grid grid-cols-2 gap-3">
-              {(['student', 'admin'] as UserRole[]).map((r) => (
+            <div className="grid grid-cols-3 gap-3">
+              {(['student', 'staff', 'admin'] as UserRole[]).map((r) => (
                 <button
                   key={r}
                   type="button"
@@ -86,7 +97,7 @@ export default function UserEditModal({ user, isOpen, onClose, onSuccess }: User
                       : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-indigo-600/50"
                   )}
                 >
-                  {r === 'admin' ? <Shield className="w-4 h-4" /> : <GraduationCap className="w-4 h-4" />}
+                  {r === 'admin' ? <Shield className="w-4 h-4" /> : r === 'staff' ? <Briefcase className="w-4 h-4" /> : <GraduationCap className="w-4 h-4" />}
                   <span className="capitalize">{r}</span>
                 </button>
               ))}
@@ -140,8 +151,8 @@ export default function UserEditModal({ user, isOpen, onClose, onSuccess }: User
             </button>
             <button
               type="submit"
-              disabled={isSubmitting}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 text-sm font-semibold text-white hover:bg-indigo-500 transition-all shadow-lg shadow-indigo-600/20 disabled:opacity-50"
+              disabled={isSubmitting || !hasChanges}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 text-sm font-semibold text-white hover:bg-indigo-500 transition-all shadow-lg shadow-indigo-600/20 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSubmitting ? (
                 <Loader2 className="w-4 h-4 animate-spin" />

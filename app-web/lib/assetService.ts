@@ -219,30 +219,80 @@ export async function deleteAsset(id: string): Promise<boolean> {
  * @param assetId - The ID of the asset.
  * @returns List of reviews for this asset. 返回特定资产的评价列表。
  */
-export async function getAssetReviews(assetId: string) {
-  // First, get all booking IDs for this asset
+export type ReviewWithName = import('@/types/database').Review & { reviewer_name: string };
+export type ReplyWithAuthor = import('@/types/database').ReviewReply & { author_name: string };
+
+export async function getAssetReviews(assetId: string): Promise<ReviewWithName[]> {
   const { data: bookings, error: bookingsError } = await db
     .from('bookings')
     .select('id')
     .eq('asset_id', assetId);
 
-  if (bookingsError || !bookings || bookings.length === 0) {
-    return [];
-  }
+  if (bookingsError || !bookings || bookings.length === 0) return [];
 
-  const bookingIds = bookings.map((b: { id: string }) => b.id);
+  const bookingIds = (bookings as { id: string }[]).map((b) => b.id);
 
-  // Then get all reviews for those bookings
   const { data: reviews, error: reviewsError } = await db
     .from('reviews')
     .select('*')
     .in('booking_id', bookingIds)
     .order('created_at', { ascending: false });
 
-  if (reviewsError) {
-    console.error('Error fetching asset reviews:', reviewsError);
-    return [];
-  }
+  if (reviewsError || !reviews?.length) return [];
 
-  return reviews ?? [];
+  // 批量拉取所有 reviewer 的 profile，获取真实姓名
+  const reviewerIds = [...new Set((reviews as import('@/types/database').Review[]).map((r) => r.reviewer_id))];
+  const { data: profiles } = await db
+    .from('profiles')
+    .select('id, full_name, email')
+    .in('id', reviewerIds);
+
+  const profileMap = new Map(
+    ((profiles ?? []) as { id: string; full_name: string | null; email: string }[])
+      .map((p) => [p.id, p.full_name ?? p.email?.split('@')[0] ?? 'User'])
+  );
+
+  return (reviews as import('@/types/database').Review[]).map((r) => ({
+    ...r,
+    reviewer_name: profileMap.get(r.reviewer_id) ?? 'User',
+  }));
+}
+
+/** Get replies for a review with author names. 获取评价回复并附带作者姓名 */
+export async function getReviewReplies(reviewId: string): Promise<ReplyWithAuthor[]> {
+  const { data: replies, error } = await db
+    .from('review_replies')
+    .select('*')
+    .eq('review_id', reviewId)
+    .order('created_at', { ascending: true });
+
+  if (error || !replies?.length) return [];
+
+  const authorIds = [...new Set((replies as import('@/types/database').ReviewReply[]).map((r) => r.author_id))];
+  const { data: profiles } = await db
+    .from('profiles')
+    .select('id, full_name, email')
+    .in('id', authorIds);
+
+  const profileMap = new Map(
+    ((profiles ?? []) as { id: string; full_name: string | null; email: string }[])
+      .map((p) => [p.id, p.full_name ?? p.email?.split('@')[0] ?? 'User'])
+  );
+
+  return (replies as import('@/types/database').ReviewReply[]).map((r) => ({
+    ...r,
+    author_name: profileMap.get(r.author_id) ?? 'User',
+  }));
+}
+
+/** Post a reply to a review as current admin. 以当前管理员身份回复评价 */
+export async function postReviewReply(reviewId: string, content: string): Promise<void> {
+  const { data: { user }, error: authErr } = await supabase.auth.getUser();
+  if (authErr || !user) throw new Error('Not authenticated');
+
+  const { error } = await db
+    .from('review_replies')
+    .insert({ review_id: reviewId, author_id: user.id, content });
+
+  if (error) throw error;
 }

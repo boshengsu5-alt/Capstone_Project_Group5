@@ -5,6 +5,48 @@ import { getCurrentUser } from './auth';
 /** AuditLog enriched with a resolved asset thumbnail. 附带资产缩略图的审计日志 */
 export type AuditLogWithMeta = AuditLog & { _image_url: string | null };
 
+type AuditActionParams = {
+  operation_type: 'CREATE' | 'UPDATE' | 'DELETE' | 'APPROVE' | 'REJECT' | 'VERIFY';
+  resource_type: string;
+  resource_id?: string;
+  resource_name?: string;
+  change_description: string;
+  metadata?: Record<string, any>;
+};
+
+function formatAuditError(error: unknown) {
+  if (error instanceof Error) {
+    return {
+      name: error.name,
+      message: error.message,
+    };
+  }
+
+  if (error && typeof error === 'object') {
+    const candidate = error as {
+      code?: string;
+      details?: string;
+      hint?: string;
+      message?: string;
+      name?: string;
+      status?: number;
+    };
+
+    return {
+      name: candidate.name ?? 'SupabaseError',
+      message: candidate.message ?? 'Unknown Supabase error',
+      code: candidate.code ?? null,
+      details: candidate.details ?? null,
+      hint: candidate.hint ?? null,
+      status: candidate.status ?? null,
+    };
+  }
+
+  return {
+    message: String(error),
+  };
+}
+
 /**
  * Audit Service to handle system-wide activity logging.
  * 审计服务，处理系统范围内的活动日志记录。
@@ -16,25 +58,22 @@ export const auditService = {
    * 
    * @param params - Log details including operation type, resource, and description.
    */
-  async logAction(params: {
-    operation_type: 'CREATE' | 'UPDATE' | 'DELETE' | 'APPROVE' | 'REJECT' | 'VERIFY';
-    resource_type: string;
-    resource_id?: string;
-    resource_name?: string;
-    change_description: string;
-    metadata?: Record<string, any>;
-  }) {
+  async logAction(params: AuditActionParams) {
     try {
       const user = await getCurrentUser();
       
       // Get user profile for operator_name
       let operatorName = user?.email || 'Unknown User';
       if (user?.id) {
-        const { data: profile } = await (supabase as any)
+        const { data: profile, error: profileError } = await (supabase as any)
           .from('profiles')
           .select('full_name')
           .eq('id', user.id)
-          .single();
+          .maybeSingle();
+
+        if (profileError) {
+          console.warn('Failed to resolve audit log operator name:', formatAuditError(profileError));
+        }
         
         if (profile?.full_name) {
           operatorName = profile.full_name;
@@ -56,11 +95,38 @@ export const auditService = {
         .from('audit_logs')
         .insert(logEntry);
 
-      if (error) {
-        console.error('Failed to insert audit log:', error);
+      if (!error) {
+        return true;
       }
+
+      const fallbackEntry: Pick<AuditLogInsert, 'operation_type' | 'resource_type' | 'change_description'> = {
+        operation_type: params.operation_type,
+        resource_type: params.resource_type,
+        change_description: params.change_description,
+      };
+
+      const { error: fallbackError } = await (supabase as any)
+        .from('audit_logs')
+        .insert(fallbackEntry);
+
+      if (!fallbackError) {
+        console.warn('Inserted audit log with fallback payload:', {
+          originalError: formatAuditError(error),
+          fallbackEntry,
+        });
+        return true;
+      }
+
+      console.error('Failed to insert audit log:', {
+        originalError: formatAuditError(error),
+        fallbackError: formatAuditError(fallbackError),
+        attemptedEntry: logEntry,
+        fallbackEntry,
+      });
+      return false;
     } catch (err) {
-      console.error('Audit service error:', err);
+      console.error('Audit service error:', formatAuditError(err));
+      return false;
     }
   },
 

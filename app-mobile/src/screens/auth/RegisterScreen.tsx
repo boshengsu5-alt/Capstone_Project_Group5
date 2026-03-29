@@ -17,10 +17,12 @@ import { theme } from '../../theme';
 import { signUp, signOut } from '../../services/authService';
 import { AuthStackParamList } from '../../navigation/AuthStackNavigator';
 import { handleApiError } from '../../utils/errorHandler';
+import { useTranslation } from 'react-i18next';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Register'>;
 
 export default function RegisterScreen({ navigation }: Props) {
+  const { t } = useTranslation();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -29,24 +31,24 @@ export default function RegisterScreen({ navigation }: Props) {
 
   const handleRegister = async () => {
     if (!fullName.trim() || !email.trim() || !password.trim()) {
-      alertManager.alert('提示', '请填写所有必填项');
+      alertManager.alert(t('auth.register.alertTitle'), t('auth.register.errorMissingFields'));
       return;
     }
 
     // Bug #002: 邮箱格式校验
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email.trim())) {
-      alertManager.alert('邮箱格式错误', '请输入有效的邮箱地址，例如 name@school.edu');
+      alertManager.alert(t('auth.register.invalidEmailTitle'), t('auth.register.errorInvalidEmail'));
       return;
     }
 
     if (password !== confirmPassword) {
-      alertManager.alert('提示', '两次输入的密码不一致');
+      alertManager.alert(t('auth.register.alertTitle'), t('auth.register.errorPasswordMismatch'));
       return;
     }
 
     if (password.length < 6) {
-      alertManager.alert('提示', '密码长度不能少于6位');
+      alertManager.alert(t('auth.register.alertTitle'), t('auth.register.errorPasswordTooShort'));
       return;
     }
 
@@ -55,11 +57,11 @@ export default function RegisterScreen({ navigation }: Props) {
       await signUp(email.trim(), password, fullName.trim());
       // 注册后 Supabase 会自动创建 session，需要立即退出，防止跳转到首页
       await signOut();
-      alertManager.alert('注册成功', '请查看邮箱完成验证，然后登录', [
-        { text: '去登录', onPress: () => navigation.navigate('Login') },
+      alertManager.alert(t('auth.register.successTitle'), t('auth.register.successMessage'), [
+        { text: t('auth.register.goLogin'), onPress: () => navigation.navigate('Login') },
       ]);
     } catch (error: any) {
-      handleApiError(error, '注册失败');
+      handleApiError(error, t('auth.register.failed'));
     } finally {
       setLoading(false);
     }
@@ -76,16 +78,16 @@ export default function RegisterScreen({ navigation }: Props) {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.header}>
-            <Text style={styles.title}>创建账号</Text>
-            <Text style={styles.subtitle}>加入 UniGear，开始智能借用之旅</Text>
+            <Text style={styles.title}>{t('auth.register.title')}</Text>
+            <Text style={styles.subtitle}>{t('auth.register.subtitle')}</Text>
           </View>
 
           <View style={styles.form}>
             <View style={styles.inputContainer}>
-              <Text style={styles.label}>姓名</Text>
+              <Text style={styles.label}>{t('auth.register.fullNameLabel')}</Text>
               <TextInput
                 style={styles.input}
-                placeholder="请输入真实姓名"
+                placeholder={t('auth.register.fullNamePlaceholder')}
                 placeholderTextColor="#9CA3AF"
                 value={fullName}
                 onChangeText={setFullName}
@@ -93,10 +95,10 @@ export default function RegisterScreen({ navigation }: Props) {
             </View>
 
             <View style={styles.inputContainer}>
-              <Text style={styles.label}>邮箱</Text>
+              <Text style={styles.label}>{t('auth.register.emailLabel')}</Text>
               <TextInput
                 style={styles.input}
-                placeholder="请输入学校邮箱"
+                placeholder={t('auth.register.emailPlaceholder')}
                 placeholderTextColor="#9CA3AF"
                 value={email}
                 onChangeText={setEmail}
@@ -107,10 +109,10 @@ export default function RegisterScreen({ navigation }: Props) {
             </View>
 
             <View style={styles.inputContainer}>
-              <Text style={styles.label}>密码</Text>
+              <Text style={styles.label}>{t('auth.register.passwordLabel')}</Text>
               <TextInput
                 style={styles.input}
-                placeholder="至少6位字符"
+                placeholder={t('auth.register.passwordPlaceholder')}
                 placeholderTextColor="#9CA3AF"
                 value={password}
                 onChangeText={setPassword}
@@ -119,10 +121,10 @@ export default function RegisterScreen({ navigation }: Props) {
             </View>
 
             <View style={styles.inputContainer}>
-              <Text style={styles.label}>确认密码</Text>
+              <Text style={styles.label}>{t('auth.register.confirmPasswordLabel')}</Text>
               <TextInput
                 style={styles.input}
-                placeholder="再次输入密码"
+                placeholder={t('auth.register.confirmPasswordPlaceholder')}
                 placeholderTextColor="#9CA3AF"
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
@@ -138,7 +140,7 @@ export default function RegisterScreen({ navigation }: Props) {
               {loading ? (
                 <ActivityIndicator color="#fff" />
               ) : (
-                <Text style={styles.registerButtonText}>注 册</Text>
+                <Text style={styles.registerButtonText}>{t('auth.register.submit')}</Text>
               )}
             </TouchableOpacity>
 
@@ -147,7 +149,7 @@ export default function RegisterScreen({ navigation }: Props) {
               onPress={() => navigation.navigate('Login')}
             >
               <Text style={styles.loginText}>
-                已有账号？<Text style={styles.loginHighlight}>返回登录</Text>
+                {t('auth.register.existingAccount')}<Text style={styles.loginHighlight}>{t('auth.register.loginAction')}</Text>
               </Text>
             </TouchableOpacity>
           </View>

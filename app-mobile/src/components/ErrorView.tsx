@@ -2,20 +2,23 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../theme';
+import { useTranslation } from 'react-i18next';
 
 interface ErrorViewProps {
   message?: string;
   onRetry: () => void;
 }
 
-export default function ErrorView({ message = '加载失败，请检查网络连接', onRetry }: ErrorViewProps) {
+export default function ErrorView({ message, onRetry }: ErrorViewProps) {
+  const { t } = useTranslation();
+
   return (
     <View style={styles.container}>
       <Ionicons name="cloud-offline-outline" size={64} color={theme.colors.gray} />
-      <Text style={styles.errorText}>{message}</Text>
+      <Text style={styles.errorText}>{message || t('errorView.defaultMessage')}</Text>
       <TouchableOpacity style={styles.retryButton} onPress={onRetry}>
         <Ionicons name="refresh" size={20} color={theme.colors.background} style={styles.retryIcon} />
-        <Text style={styles.retryButtonText}>点击重试</Text>
+        <Text style={styles.retryButtonText}>{t('errorView.retry')}</Text>
       </TouchableOpacity>
     </View>
   );

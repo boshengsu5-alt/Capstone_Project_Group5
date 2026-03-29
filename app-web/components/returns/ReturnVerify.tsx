@@ -45,7 +45,10 @@ export default function ReturnVerify({ booking, onVerify, onAcknowledgeWithDamag
     }
 
     // 只要学生已经提交过损坏报告，就不再允许管理员重复创建第二条
-    const existingDamageReport = booking.damage_reports?.[0] ?? null;
+    const existingDamageReport = booking.damage_reports?.find(
+        (report) => report.status === 'open' || report.status === 'investigating'
+    ) ?? null;
+    const existingLostReport = existingDamageReport?.severity === 'lost';
 
     const PhotoPlaceholder = ({ label }: { label: string }) => (
         <div className="w-full aspect-[4/3] bg-white/5 rounded-xl flex flex-col items-center justify-center border-2 border-dashed border-white/10">
@@ -157,7 +160,26 @@ export default function ReturnVerify({ booking, onVerify, onAcknowledgeWithDamag
             </div>
 
             {/* Action buttons — 根据是否已有学生提交的损坏报告显示不同按钮 */}
-            {existingDamageReport ? (
+            {existingLostReport ? (
+                <div className="px-6 py-4 border-t border-white/5 bg-white/[0.02] space-y-3">
+                    <div className="flex items-start gap-2.5 px-4 py-3 rounded-xl bg-rose-500/10 border border-rose-500/20">
+                        <AlertTriangle className="w-4 h-4 text-rose-300 mt-0.5 flex-shrink-0" />
+                        <p className="text-sm text-rose-200 leading-snug">
+                            <span className="font-semibold">A lost-item report already exists for this booking.</span>
+                            <span className="text-rose-200/80"> This record has left the normal return flow. Please review it on the Damage Reports page and either confirm the final loss or restore the normal flow if the device has been found.</span>
+                        </p>
+                    </div>
+                    <div className="flex flex-col sm:flex-row gap-3 sm:justify-end">
+                        <a
+                            href="/dashboard/damage"
+                            className="flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-semibold text-rose-200 bg-rose-500/10 border border-rose-500/20 rounded-xl hover:bg-rose-500/20 transition-all"
+                        >
+                            <ExternalLink className="w-4 h-4" />
+                            View Lost Report →
+                        </a>
+                    </div>
+                </div>
+            ) : existingDamageReport ? (
                 // 学生已提交损坏报告：提示管理员，提供确认归还 + 跳转查看报告
                 <div className="px-6 py-4 border-t border-white/5 bg-white/[0.02] space-y-3">
                     <div className="flex items-start gap-2.5 px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/20">

@@ -3,26 +3,28 @@ import { View, StyleSheet, Text, TouchableOpacity, Image } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { theme } from '../theme';
+import { useTranslation } from 'react-i18next';
 
 interface PhotoCaptureProps {
   onPhotoCaptured: (photoUri: string, base64?: string) => void;
 }
 
 export default function PhotoCapture({ onPhotoCaptured }: PhotoCaptureProps) {
+  const { t } = useTranslation();
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef<any>(null);
   const [previewUri, setPreviewUri] = useState<string | null>(null);
 
   if (!permission) {
-    return <View style={styles.container}><Text style={styles.text}>加载相机...</Text></View>;
+    return <View style={styles.container}><Text style={styles.text}>{t('photoCapture.loading')}</Text></View>;
   }
 
   if (!permission.granted) {
     return (
       <View style={styles.container}>
-        <Text style={styles.text}>需要相机权限才能拍照归还</Text>
+        <Text style={styles.text}>{t('photoCapture.permissionRequired')}</Text>
         <TouchableOpacity style={styles.actionButton} onPress={requestPermission}>
-          <Text style={styles.actionText}>授权相机</Text>
+          <Text style={styles.actionText}>{t('photoCapture.grantPermission')}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -58,7 +60,7 @@ export default function PhotoCapture({ onPhotoCaptured }: PhotoCaptureProps) {
         <View style={styles.previewContainer}>
           <Image source={{ uri: previewUri }} style={styles.previewImage} />
           <TouchableOpacity style={styles.retakeButton} onPress={retakePicture}>
-            <Text style={styles.retakeText}>重新拍摄</Text>
+            <Text style={styles.retakeText}>{t('photoCapture.retake')}</Text>
           </TouchableOpacity>
         </View>
       ) : (

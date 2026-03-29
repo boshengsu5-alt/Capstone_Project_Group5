@@ -8,9 +8,15 @@ import type { NotificationType } from '../../../database/types/supabase';
 const TYPE_CONFIG: Record<NotificationType, { icon: string; color: string }> = {
   booking_approved: { icon: 'checkmark-circle', color: '#10b981' },
   booking_rejected: { icon: 'close-circle', color: theme.colors.danger },
+  booking_pending: { icon: 'hourglass-outline', color: '#3b82f6' },
+  booking_suspended: { icon: 'pause-circle-outline', color: '#f59e0b' },
+  booking_restored: { icon: 'refresh-circle-outline', color: '#14b8a6' },
+  booking_cancelled: { icon: 'close-circle-outline', color: '#f97316' },
+  return_submitted: { icon: 'checkmark-done-circle-outline', color: '#0ea5e9' },
   return_reminder: { icon: 'time', color: '#f59e0b' },
   overdue_alert: { icon: 'alert-circle', color: theme.colors.danger },
   damage_reported: { icon: 'warning', color: '#f97316' },
+  compensation_update: { icon: 'receipt-outline', color: '#8b5cf6' },
   review_reply: { icon: 'chatbubbles', color: '#8b5cf6' },
   system: { icon: 'information-circle', color: theme.colors.primary },
 };

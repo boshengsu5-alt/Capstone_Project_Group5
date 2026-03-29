@@ -2,9 +2,9 @@
 
 import { Fragment, useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { 
-  Users as UsersIcon, Search, RefreshCw, Shield, GraduationCap, Star, 
-  AlertCircle, Edit3, UserX, ChevronDown, ChevronUp 
+import {
+  Users as UsersIcon, Search, RefreshCw, Shield, GraduationCap, Briefcase, Star,
+  AlertCircle, Edit3, UserX, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/components/ui/Toast';
@@ -108,6 +108,7 @@ export default function UsersPage() {
   const getRoleIcon = (role: string) => {
     switch (role) {
       case 'admin': return <Shield className="w-3.5 h-3.5" />;
+      case 'staff': return <Briefcase className="w-3.5 h-3.5" />;
       default: return <GraduationCap className="w-3.5 h-3.5" />;
     }
   };
@@ -115,6 +116,7 @@ export default function UsersPage() {
   const getRoleBadgeClass = (role: string) => {
     switch (role) {
       case 'admin': return 'bg-purple-50 text-purple-700 ring-purple-600/20 dark:bg-purple-500/10 dark:text-purple-400 dark:ring-purple-500/20';
+      case 'staff': return 'bg-blue-50 text-blue-700 ring-blue-600/20 dark:bg-blue-500/10 dark:text-blue-400 dark:ring-blue-500/20';
       default: return 'bg-indigo-50 text-indigo-700 ring-indigo-600/20 dark:bg-indigo-500/10 dark:text-indigo-400 dark:ring-indigo-500/20';
     }
   };
@@ -174,6 +176,7 @@ export default function UsersPage() {
               >
                 <option value="all">All Roles</option>
                 <option value="student">Students Only</option>
+                <option value="staff">Staff Only</option>
                 <option value="admin">Admins Only</option>
               </select>
             </div>
@@ -319,6 +322,9 @@ export default function UsersPage() {
           onClose={() => setSelectedUserForEdit(null)}
           onSuccess={async () => {
             await loadUsers();
+            if (expandedUserId === selectedUserForEdit.id) {
+              await loadDetailForUser(selectedUserForEdit.id, true);
+            }
           }}
         />
       )}

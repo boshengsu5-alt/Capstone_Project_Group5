@@ -14,8 +14,13 @@ export default function AvatarUpload({ currentAvatarUrl, onUploadSuccess }: Avat
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  // 上传成功后立即显示新头像，不等父组件回调刷新
+  const [localAvatarUrl, setLocalAvatarUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  // 优先显示本地刚上传的 URL，其次是父组件传入的（用 || 而非 ?? 避免空字符串问题）
+  const displayUrl = localAvatarUrl || currentAvatarUrl || null;
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -61,11 +66,19 @@ export default function AvatarUpload({ currentAvatarUrl, onUploadSuccess }: Avat
 
       if (authError) throw authError;
 
+      // 同步更新 profiles 表中的 avatar_url（Auth metadata 之外的数据库记录）
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      if (currentUser?.id) {
+        await (supabase as any).from('profiles').update({ avatar_url: publicUrl }).eq('id', currentUser.id);
+      }
+
+      // 立即更新本地显示，不等父组件重新渲染
+      setLocalAvatarUrl(publicUrl);
       onUploadSuccess(publicUrl);
-      
+
       // Global sync
       window.dispatchEvent(new Event('avatar-updated'));
-      
+
       setIsModalOpen(false);
       setPreviewUrl(null);
       setSelectedFile(null);
@@ -110,10 +123,10 @@ export default function AvatarUpload({ currentAvatarUrl, onUploadSuccess }: Avat
       {/* Avatar Display */}
       <div className="relative p-1 rounded-full bg-gradient-to-tr from-purple-500 to-amber-400 shadow-[0_0_30px_rgba(168,85,247,0.3)]">
         <div className="h-24 w-24 rounded-full bg-gray-900 overflow-hidden flex items-center justify-center border-2 border-gray-950">
-          {currentAvatarUrl ? (
-            <img 
-              src={currentAvatarUrl} 
-              alt="Avatar" 
+          {displayUrl ? (
+            <img
+              src={displayUrl}
+              alt="Avatar"
               className="h-full w-full object-cover"
             />
           ) : (

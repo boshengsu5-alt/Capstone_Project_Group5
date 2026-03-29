@@ -14,7 +14,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import PhotoCapture from '../../components/PhotoCapture';
 import { uploadPickupPhoto, savePickupPhoto } from '../../services/bookingService';
 import { theme } from '../../theme';
-import { handleApiError } from '../../utils/errorHandler';
+import { getDisplayErrorMessage, handleApiError } from '../../utils/errorHandler';
 import { useTranslation } from 'react-i18next';
 
 // ─────────────────────────────────────────────────
@@ -100,7 +100,7 @@ export default function PickupPhotoScreen() {
       setUploadedUrl(url);
       setStep(3);
     } catch (error: unknown) {
-      const errMsg = error instanceof Error ? error.message : t('pickupPhoto.uploadFailedGeneric');
+      const errMsg = getDisplayErrorMessage(error) || t('pickupPhoto.uploadFailedGeneric');
       alertManager.alert(
         t('pickupPhoto.uploadFailed'),
         errMsg,

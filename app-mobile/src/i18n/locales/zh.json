@@ -33,6 +33,8 @@
       "returned": "已归还",
       "active": "已借用",
       "overdue": "已逾期",
+      "lost_reported": "已报失待确认",
+      "lost": "已确认丢失",
       "pending": "待审批",
       "approved": "已通过",
       "rejected": "已拒绝",
@@ -54,7 +56,18 @@
     "scanToPickUp": "扫码取货",
     "photoReturn": "拍照归还",
     "damageReport": "损坏报修",
+    "compensationStatus": "赔偿流程",
+    "compensationWaitingStatus": "等待赔款",
+    "compensationCompletedStatus": "已完成",
+    "compensationOutstanding": "待处理金额 ¥{{amount}}",
+    "compensationInProgress": "损坏已进入赔偿流程，点击查看详情",
+    "compensationSettled": "该赔偿单已完成结案，点击查看详情",
+    "lostReportedTitle": "丢失报告待确认",
+    "lostReportedHint": "当前正常归还流程已暂停。若您已经找回设备，请编辑报修单并把“设备丢失”改成普通损坏，归还按钮会自动恢复。",
+    "lostFinalTitle": "已确认真实丢失",
+    "lostFinalHint": "这笔借用已按“最终丢失”结案，不能再走归还流程，但您仍可继续查看赔偿进度。",
     "editReview": "修改评价",
+    "editDamage": "编辑报修",
     "leaveReview": "评价设备",
     "noBookings": "暂无借用记录",
     "noBookingsMessage": "您还没有借用过任何东西，快去首页逛逛吧",
@@ -80,11 +93,18 @@
     "department": "学院",
     "notSet": "未设置",
     "notifications": "消息通知",
+    "compensationCenter": "赔偿详情",
     "editProfile": "编辑资料",
     "changePassword": "修改密码",
     "helpManual": "帮助手册",
     "sectionAccount": "账户",
-    "sectionPreferences": "偏好"
+    "sectionPreferences": "偏好",
+    "switchToEnglish": "English",
+    "switchToChinese": "中文",
+    "compensationSummaryTitle": "赔偿处理",
+    "compensationSummaryHint": "查看赔偿金额、付款进度和线下办理说明",
+    "compensationClear": "当前无赔偿待处理",
+    "compensationActiveCases": "处理中 {{count}} 笔"
   },
   "editProfile": {
     "loadFailed": "资料加载失败，请稍后重试",
@@ -167,6 +187,8 @@
     "confirmPasswordPlaceholder": "请再次输入新密码",
     "submit": "确认修改",
     "submitting": "修改中...",
+    "show": "显示",
+    "hide": "隐藏",
     "successTitle": "修改成功",
     "successMessage": "密码已更新，请用新密码重新登录。",
     "ok": "好的",
@@ -256,16 +278,177 @@
     "saveChanges": "保存修改",
     "submitReview": "提交评价"
   },
+  "common": {
+    "ok": "确定",
+    "cancel": "取消",
+    "retry": "重试",
+    "languageEnglishShort": "EN",
+    "languageChineseShort": "中文"
+  },
+  "auth": {
+    "login": {
+      "slogan": "高校智能资产租赁平台",
+      "emailLabel": "邮箱",
+      "emailPlaceholder": "请输入学校邮箱",
+      "passwordLabel": "密码",
+      "passwordPlaceholder": "请输入密码",
+      "submit": "登 录",
+      "noAccount": "还没有账号？",
+      "registerAction": "立即注册",
+      "errorMissingFields": "请填写邮箱和密码",
+      "errorInvalidEmail": "请输入有效的邮箱地址"
+    },
+    "register": {
+      "alertTitle": "提示",
+      "invalidEmailTitle": "邮箱格式错误",
+      "successTitle": "注册成功",
+      "successMessage": "请查看邮箱完成验证，然后登录",
+      "goLogin": "去登录",
+      "failed": "注册失败",
+      "title": "创建账号",
+      "subtitle": "加入 UniGear，开始智能借用之旅",
+      "fullNameLabel": "姓名",
+      "fullNamePlaceholder": "请输入真实姓名",
+      "emailLabel": "邮箱",
+      "emailPlaceholder": "请输入学校邮箱",
+      "passwordLabel": "密码",
+      "passwordPlaceholder": "至少6位字符",
+      "confirmPasswordLabel": "确认密码",
+      "confirmPasswordPlaceholder": "再次输入密码",
+      "submit": "注 册",
+      "existingAccount": "已有账号？",
+      "loginAction": "返回登录",
+      "errorMissingFields": "请填写所有必填项",
+      "errorInvalidEmail": "请输入有效的邮箱地址，例如 name@school.edu",
+      "errorPasswordMismatch": "两次输入的密码不一致",
+      "errorPasswordTooShort": "密码长度不能少于6位"
+    }
+  },
+  "bookingForm": {
+    "title": "提交借用申请",
+    "startTime": "取借时间",
+    "endTime": "归还时间",
+    "submit": "确认并提交",
+    "missingDateTitle": "日期缺失",
+    "missingDateMessage": "请先在日历上选择借用起止日期",
+    "invalidDateTitle": "日期错误",
+    "invalidDateMessage": "所选日期无效，请重新选择",
+    "endBeforeStartMessage": "结束日期不能早于开始日期",
+    "successTitle": "提交成功",
+    "successMessage": "预约申请已提交，等待管理员审批！",
+    "failedTitle": "提交失败"
+  },
+  "return": {
+    "steps": {
+      "photo": "拍摄实物照片",
+      "upload": "上传至云端",
+      "confirm": "确认归还"
+    },
+    "uploadedTitle": "照片已上传至云端",
+    "uploadedLabel": "归还凭证链接（已写入工单）：",
+    "uploadedHint": "该链接已自动附加到您的归还工单，请妥善保管",
+    "title": "📦 归还设备",
+    "currentAsset": "当前归还：",
+    "infoTitle": "必须拍摄实物照片",
+    "infoMessage": "为明确归还时的设备状态，系统将强制要求拍摄一张设备实物照片。照片上传成功后方可完成归还。",
+    "uploading": "正在上传归还照片…",
+    "retake": "🔄 重拍",
+    "confirm": "确认归还设备",
+    "successTitle": "归还成功",
+    "successMessage": "设备「{{asset}}」已成功归还！\n\n归还照片已存档至工单，感谢您的使用。",
+    "done": "完成",
+    "lockedHint": "归还按钮将在照片上传成功后解锁",
+    "uploadFailedTitle": "上传失败",
+    "uploadFailedMessage": "照片上传至云端时出错，请重拍后重试。",
+    "failedTitle": "归还失败"
+  },
+  "damageReport": {
+    "severity": {
+      "minor": "轻微损坏",
+      "moderate": "中度损坏",
+      "severe": "严重损坏",
+      "lost": "设备丢失"
+    },
+    "duplicateTitle": "不可重复提交",
+    "duplicateMessage": "该损坏报告已处理完成，不能再次提交新的报修",
+    "loadFailedTitle": "加载失败",
+    "loadFailedMessage": "加载报修单失败",
+    "addPhotoTitle": "添加损坏照片",
+    "addPhotoMessage": "请选择来源",
+    "takePhoto": "拍摄照片",
+    "chooseFromLibrary": "从相册选择",
+    "permissionDeniedTitle": "权限不足",
+    "cameraPermissionMessage": "需要相机权限才能拍照，请在系统设置中开启",
+    "libraryPermissionMessage": "需要相册权限才能选取照片，请在系统设置中开启",
+    "descriptionTooShortTitle": "描述太短",
+    "descriptionTooShortMessage": "请至少用10个字描述损坏情况",
+    "missingPhotoTitle": "缺少照片",
+    "missingPhotoMessage": "请上传至少一张损坏区域照片",
+    "cannotEditTitle": "无法编辑",
+    "cannotEditMessage": "当前没有可编辑的损坏报告",
+    "updatedTitle": "报修单已更新",
+    "submittedTitle": "报修单已提交",
+    "updatedMessage": "您之前提交的损坏报告已更新，老师会基于最新内容继续核验。",
+    "updatedLostMessage": "这条丢失报告已更新。若设备仍未找回，系统会继续保持“待确认丢失”；若您改成普通损坏，借用流程会自动恢复。",
+    "submittedMessage": "感谢您的反馈！老师将在 1-2 个工作日内核验，信用分结果届时通知。",
+    "submittedLostMessage": "丢失报告已提交。在管理员确认前，这笔借用会先进入“待确认丢失”状态；如果后来找回设备，您可以回来修改报修单并恢复正常归还流程。",
+    "submitFailedTitle": "提交失败",
+    "withdrawButton": "撤销报告",
+    "withdrawConfirmTitle": "撤销这条报修单？",
+    "withdrawConfirmMessage": "撤销后，这条报修会标记为已撤销；如果当前借用/归还流程因此被暂停，系统会自动恢复正常流程。",
+    "withdrawConfirmAction": "确认撤销",
+    "withdrawnTitle": "报修单已撤销",
+    "withdrawnMessage": "这条报修单已经撤销成功，相关借用/归还流程会按当前状态自动恢复。",
+    "withdrawFailedTitle": "撤销失败",
+    "networkError": "网络错误，请稍后重试",
+    "loading": "正在加载报修单…",
+    "editBannerTitle": "已存在未处理报修单",
+    "editBannerText": "当前页面为编辑模式，保存后会更新原有报修单，不会重复创建第二条。",
+    "editLostBannerText": "当前页面为编辑模式。若设备已经找回，可把“设备丢失”改成普通损坏，系统会自动恢复正常归还流程。",
+    "infoSection": "📋 报修信息",
+    "bookingId": "借用单号",
+    "assetId": "设备 ID",
+    "severitySection": "⚠️ 损坏程度",
+    "descriptionSection": "📝 情况描述（至少 10 字）",
+    "descriptionPlaceholder": "请详细描述设备损坏情况，例如：镜头前镜片碎裂，缝隙处有明显玻璃碎片，无法正常对焦……",
+    "charCount": "{{count}} / 10 字最低要求",
+    "photoSection": "📸 损坏区域照片（{{requirement}}）",
+    "photoRequired": "必填",
+    "photoOptional": "选填",
+    "addPhoto": "添加照片",
+    "photoHint": "最多 5 张 · 照片将上传至学校证据库",
+    "submitUpdate": "更新报修单",
+    "submitCreate": "提交报修单",
+    "disclaimer": "提交后将由老师人工核验，可能影响信用分。确认属实再提交。"
+  },
+  "photoCapture": {
+    "loading": "加载相机...",
+    "permissionRequired": "需要相机权限才能拍照归还",
+    "grantPermission": "授权相机",
+    "retake": "重新拍摄"
+  },
+  "errorView": {
+    "defaultMessage": "加载失败，请检查网络连接",
+    "retry": "点击重试"
+  },
+  "errorBoundary": {
+    "title": "组件崩溃了",
+    "message": "由于某些意外原因，此功能暂时无法使用。",
+    "reset": "尝试通过重启解决"
+  },
   "errors": {
     "prompt": "提示",
     "network": "网络开小差了，请稍后再试",
     "authFailed": "邮箱或密码错误，请检查后再试",
     "accountExists": "该账号已被注册",
     "sessionExpired": "登录状态已失效，请重新登录后再试",
+    "loginRequired": "请先登录后再继续",
     "permissionDenied": "当前账号没有执行此操作的权限",
     "bookingConflict": "所选时间段已被占用，请重新选择日期或时间",
     "duplicateBooking": "你已经提交过这台设备的预约，请先查看现有记录",
-    "serviceUnavailable": "预约服务暂时不可用，请稍后再试"
+    "serviceUnavailable": "预约服务暂时不可用，请稍后再试",
+    "damageReportClosed": "该损坏报告已处理完成，不能再次提交",
+    "uploadFailed": "上传失败，请稍后再试"
   },
   "nav": {
     "profile": "我的",
@@ -275,12 +458,90 @@
     "creditScoreLog": "信用分明细",
     "changePassword": "修改密码",
     "helpManual": "帮助手册",
+    "compensation": "赔偿详情",
     "category": "分类",
     "assetDetail": "物品详情",
     "bookingForm": "借用申请",
     "back": "返回",
     "returnAsset": "归还设备",
     "reportDamage": "损坏报修"
+  },
+  "compensation": {
+    "title": "赔偿详情中心",
+    "subtitle": "查看所有损坏赔偿单、签字金额、付款进度，以及具体该联系谁、去哪里、如何完成赔偿。",
+    "emptyTitle": "暂无赔偿档案",
+    "emptyMessage": "当前没有需要您处理的赔偿单。如后续有损坏核定结果，这里会同步显示。",
+    "activeCases": "处理中",
+    "totalPaid": "已登记付款",
+    "totalOutstanding": "待支付",
+    "caseReference": "赔偿编号",
+    "status": {
+      "under_review": "审核中",
+      "awaiting_signature": "待签字确认",
+      "awaiting_payment": "待付款",
+      "partially_paid": "部分已付",
+      "paid": "已结清",
+      "waived": "已豁免"
+    },
+    "money": {
+      "assessed": "系统核定金额",
+      "agreed": "签字确认金额",
+      "paid": "已登记付款",
+      "outstanding": "剩余待付"
+    },
+    "labels": {
+      "liableUser": "责任人",
+      "damageSeverity": "损坏等级",
+      "damageStatus": "损坏报告状态",
+      "bookingPeriod": "借用周期",
+      "dueDate": "缴费截止",
+      "contactPerson": "对接老师",
+      "contactEmail": "联系邮箱",
+      "contactPhone": "联系电话",
+      "contactOffice": "办理地点",
+      "officeHours": "办理时间",
+      "paymentReference": "缴费备注码"
+    },
+    "guideTitle": "赔偿办理步骤",
+    "steps": {
+      "reviewTitle": "1. 等待管理员完成核定",
+      "reviewBody": "管理员会核对取货/归还照片、损坏描述和设备购置价格，系统先生成参考赔偿金额。",
+      "signatureTitle": "2. 到资产服务办公室签字确认",
+      "signatureBody": "请携带学生证、借用记录截图和设备编号，到指定办公室签署赔偿确认单。老师会告知最终签字金额和缴费备注码。",
+      "paymentTitle": "3. 按备注码完成付款",
+      "paymentBody": "完成签字后，可前往校园财务柜台或按老师提供的转账方式付款。付款时请备注赔偿编号，便于学校核账。",
+      "closureTitle": "4. 等待财务登记并结案",
+      "closureBody": "财务登记到账后，管理员会在网页端更新付款记录和欠款状态，您会收到通知。若仍有余额未付，系统会继续显示剩余金额。"
+    },
+    "recordsTitle": "赔偿记录",
+    "recordsEmpty": "暂无赔偿记录，后续签字、付款或状态更新都会显示在这里。",
+    "recordType": {
+      "assessment": "金额核定",
+      "status_update": "状态更新",
+      "signature": "签字确认",
+      "payment": "付款登记",
+      "adjustment": "金额调整",
+      "note": "备注"
+    },
+    "paymentMethod": "付款方式",
+    "referenceNo": "票据 / 流水号",
+    "adminNotes": "管理员备注",
+    "damageSeverity": {
+      "minor": "轻微损坏",
+      "moderate": "中度损坏",
+      "severe": "严重损坏",
+      "lost": "设备丢失"
+    },
+    "damageReportStatus": {
+      "open": "待处理",
+      "investigating": "核验中",
+      "resolved": "已确认",
+      "dismissed": "已驳回"
+    },
+    "unknownAsset": "未知设备",
+    "pendingAmount": "待核定",
+    "expandDetails": "展开详情",
+    "collapseDetails": "收起详情"
   },
   "helpManual": {
     "title": "UniGear 帮助手册",
@@ -433,11 +694,27 @@
       "minor": "轻微损坏",
       "moderate": "中度损坏",
       "severe": "严重损坏",
+      "lost": "设备丢失",
       "unknown": "未知损坏"
+    },
+    "time": {
+      "justNow": "刚刚",
+      "minutesAgo": "{{count}}分钟前",
+      "hoursAgo": "{{count}}小时前",
+      "daysAgo": "{{count}}天前"
     },
     "detail": {
       "overdueSection": "逾期详情",
+      "compensationSection": "赔偿进度",
       "asset": "设备名称",
+      "caseStatus": "赔偿状态",
+      "assessedAmount": "系统核定金额",
+      "agreedAmount": "签字确认金额",
+      "paidAmount": "已登记付款",
+      "outstandingAmount": "剩余待付",
+      "paymentAmount": "本次登记付款",
+      "dueDate": "缴费截止",
+      "paymentReference": "缴费备注码",
       "overdueDays": "逾期天数",
       "creditImpact": "信用分变化",
       "daysValue": "{{days}} 天",
@@ -474,6 +751,47 @@
           "totalCreditImpact": "本次信用分合计变动：-{{points}} 分。",
           "compensation": "应赔偿金额：¥{{amount}}，请联系管理员完成线下赔偿。"
         }
+      },
+      "compensationUpdate": {
+        "shared": {
+          "assetLine": "设备名称：{{asset}}",
+          "statusLine": "赔偿状态：{{status}}",
+          "assessedLine": "系统核定：{{amount}}",
+          "agreedLine": "签字金额：{{amount}}",
+          "paidLine": "已登记付款：{{amount}}",
+          "outstandingLine": "剩余待付：{{amount}}",
+          "paymentLine": "本次登记付款：{{amount}}",
+          "dueDateLine": "缴费截止：{{date}}",
+          "referenceLine": "缴费备注码：{{reference}}"
+        },
+        "underReview": {
+          "title": "赔偿单已建立",
+          "message": "管理员正在复核损坏情况与设备原价，最终赔偿金额确认后会继续通知您。"
+        },
+        "awaitingSignature": {
+          "title": "请前往签字确认",
+          "message": "请尽快联系资产服务办公室老师，携带学生证和借用记录完成赔偿确认单签字。"
+        },
+        "awaitingPayment": {
+          "title": "赔偿待付款",
+          "message": "签字金额已确认，请按赔偿编号备注完成线下付款，并在截止日前办理。"
+        },
+        "partiallyPaid": {
+          "title": "已登记部分赔偿",
+          "message": "系统已记录您的部分付款，剩余金额仍需继续完成缴费。"
+        },
+        "paid": {
+          "title": "赔偿已结清",
+          "message": "财务已确认到账，这笔赔偿单已经完成结案，无需继续处理。"
+        },
+        "waived": {
+          "title": "赔偿已豁免",
+          "message": "管理员已将该赔偿单调整为豁免状态，当前无需继续付款。"
+        },
+        "paymentRecorded": {
+          "title": "赔偿付款已登记",
+          "message": "管理员已登记一笔新的赔偿付款，您可以在赔偿详情中继续查看余额与记录。"
+        }
       }
     },
     "types": {
@@ -500,6 +818,30 @@
       "review_reply": {
         "title": "评价回复",
         "message": "您收到了一条新的评价回复。"
+      },
+      "booking_pending": {
+        "title": "新预约待审批",
+        "message": "有新的借用申请正在等待管理员处理。"
+      },
+      "booking_suspended": {
+        "title": "预约已暂停",
+        "message": "您的预约因设备维修暂时被挂起。"
+      },
+      "booking_restored": {
+        "title": "预约已恢复",
+        "message": "设备已重新可用，您的预约已恢复。"
+      },
+      "booking_cancelled": {
+        "title": "预约已取消",
+        "message": "您的预约状态发生了取消更新，请查看详情。"
+      },
+      "return_submitted": {
+        "title": "归还待核验",
+        "message": "有新的归还申请等待管理员核验。"
+      },
+      "compensation_update": {
+        "title": "赔偿进度更新",
+        "message": "您的赔偿单有新的金额、状态或付款进度更新。"
       },
       "system": {
         "title": "系统通知",

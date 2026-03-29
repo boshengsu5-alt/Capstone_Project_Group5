@@ -15,6 +15,10 @@ interface BookingTableProps {
 
 export default function BookingTable({ bookings, onReview, onReportDamage, highlightId }: BookingTableProps) {
     const { t } = useLanguage();
+    const hasUnresolvedDamageReport = (booking: BookingWithDetails) =>
+        Array.isArray(booking.damage_reports)
+        && booking.damage_reports.some((report) => report.status === 'open' || report.status === 'investigating');
+
     const getStatusBadge = (status: string) => {
         switch (status) {
             case 'pending':
@@ -39,6 +43,18 @@ export default function BookingTable({ bookings, onReview, onReportDamage, highl
                 return (
                     <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border bg-blue-500/10 text-blue-400 border-blue-500/20 shadow-[0_0_8px_rgba(59,130,246,0.15)]">
                         {t('status.active')}
+                    </span>
+                );
+            case 'lost_reported':
+                return (
+                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border bg-orange-500/10 text-orange-300 border-orange-500/20 shadow-[0_0_8px_rgba(249,115,22,0.2)]">
+                        {t('status.lost_reported')}
+                    </span>
+                );
+            case 'lost':
+                return (
+                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border bg-rose-500/10 text-rose-300 border-rose-500/20 shadow-[0_0_8px_rgba(244,63,94,0.2)]">
+                        {t('status.lost')}
                     </span>
                 );
             case 'returned':
@@ -136,7 +152,7 @@ export default function BookingTable({ bookings, onReview, onReportDamage, highl
                                         {onReportDamage &&
                                             ['overdue', 'returned'].includes(booking.status) &&
                                             booking.rejection_reason !== 'VERIFIED' &&
-                                            !(booking.damage_reports && booking.damage_reports.length > 0) && (
+                                            !hasUnresolvedDamageReport(booking) && (
                                             <button
                                                 onClick={() => onReportDamage(booking)}
                                                 className="px-3 py-1.5 text-xs font-semibold text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-lg hover:bg-rose-500/20 hover:text-rose-300 transition-colors"

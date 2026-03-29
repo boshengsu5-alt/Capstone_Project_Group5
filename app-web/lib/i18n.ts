@@ -8,6 +8,7 @@ export const translations = {
       bookings: 'Bookings',
       returns: 'Returns',
       damage: 'Damage Reports',
+      compensation: 'Compensation',
       audit: 'Audit Logs',
     },
     common: {
@@ -85,6 +86,8 @@ export const translations = {
       approved: 'Approved',
       rejected: 'Rejected',
       active: 'Active (Borrowed)',
+      lost_reported: 'Lost Reported',
+      lost: 'Lost',
       returned: 'Returned',
       overdue: 'Overdue',
       cancelled: 'Cancelled',
@@ -153,6 +156,7 @@ export const translations = {
       bookings: '借用申请',
       returns: '归还验证',
       damage: '损坏报告',
+      compensation: '赔偿详情',
       audit: '审计日志',
     },
     common: {
@@ -230,6 +234,8 @@ export const translations = {
       approved: '已批准',
       rejected: '已拒绝',
       active: '借用中',
+      lost_reported: '已报失待确认',
+      lost: '已确认丢失',
       returned: '已归还',
       overdue: '已逾期',
       cancelled: '已取消',

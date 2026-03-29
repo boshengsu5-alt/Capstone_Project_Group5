@@ -81,7 +81,7 @@ export default function ChangePasswordScreen({ navigation }: Props) {
                 autoCorrect={false}
               />
               <TouchableOpacity onPress={() => setShowNew((v) => !v)} style={styles.eyeBtn}>
-                <Text style={styles.eyeText}>{showNew ? '隐藏' : '显示'}</Text>
+                <Text style={styles.eyeText}>{showNew ? t('changePassword.hide') : t('changePassword.show')}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -102,7 +102,7 @@ export default function ChangePasswordScreen({ navigation }: Props) {
                 autoCorrect={false}
               />
               <TouchableOpacity onPress={() => setShowConfirm((v) => !v)} style={styles.eyeBtn}>
-                <Text style={styles.eyeText}>{showConfirm ? '隐藏' : '显示'}</Text>
+                <Text style={styles.eyeText}>{showConfirm ? t('changePassword.hide') : t('changePassword.show')}</Text>
               </TouchableOpacity>
             </View>
           </View>

@@ -10,12 +10,14 @@ import {
 } from 'react-native';
 import { alertManager, AlertConfig, AlertButton } from '../../utils/alertManager';
 import { theme } from '../../theme';
+import { useTranslation } from 'react-i18next';
 
 /**
  * Global custom alert dialog. Mount once in App.tsx — replaces all Alert.alert() calls.
  * 全局自定义弹窗组件，在 App.tsx 挂载一次，替代所有 Alert.alert()。
  */
 export default function AppAlert() {
+  const { t } = useTranslation();
   const [visible, setVisible] = useState(false);
   const [config, setConfig] = useState<AlertConfig>({ title: '' });
   const scaleAnim = useState(new Animated.Value(0.88))[0];
@@ -58,7 +60,7 @@ export default function AppAlert() {
 
   const buttons: AlertButton[] = config.buttons?.length
     ? config.buttons
-    : [{ text: '确定', style: 'default' }];
+    : [{ text: t('common.ok'), style: 'default' }];
 
   // 取消按钮排在第一位，主操作排在最后
   const cancelBtn = buttons.find(b => b.style === 'cancel');

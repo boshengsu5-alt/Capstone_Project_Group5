@@ -13,35 +13,38 @@ import {
 import { alertManager } from '../../utils/alertManager';
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import type { BookingsStackParamList } from '../../navigation/BookingsStackNavigator';
-import { getMyDamageReportByBookingId, submitDamageReport } from '../../services/bookingService';
+import { getMyDamageReportByBookingId, submitDamageReport, withdrawOwnDamageReport } from '../../services/bookingService';
 import { getCurrentUser } from '../../services/authService';
 import { uploadFile } from '../../services/storageService';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import type { DamageSeverity } from '../../../../database/types/supabase';
 import { theme } from '../../theme';
+import { getDisplayErrorMessage } from '../../utils/errorHandler';
+import { useTranslation } from 'react-i18next';
 
 type DamageReportRouteProp = RouteProp<BookingsStackParamList, 'DamageReport'>;
 
-// 严重程度配置 (Severity Options)
-const SEVERITY_OPTIONS: { value: DamageSeverity; label: string; emoji: string; color: string }[] = [
-  { value: 'minor',    label: '轻微损坏', emoji: '🟡', color: '#F59E0B' },
-  { value: 'moderate', label: '中度损坏', emoji: '🟠', color: '#F97316' },
-  { value: 'severe',   label: '严重损坏', emoji: '🔴', color: theme.colors.danger },
-  { value: 'lost',     label: '设备丢失', emoji: '❌', color: '#991B1B' },
-];
-
 export default function DamageReportScreen() {
+  const { t } = useTranslation();
   const route = useRoute<DamageReportRouteProp>();
   const navigation = useNavigation();
   const { assetId, bookingId, mode } = route.params;
+  const severityOptions: { value: DamageSeverity; label: string; emoji: string; color: string }[] = [
+    { value: 'minor', label: t('damageReport.severity.minor'), emoji: '🟡', color: '#F59E0B' },
+    { value: 'moderate', label: t('damageReport.severity.moderate'), emoji: '🟠', color: '#F97316' },
+    { value: 'severe', label: t('damageReport.severity.severe'), emoji: '🔴', color: theme.colors.danger },
+    { value: 'lost', label: t('damageReport.severity.lost'), emoji: '❌', color: '#991B1B' },
+  ];
 
   const [description, setDescription] = useState('');
   const [severity, setSeverity] = useState<DamageSeverity>('minor');
   const [photoUris, setPhotoUris] = useState<Array<{ uri: string; uploaded: boolean }>>([]);
+  const [reportId, setReportId] = useState<string | null>(null);
   const [loadingExisting, setLoadingExisting] = useState(true);
   const [isEditing, setIsEditing] = useState(mode === 'edit');
   const [submitting, setSubmitting] = useState(false);
+  const [withdrawing, setWithdrawing] = useState(false);
 
   useEffect(() => {
     const loadExistingReport = async () => {
@@ -49,20 +52,22 @@ export default function DamageReportScreen() {
         const existingReport = await getMyDamageReportByBookingId(bookingId);
 
         if (existingReport) {
+          setReportId(existingReport.id);
           setDescription(existingReport.description ?? '');
           setSeverity(existingReport.severity);
           setPhotoUris((existingReport.photo_urls ?? []).map((uri) => ({ uri, uploaded: true })));
           setIsEditing(existingReport.status === 'open' || existingReport.status === 'investigating');
 
           if (existingReport.status !== 'open' && existingReport.status !== 'investigating') {
-            alertManager.alert('不可重复提交', '该损坏报告已处理完成，不能再次提交新的报修');
+            alertManager.alert(t('damageReport.duplicateTitle'), t('damageReport.duplicateMessage'));
           }
         } else {
+          setReportId(null);
           setIsEditing(false);
         }
       } catch (error: unknown) {
-        const message = error instanceof Error ? error.message : '加载报修单失败';
-        alertManager.alert('加载失败', message);
+        const message = getDisplayErrorMessage(error) || t('damageReport.loadFailedMessage');
+        alertManager.alert(t('damageReport.loadFailedTitle'), message);
       } finally {
         setLoadingExisting(false);
       }
@@ -75,13 +80,13 @@ export default function DamageReportScreen() {
   // AppAlert 现已通过 onDismiss（iOS）/ setTimeout（Android）确保 Modal 完全消失后
   // 再调用 onPress，可安全唤起原生相机/相册，无需再用原生 Alert.alert。
   const handleAddPhoto = () => {
-    alertManager.alert('添加损坏照片', '请选择来源', [
+    alertManager.alert(t('damageReport.addPhotoTitle'), t('damageReport.addPhotoMessage'), [
       {
-        text: '拍摄照片',
+        text: t('damageReport.takePhoto'),
         onPress: async () => {
           const { status } = await ImagePicker.requestCameraPermissionsAsync();
           if (status !== 'granted') {
-            alertManager.alert('权限不足', '需要相机权限才能拍照，请在系统设置中开启');
+            alertManager.alert(t('damageReport.permissionDeniedTitle'), t('damageReport.cameraPermissionMessage'));
             return;
           }
           const result = await ImagePicker.launchCameraAsync({
@@ -95,11 +100,11 @@ export default function DamageReportScreen() {
         },
       },
       {
-        text: '从相册选择',
+        text: t('damageReport.chooseFromLibrary'),
         onPress: async () => {
           const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
           if (status !== 'granted') {
-            alertManager.alert('权限不足', '需要相册权限才能选取照片，请在系统设置中开启');
+            alertManager.alert(t('damageReport.permissionDeniedTitle'), t('damageReport.libraryPermissionMessage'));
             return;
           }
           const result = await ImagePicker.launchImageLibraryAsync({
@@ -115,7 +120,7 @@ export default function DamageReportScreen() {
           }
         },
       },
-      { text: '取消', style: 'cancel' },
+      { text: t('common.cancel'), style: 'cancel' },
     ]);
   };
 
@@ -134,16 +139,16 @@ export default function DamageReportScreen() {
 
   const handleSubmit = async () => {
     if (description.trim().length < 10) {
-      alertManager.alert('描述太短', '请至少用10个字描述损坏情况');
+      alertManager.alert(t('damageReport.descriptionTooShortTitle'), t('damageReport.descriptionTooShortMessage'));
       return;
     }
     // 丢失情况无法拍照，照片为可选；其他损坏类型必须提供照片作为证据
     if (severity !== 'lost' && photoUris.length === 0) {
-      alertManager.alert('缺少照片', '请上传至少一张损坏区域照片');
+      alertManager.alert(t('damageReport.missingPhotoTitle'), t('damageReport.missingPhotoMessage'));
       return;
     }
     if (mode === 'edit' && !isEditing) {
-      alertManager.alert('无法编辑', '当前没有可编辑的损坏报告');
+      alertManager.alert(t('damageReport.cannotEditTitle'), t('damageReport.cannotEditMessage'));
       return;
     }
 
@@ -170,18 +175,57 @@ export default function DamageReportScreen() {
       await submitDamageReport(assetId, bookingId, description.trim(), severity, uploadedUrls);
 
       alertManager.alert(
-        isEditing ? '报修单已更新' : '报修单已提交',
-        isEditing
-          ? '您之前提交的损坏报告已更新，老师会基于最新内容继续核验。'
-          : '感谢您的反馈！老师将在 1-2 个工作日内核验，信用分结果届时通知。',
-        [{ text: '好的', onPress: () => navigation.goBack() }]
+        isEditing ? t('damageReport.updatedTitle') : t('damageReport.submittedTitle'),
+        severity === 'lost'
+          ? (isEditing
+              ? t('damageReport.updatedLostMessage')
+              : t('damageReport.submittedLostMessage'))
+          : (isEditing
+              ? t('damageReport.updatedMessage')
+              : t('damageReport.submittedMessage')),
+        [{ text: t('common.ok'), onPress: () => navigation.goBack() }]
       );
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : '网络错误，请稍后重试';
-      alertManager.alert('提交失败', message);
+      const message = getDisplayErrorMessage(err) || t('damageReport.networkError');
+      alertManager.alert(t('damageReport.submitFailedTitle'), message);
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleWithdraw = () => {
+    if (!reportId || !isEditing) {
+      alertManager.alert(t('damageReport.cannotEditTitle'), t('damageReport.cannotEditMessage'));
+      return;
+    }
+
+    alertManager.alert(
+      t('damageReport.withdrawConfirmTitle'),
+      t('damageReport.withdrawConfirmMessage'),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('damageReport.withdrawConfirmAction'),
+          style: 'destructive',
+          onPress: async () => {
+            setWithdrawing(true);
+            try {
+              await withdrawOwnDamageReport(reportId);
+              alertManager.alert(
+                t('damageReport.withdrawnTitle'),
+                t('damageReport.withdrawnMessage'),
+                [{ text: t('common.ok'), onPress: () => navigation.goBack() }]
+              );
+            } catch (error: unknown) {
+              const message = getDisplayErrorMessage(error) || t('damageReport.networkError');
+              alertManager.alert(t('damageReport.withdrawFailedTitle'), message);
+            } finally {
+              setWithdrawing(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   if (loadingExisting) {
@@ -189,7 +233,7 @@ export default function DamageReportScreen() {
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingWrap}>
           <ActivityIndicator size="large" color={theme.colors.primary} />
-          <Text style={styles.loadingText}>正在加载报修单…</Text>
+          <Text style={styles.loadingText}>{t('damageReport.loading')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -201,21 +245,25 @@ export default function DamageReportScreen() {
 
         {isEditing && (
           <View style={styles.editBanner}>
-            <Text style={styles.editBannerTitle}>已存在未处理报修单</Text>
-            <Text style={styles.editBannerText}>当前页面为编辑模式，保存后会更新原有报修单，不会重复创建第二条。</Text>
+            <Text style={styles.editBannerTitle}>{t('damageReport.editBannerTitle')}</Text>
+            <Text style={styles.editBannerText}>
+              {severity === 'lost'
+                ? t('damageReport.editLostBannerText')
+                : t('damageReport.editBannerText')}
+            </Text>
           </View>
         )}
 
         {/* 报修设备信息卡 */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>📋 报修信息</Text>
+          <Text style={styles.sectionTitle}>{t('damageReport.infoSection')}</Text>
           <View style={styles.infoCard}>
             <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>借用单号</Text>
+              <Text style={styles.infoLabel}>{t('damageReport.bookingId')}</Text>
               <Text style={styles.infoValue} numberOfLines={1}>{bookingId.slice(0, 8)}…</Text>
             </View>
             <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>设备 ID</Text>
+              <Text style={styles.infoLabel}>{t('damageReport.assetId')}</Text>
               <Text style={styles.infoValue} numberOfLines={1}>{assetId.slice(0, 8)}…</Text>
             </View>
           </View>
@@ -223,9 +271,9 @@ export default function DamageReportScreen() {
 
         {/* 严重程度选择 */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>⚠️ 损坏程度</Text>
+          <Text style={styles.sectionTitle}>{t('damageReport.severitySection')}</Text>
           <View style={styles.severityRow}>
-            {SEVERITY_OPTIONS.map(opt => (
+            {severityOptions.map(opt => (
               <TouchableOpacity
                 key={opt.value}
                 style={[
@@ -246,26 +294,28 @@ export default function DamageReportScreen() {
 
         {/* 文字描述 */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>📝 情况描述（至少 10 字）</Text>
+          <Text style={styles.sectionTitle}>{t('damageReport.descriptionSection')}</Text>
           <TextInput
             style={styles.textInput}
             multiline
             numberOfLines={6}
-            placeholder="请详细描述设备损坏情况，例如：镜头前镜片碎裂，缝隙处有明显玻璃碎片，无法正常对焦……"
+            placeholder={t('damageReport.descriptionPlaceholder')}
             placeholderTextColor={theme.colors.gray}
             value={description}
             onChangeText={setDescription}
             textAlignVertical="top"
           />
           <Text style={[styles.charCount, description.length < 10 && styles.charCountWarn]}>
-            {description.length} / 10 字最低要求
+            {t('damageReport.charCount', { count: description.length })}
           </Text>
         </View>
 
         {/* 损坏照片 */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>
-            📸 损坏区域照片（{severity === 'lost' ? '选填' : '必填'}）
+            {t('damageReport.photoSection', {
+              requirement: severity === 'lost' ? t('damageReport.photoOptional') : t('damageReport.photoRequired'),
+            })}
           </Text>
 
           <View style={styles.photoGrid}>
@@ -280,29 +330,44 @@ export default function DamageReportScreen() {
             {photoUris.length < 5 && (
               <TouchableOpacity style={styles.addPhotoBtn} onPress={handleAddPhoto} activeOpacity={0.7}>
                 <Text style={styles.addPhotoBtnIcon}>＋</Text>
-                <Text style={styles.addPhotoBtnText}>添加照片</Text>
+                <Text style={styles.addPhotoBtnText}>{t('damageReport.addPhoto')}</Text>
               </TouchableOpacity>
             )}
           </View>
-          <Text style={styles.photoHint}>最多 5 张 · 照片将上传至学校证据库</Text>
+          <Text style={styles.photoHint}>{t('damageReport.photoHint')}</Text>
         </View>
 
         {/* 提交按钮 */}
         <TouchableOpacity
-          style={[styles.submitButton, submitting && styles.submitButtonDisabled]}
+          style={[styles.submitButton, (submitting || withdrawing) && styles.submitButtonDisabled]}
           onPress={handleSubmit}
-          disabled={submitting}
+          disabled={submitting || withdrawing}
           activeOpacity={0.8}
         >
           {submitting ? (
             <ActivityIndicator color={theme.colors.background} />
           ) : (
-            <Text style={styles.submitText}>{isEditing ? '更新客诉单' : '提交客诉单'}</Text>
+            <Text style={styles.submitText}>{isEditing ? t('damageReport.submitUpdate') : t('damageReport.submitCreate')}</Text>
           )}
         </TouchableOpacity>
 
+        {isEditing && reportId && (
+          <TouchableOpacity
+            style={[styles.withdrawButton, (submitting || withdrawing) && styles.withdrawButtonDisabled]}
+            onPress={handleWithdraw}
+            disabled={submitting || withdrawing}
+            activeOpacity={0.8}
+          >
+            {withdrawing ? (
+              <ActivityIndicator color={theme.colors.danger} />
+            ) : (
+              <Text style={styles.withdrawButtonText}>{t('damageReport.withdrawButton')}</Text>
+            )}
+          </TouchableOpacity>
+        )}
+
         <Text style={styles.disclaimer}>
-          提交后将由老师人工核验，可能影响信用分。确认属实再提交。
+          {t('damageReport.disclaimer')}
         </Text>
       </ScrollView>
     </SafeAreaView>
@@ -427,6 +492,17 @@ const styles = StyleSheet.create({
   },
   submitButtonDisabled: { opacity: 0.5 },
   submitText: { color: theme.colors.background, fontSize: 17, fontWeight: '700' },
+  withdrawButton: {
+    backgroundColor: '#FFF1F2',
+    borderWidth: 1.5,
+    borderColor: '#FECACA',
+    paddingVertical: 15,
+    borderRadius: 14,
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  withdrawButtonDisabled: { opacity: 0.5 },
+  withdrawButtonText: { color: theme.colors.danger, fontSize: 16, fontWeight: '700' },
 
   disclaimer: { textAlign: 'center', fontSize: 12, color: theme.colors.gray, lineHeight: 18 },
 });

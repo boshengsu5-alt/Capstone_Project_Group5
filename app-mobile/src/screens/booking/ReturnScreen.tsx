@@ -14,27 +14,28 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import PhotoCapture from '../../components/PhotoCapture';
 import { uploadReturnPhoto, returnAsset } from '../../services/bookingService';
 import { theme } from '../../theme';
-import { handleApiError } from '../../utils/errorHandler';
+import { getDisplayErrorMessage, handleApiError } from '../../utils/errorHandler';
+import { useTranslation } from 'react-i18next';
 
 // ─────────────────────────────────────────────────
 // Step indicator helpers. 步骤指示器
 // ─────────────────────────────────────────────────
 type Step = 1 | 2 | 3;
 
-const STEPS = [
-  { num: 1, label: '拍摄实物照片' },
-  { num: 2, label: '上传至云端' },
-  { num: 3, label: '确认归还' },
-] as const;
-
 // 归还流程中的"成功"语义色（绿色）
 const SUCCESS = '#00897B';
 const SUCCESS_LIGHT = '#E0F2F1';
 
-function StepIndicator({ current }: { current: Step }) {
+function StepIndicator({
+  current,
+  steps,
+}: {
+  current: Step;
+  steps: ReadonlyArray<{ num: Step; label: string }>;
+}) {
   return (
     <View style={styles.stepRow}>
-      {STEPS.map((s, idx) => {
+      {steps.map((s, idx) => {
         const done = current > s.num;
         const active = current === s.num;
         return (
@@ -65,7 +66,7 @@ function StepIndicator({ current }: { current: Step }) {
                 {s.label}
               </Text>
             </View>
-            {idx < STEPS.length - 1 && (
+            {idx < steps.length - 1 && (
               <View style={[styles.stepLine, done && styles.stepLineDone]} />
             )}
           </React.Fragment>
@@ -78,20 +79,30 @@ function StepIndicator({ current }: { current: Step }) {
 // ─────────────────────────────────────────────────
 // URL display card. 上传链接展示卡片
 // ─────────────────────────────────────────────────
-function UploadedUrlCard({ url }: { url: string }) {
+function UploadedUrlCard({
+  url,
+  title,
+  label,
+  hint,
+}: {
+  url: string;
+  title: string;
+  label: string;
+  hint: string;
+}) {
   return (
     <View style={styles.urlCard}>
       <View style={styles.urlHeader}>
         <Text style={styles.urlIcon}>🔗</Text>
-        <Text style={styles.urlTitle}>照片已上传至云端</Text>
+        <Text style={styles.urlTitle}>{title}</Text>
       </View>
-      <Text style={styles.urlLabel}>归还凭证链接（已写入工单）：</Text>
+      <Text style={styles.urlLabel}>{label}</Text>
       <View style={styles.urlBox}>
         <Text style={styles.urlText} numberOfLines={3} selectable>
           {url}
         </Text>
       </View>
-      <Text style={styles.urlHint}>✅ 该链接已自动附加到您的归还工单，请妥善保管</Text>
+      <Text style={styles.urlHint}>✅ {hint}</Text>
     </View>
   );
 }
@@ -100,6 +111,7 @@ function UploadedUrlCard({ url }: { url: string }) {
 // Main Screen. 归还主屏幕
 // ─────────────────────────────────────────────────
 export default function ReturnScreen() {
+  const { t } = useTranslation();
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
 
@@ -110,7 +122,12 @@ export default function ReturnScreen() {
 
   const navigation = useNavigation();
   const route = useRoute<any>();
-  const { bookingId, assetName = '未知设备' } = route.params ?? {};
+  const { bookingId, assetName = t('bookings.unknownDevice') } = route.params ?? {};
+  const steps = [
+    { num: 1 as Step, label: t('return.steps.photo') },
+    { num: 2 as Step, label: t('return.steps.upload') },
+    { num: 3 as Step, label: t('return.steps.confirm') },
+  ] as const;
 
   // Step 1 → 2: 照片拍摄完成，自动上传
   const handlePhotoCaptured = async (uri: string, base64?: string) => {
@@ -125,14 +142,11 @@ export default function ReturnScreen() {
       setStep(3);
     } catch (error: any) {
       // console.error('[ReturnScreen] 上传失败:', error);
-      let errMsg = error.message ?? '照片上传至云端时出错，请重拍后重试。';
-      if (errMsg.toLowerCase().includes('fetch') || errMsg.toLowerCase().includes('network')) {
-        errMsg = '网络开小差了，请稍后再试';
-      }
+      const errMsg = getDisplayErrorMessage(error);
       alertManager.alert(
-        '上传失败',
+        t('return.uploadFailedTitle'),
         errMsg,
-        [{ text: '重拍', onPress: () => { setPhotoUri(null); setStep(1); } }]
+        [{ text: t('return.retake'), onPress: () => { setPhotoUri(null); setStep(1); } }]
       );
     } finally {
       setIsUploading(false);
@@ -147,12 +161,12 @@ export default function ReturnScreen() {
       setIsSubmitting(true);
       await returnAsset(bookingId, uploadedUrl);
       alertManager.alert(
-        '归还成功',
-        `设备「${assetName}」已成功归还！\n\n归还照片已存档至工单，感谢您的使用。`,
-        [{ text: '完成', onPress: () => navigation.goBack() }]
+        t('return.successTitle'),
+        t('return.successMessage', { asset: assetName }),
+        [{ text: t('return.done'), onPress: () => navigation.goBack() }]
       );
     } catch (error: any) {
-      handleApiError(error, '归还失败');
+      handleApiError(error, t('return.failedTitle'));
     } finally {
       setIsSubmitting(false);
     }
@@ -169,24 +183,24 @@ export default function ReturnScreen() {
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         {/* 头部 */}
         <View style={styles.header}>
-          <Text style={styles.title}>📦 归还设备</Text>
+          <Text style={styles.title}>{t('return.title')}</Text>
           <View style={styles.assetCard}>
-            <Text style={styles.assetLabel}>当前归还：</Text>
+            <Text style={styles.assetLabel}>{t('return.currentAsset')}</Text>
             <Text style={styles.assetName} numberOfLines={1}>{assetName}</Text>
           </View>
         </View>
 
         {/* 步骤指示器 */}
-        <StepIndicator current={step} />
+        <StepIndicator current={step} steps={steps} />
 
         {/* Step 1 提示 */}
         {step === 1 && (
           <View style={styles.infoBanner}>
             <Text style={styles.bannerIcon}>📸</Text>
             <View style={{ flex: 1 }}>
-              <Text style={styles.bannerTitle}>必须拍摄实物照片</Text>
+              <Text style={styles.bannerTitle}>{t('return.infoTitle')}</Text>
               <Text style={styles.bannerText}>
-                为明确归还时的设备状态，系统将强制要求拍摄一张设备实物照片。照片上传成功后方可完成归还。
+                {t('return.infoMessage')}
               </Text>
             </View>
           </View>
@@ -203,19 +217,26 @@ export default function ReturnScreen() {
             {isUploading && (
               <View style={styles.uploadOverlay}>
                 <ActivityIndicator size="large" color={theme.colors.background} />
-                <Text style={styles.uploadingText}>正在上传至 Supabase Storage…</Text>
+                <Text style={styles.uploadingText}>{t('return.uploading')}</Text>
               </View>
             )}
             {!isUploading && (
               <TouchableOpacity style={styles.retakeBtn} onPress={handleRetake}>
-                <Text style={styles.retakeBtnText}>🔄 重拍</Text>
+                <Text style={styles.retakeBtnText}>{t('return.retake')}</Text>
               </TouchableOpacity>
             )}
           </View>
         )}
 
         {/* 上传成功 URL 展示 */}
-        {uploadedUrl && <UploadedUrlCard url={uploadedUrl} />}
+        {uploadedUrl && (
+          <UploadedUrlCard
+            url={uploadedUrl}
+            title={t('return.uploadedTitle')}
+            label={t('return.uploadedLabel')}
+            hint={t('return.uploadedHint')}
+          />
+        )}
 
         {/* 确认归还按钮 */}
         {step === 3 && uploadedUrl && (
@@ -230,7 +251,7 @@ export default function ReturnScreen() {
             ) : (
               <>
                 <Text style={styles.confirmBtnIcon}>✅</Text>
-                <Text style={styles.confirmBtnText}>确认归还设备</Text>
+                <Text style={styles.confirmBtnText}>{t('return.confirm')}</Text>
               </>
             )}
           </TouchableOpacity>
@@ -240,7 +261,7 @@ export default function ReturnScreen() {
         {step === 1 && (
           <View style={styles.lockedHint}>
             <Text style={styles.lockedIcon}>🔒</Text>
-            <Text style={styles.lockedText}>归还按钮将在照片上传成功后解锁</Text>
+            <Text style={styles.lockedText}>{t('return.lockedHint')}</Text>
           </View>
         )}
 

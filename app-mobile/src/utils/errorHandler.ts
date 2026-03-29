@@ -15,6 +15,19 @@ function getRawErrorMessage(error: unknown): string {
 export function getDisplayErrorMessage(error: unknown): string {
   const rawMessage = getRawErrorMessage(error);
   if (!rawMessage) return i18n.t('errors.network');
+
+  if (/用户未登录|请先登录/.test(rawMessage)) {
+    return i18n.t('errors.loginRequired');
+  }
+
+  if (/该损坏报告已处理完成/.test(rawMessage)) {
+    return i18n.t('errors.damageReportClosed');
+  }
+
+  if (/failed to retrieve public url/i.test(rawMessage)) {
+    return i18n.t('errors.uploadFailed');
+  }
+
   if (/[\u4e00-\u9fa5]/.test(rawMessage)) return rawMessage;
 
   const errMessage = rawMessage.toLowerCase();

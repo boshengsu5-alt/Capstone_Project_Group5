@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect, type FC } from 'react';
-import { Menu, Bell } from 'lucide-react';
+import { Menu } from 'lucide-react';
 import UserDropdown from './UserDropdown';
+import NotificationBell from './NotificationBell';
 import { getCurrentUser } from '@/lib/auth';
 
 interface NavbarProps {
@@ -38,14 +39,7 @@ const Navbar: FC<NavbarProps> = ({ setSidebarOpen }) => {
 
         {/* Right: actions */}
         <div className="flex items-center gap-x-4 lg:gap-x-6">
-          {/* Bell icon */}
-          <button
-            type="button"
-            className="-m-2.5 p-2.5 text-gray-400 hover:text-purple-300 transition-colors relative"
-          >
-            <span className="sr-only">View notifications</span>
-            <Bell className="h-5 w-5" aria-hidden="true" />
-          </button>
+          <NotificationBell />
 
           {/* Separator */}
           <div className="hidden lg:block lg:h-6 lg:w-px lg:bg-gray-700" aria-hidden="true" />

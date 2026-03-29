@@ -12,6 +12,7 @@ import CalendarView from '../../components/CalendarView';
 import ErrorView from '../../components/ErrorView';
 import SafeImage from '../../components/SafeImage';
 import { useTranslation } from 'react-i18next';
+import { getDisplayErrorMessage } from '../../utils/errorHandler';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'AssetDetailScreen'>;
 type FullAsset = Asset & { categories: Category };
@@ -76,7 +77,7 @@ export default function AssetDetailScreen({ route, navigation }: Props) {
         setError(t('assetDetail.notFound'));
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : t('assetDetail.fetchFailed'));
+      setError(getDisplayErrorMessage(err) || t('assetDetail.fetchFailed'));
     } finally {
       setLoading(false);
     }

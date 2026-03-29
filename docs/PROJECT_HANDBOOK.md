@@ -167,7 +167,7 @@ Capstone_Project/
   2. **【最优先】在 Supabase Dashboard 创建 Storage Bucket**：`asset-images`（资产图片）、`return-photos`（归还照片）、`damage-photos`（损坏照片），全部设为 authenticated 用户可上传、public 可读。**必须今天完成，否则明天 Cunjun 传照片会 403！** **同时在 Supabase Dashboard → Database → Replication 中开启 `bookings` 和 `notifications` 表的 Realtime 功能**（Day 8 和 Day 11 依赖此配置）。
   3. **【最优先】💣 RLS 排雷：创建 `SECURITY DEFINER` 的数据库函数**（学生无权直接 UPDATE `assets` 表和 INSERT `notifications` 表！）——**今天只写前两个最紧急的**：
      - `activate_booking(p_booking_id UUID)` — 将 booking 状态改为 `active` + 将 asset 状态改为 `borrowed`。前端调用 `supabase.rpc('activate_booking', { p_booking_id: id })`。
-     - `return_booking(p_booking_id UUID, p_photo_url TEXT)` — 将 booking 状态改为 `returned` + 将 asset 状态改回 `available` + 信用分 +5。
+     - `return_booking(p_booking_id UUID, p_photo_url TEXT)` — 将 booking 状态改为 `returned`；若该借用仍存在 `open/investigating` 的损坏报告，则 asset 保持 `maintenance`，否则恢复 `available`；正常归还信用分 +5。
      这两个函数声明为 `SECURITY DEFINER`，以数据库所有者身份运行。**第三个 `check_overdue_bookings()` 移至 Day 5 再写，减轻今天压力。**
   4. 写好 `assetService` 的其余抓取代码，充当总工程师把后台数据硬插进 Yuxuan 的卡片组件里。
 * **Yuxuan**：啃读 `react-native-calendars` 的使用文档！**先把日历逻辑封装到独立的 `CalendarView.tsx` 组件里**（接收 `markedDates` 属性，红色=已预订，绿色=可用），然后在 `AssetDetailScreen` 中引入 `CalendarView`。**在 `AssetDetailScreen` 底部放一个醒目的【立即预约】按钮**，点击后导航到 `BookingFormScreen` 并传递 `assetId` 参数。同时在 `HomeScreen` 上方加一排可横滑的分类图标条（从 `categories` 表取数据），点击后跳转到 `CategoryScreen` 并传递选中的 `categoryId`。
@@ -190,23 +190,24 @@ Capstone_Project/
 
 #### ☀️ Day 6 (3/12)：闭环体系之借款与拍照上传应用
 
-* **Bosheng**：完成移动端最终页 `BookingFormScreen.tsx`。带选日期框和同意协议后发向库的逻辑。**同时把 `bookingService.ts`（移动端）里的 `createBooking()`、`getMyBookings()`、`cancelBooking()` 对接真实 Supabase 查询。`returnAsset()` 必须调用 Day 4 Bosheng 创建的 RPC 函数：`supabase.rpc('return_booking', { p_booking_id: id, p_photo_url: url })`——不能直接 UPDATE `assets` 表，学生没有 RLS 权限！** 还需新增 `submitDamageReport(assetId, bookingId, description, severity, photoUrls)` 函数——**注意：学生可以直接 INSERT 到 `damage_reports` 表（RLS 允许），但不能直接将 `assets.status` 改为 `maintenance`（RLS 不允许）。所以 `assets.status` 的变更由管理员在 Web 端确认损坏时通过 admin 权限执行。**
+* **Bosheng**：完成移动端最终页 `BookingFormScreen.tsx`。带选日期框和同意协议后发向库的逻辑。**同时把 `bookingService.ts`（移动端）里的 `createBooking()`、`getMyBookings()`、`cancelBooking()` 对接真实 Supabase 查询。`returnAsset()` 必须调用 Day 4 Bosheng 创建的 RPC 函数：`supabase.rpc('return_booking', { p_booking_id: id, p_photo_url: url })`——不能直接 UPDATE `assets` 表，学生没有 RLS 权限！** 还需新增 `submitDamageReport(assetId, bookingId, description, severity, photoUrls)` 函数——**注意：学生仍然不能直接 UPDATE `assets` 表，但一旦成功插入 `damage_reports` 且状态为 `open/investigating`，数据库侧会立即把设备切到 `maintenance`，并把该设备未来的 `pending/approved` 预约批量改成 `suspended`。**
 * **Yuxuan**：开发 `ProfileScreen.tsx` 个人信息主面板大厅。展示用户的信用分绿数字、学号、学院。**必须从 Supabase `profiles` 表拉取真实数据，不能再用假数据。** **同时给 `ProfileScreen` 加一个"我的通知"入口按钮**（带未读红点角标），点击后通过 Stack Navigator 跳转到 Cunjun 的 `NotificationScreen`。**再在 `HomeScreen` 的 `AssetCard` 上展示 `asset.images[0]` 封面图**（用 `<Image source={{ uri: ... }}>`），确认图片正确加载。
 * **Cunjun**：完成极复杂的 `ReturnScreen.tsx` (还物页面)。必须强行调出照相组件拍一张实物照片，并把那串网链拿稳了，发给归还工单以供确认。
 * **Letao**：网页版加入超级资产总分析台 `dashboard/page.tsx`。建立两个占满半屏的业务计数仪区块（总资产数、当前借出数、待审批数、逾期数）。**同时在 `AssetForm.tsx` 中加入图片上传功能**：管理员新建资产时可以选择图片文件 → 上传到 Supabase Storage 的 `asset-images` 桶 → 拿到 URL 放进 `images` 数组。
-* **Linpeng**：画全屏用于对比归还是否损坏的模块：左侧出库记录图，右侧归还实拍图的超宽检视对比功能 `ReturnVerify.tsx`。**同时创建 `returns/page.tsx` 路由页面**，把 `ReturnVerify` 组件嵌入进去。**💣组件底部必须有两个操作按钮：【确认无损归还】（结束流程，该借用记录标记为完结）和【发现损坏，转入客诉】（自动跳转到 `damage/page.tsx` 并预填资产和借用信息，由管理员补填损坏描述和严重等级）。**
+* **Linpeng**：画全屏用于对比归还是否损坏的模块：左侧出库记录图，右侧归还实拍图的超宽检视对比功能 `ReturnVerify.tsx`。**同时创建 `returns/page.tsx` 路由页面**，把 `ReturnVerify` 组件嵌入进去。**💣组件底部必须有两个操作按钮：【确认无损归还】（结束流程，该借用记录标记为完结）和【发现损坏，转入损坏处理与赔偿流程】（自动关联/创建损坏报告，并触发设备进入 `maintenance`、未来预约进入 `suspended` 的统一后端逻辑）。**
 
 #### ☀️ Day 7 (3/13)：客诉罚单与类型滞后危机防御
 
 * **Bosheng**：建立极其敏感的红点强提醒角标推送（提示欠账人）。在 `notifications` 表中插入记录，移动端通过查询该表来显示红点。注意随时大吼更新 `types/supabase.ts`。**💣【关键新增：信用分扣减规则必须明确写成数据库函数】** 在 Supabase 创建函数 `update_credit_score(user_id, delta, reason)`，规则如下：
-  - 逾期归还：每天 -10 分（由 `check_overdue_bookings()` 自动触发）
-  - 损坏报告 `minor`：-10 分 / `moderate`：-20 分 / `severe`：-50 分（由管理员确认损坏时触发）
-  - 正常按时归还：+5 分（由归还流程自动触发）
+  - 逾期归还：第 1 天 `-10`、满 7 天再 `-15`、满 30 天再 `-25`（累计上限 `-50`）
+  - 损坏报告 `minor`：`-5` / `moderate`：`-15` / `severe`：`-30`
+  - `lost`：系统自动判定 `0`；用户主动自报 `-30`；管理员确认恶意调包或严重丢失 `-50`
+  - 正常按时归还：`+5`
   - 分数范围锁死 0-200，不能扣成负数也不能超过 200
 * **Yuxuan**：将系统所有白骨架屏用极其唯美的灰色 `Skeleton Loading` 圈填充防跳频闪烁。**同时给 `HomeScreen` 的搜索栏接上真实筛选逻辑**：输入文字后过滤 `assets` 列表，实现前端即时搜索。
 * **Cunjun**：画客单报修页 `DamageReportScreen.tsx`。让学生上交长作文控诉和碎镜头的照片网链，生成报修单！**调用 Bosheng 在 Day 6 写好的 `submitDamageReport()` 函数提交到数据库。** **同时完善 `NotificationScreen.tsx`**：从 `notifications` 表拉取真实数据，用 `NotificationItem` 组件渲染列表，点击后标记已读。（取消预约按钮移至 Day 9-10 补充，减轻今天3屏同改的压力）
 * **Letao**：利用后台真实数据进行折线图、扇形图等炫酷报表的网页大版显示（引入 `recharts` 或 `chart.js`）。
-* **Linpeng**：处理客诉大网页版处理界面 `damage/page.tsx`。**在 `lib/bookingService.ts` 中新增 `getDamageReports()`、`updateDamageStatus(id, status)` 函数。** 用 `DamageTable.tsx` 展示所有损坏报告。管理员确认损坏等级后，调用 Bosheng 写的 `update_credit_score()` 数据库函数扣减学生信用分！
+* **Linpeng**：处理客诉大网页版处理界面 `damage/page.tsx`。**在 `lib/bookingService.ts` 中新增 `getDamageReports()`、`updateDamageStatus(id, status)` 函数。** 用 `DamageTable.tsx` 展示所有损坏报告。管理员确认损坏等级后，调用 Bosheng 写的 `update_credit_score()` 数据库函数扣减学生信用分，并同步赔偿单状态、通知与资产后续流转！
 
 #### ☀️ Day 8 (3/14)：系统内全员合线与防雷网络布置
 
@@ -325,7 +326,7 @@ Capstone_Project/
 
 | 遗漏项 | 负责人 | 补入天数 | 严重性 | 说明 |
 |---|---|---|---|---|
-| **`assets.status` 状态同步** | Bosheng | Day 4/6 | **致命** | 取货→borrowed, 归还→available, 损坏→maintenance, 全计划从未提及 |
+| **`assets.status` 状态同步** | Bosheng | Day 4/6 | **致命** | 取货→`borrowed`；归还→`available/maintenance`（取决于是否仍有未结损坏报告）；`open/investigating` 损坏报告会立刻触发 `maintenance` 并暂停未来预约 |
 | **Storage Bucket 时间线倒挂** | Bosheng | Day 4 (从 Day 6 提前) | **致命** | Day 5 Cunjun 传照片时桶还没建 |
 | **`activateBooking()` 函数缺失** | Bosheng | Day 4 (优先) | **致命** | Day 4 Cunjun 扫码取货依赖此函数 |
 | **评价功能领地冲突** | Yuxuan→ReviewModal + Cunjun集成 | Day 9-10 | **中等** | 原写法违反铁律第1条 |
@@ -440,7 +441,7 @@ git pull && cd app-mobile && npm install && cd ../app-web && npm install
 | B1-07 | 用已存在的邮箱注册 | 提示"邮箱已被注册" | ☐ |
 | B1-08 | 密码输入 123（太短） | 提示密码长度要求 | ☐ |
 | B1-09 | 在 Supabase SQL Editor 调用 `SELECT activate_booking('某id')` | booking 状态变 active，asset 状态变 borrowed | ☐ |
-| B1-10 | 调用 `SELECT return_booking('某id', 'url')` | booking 状态变 returned，asset 变 available，信用分 +5 | ☐ |
+| B1-10 | 调用 `SELECT return_booking('某id', 'url')` | booking 状态变 returned；若该借用无未结损坏报告则 asset=available，否则 asset=maintenance；信用分 +5 | ☐ |
 | B1-11 | 调用 `SELECT check_overdue_bookings()` | 过期的 active booking 变 overdue，通知已插入，信用分已扣 | ☐ |
 | B1-12 | 调用 `SELECT update_credit_score('某id', -10, 'test')` | 信用分 -10；如果原来是 5，结果应该是 0 不是 -5 | ☐ |
 
@@ -545,7 +546,7 @@ git pull && cd app-mobile && npm install && cd ../app-web && npm install
 | P1-07 | ReturnVerify 照片对比 | 左右分栏显示，照片正常加载 | ☐ |
 | P1-08 | 点【确认无损归还】 | booking 完结，信用分 +5（去 Supabase 核实） | ☐ |
 | P1-09 | 点【发现损坏，转入客诉】 | 跳转到 damage 页面 | ☐ |
-| P1-10 | damage 页面确认 moderate 等级 | 信用分 -20（如果原来 15 分，应变为 0 不是 -5） | ☐ |
+| P1-10 | damage 页面确认 moderate 等级 | 信用分 -15（如果原来 15 分，应变为 0 不是负数） | ☐ |
 | P1-11 | 检查 audit-logs 页面 | 刚才的审批/归还/损坏操作都有日志记录 | ☐ |
 
 **【自由探索】（2.5h）** 自己当管理员走完整审批流程，修不合理的地方。
@@ -650,7 +651,7 @@ git pull && cd app-mobile && npm install && cd ../app-web && npm install
 | P2-03 | 拒绝时填入 5000 字超长理由 | 能保存或有长度限制提示 | ☐ |
 | P2-04 | 审批通过后 | 移动端用户收到通知 | ☐ |
 | P2-05 | ReturnVerify 照片加载失败时 | 有 fallback 显示（如"照片加载失败"），不是空白 | ☐ |
-| P2-06 | 信用分为 0 的学生再确认 moderate 损坏（-20） | 信用分保持 0，不变成 -20 | ☐ |
+| P2-06 | 信用分为 0 的学生再确认 moderate 损坏（-15） | 信用分保持 0，不变成负数 | ☐ |
 | P2-07 | 做一个审批操作后查 audit-logs | 有对应的日志记录，且不可编辑删除 | ☐ |
 
 **【自由探索】（3h）** 继续修 + 走完整的审批→归还→损坏流程，修不合理的逻辑。
@@ -813,7 +814,7 @@ git pull && cd app-mobile && npm install && cd ../app-web && npm install
 |------|------|------|--------|
 | 1 | Cunjun：DamageReport → 填描述 → 选 moderate → 拍照 → 提交 | 提交成功 | ☐ |
 | 2 | Linpeng：damage 页面看到 → 确认 moderate | 操作成功 | ☐ |
-| 3 | Bosheng 查数据库 | 信用分-20, asset=maintenance, audit_log 有记录 | ☐ |
+| 3 | Bosheng 查数据库 | 信用分-15, asset=maintenance, 未来 `pending/approved` 预约已转 `suspended`, audit_log 有记录 | ☐ |
 
 ##### 【自由探索 + 修复】下午（2.5h）
 
@@ -1057,7 +1058,7 @@ Day 3 你在别人模块发现的问题，今天确认修好了没：
 | # | 原计划描述 | 实际情况 | 修正措施 |
 |---|-----------|---------|---------|
 | 1 | P0：`getDamageReports()` 不查 `photo_urls` | **不成立**。`select(*)` 已包含 `photo_urls`（它是 `damage_reports` 表自身字段）。真正缺失的是 `assets` 子查询里的 `purchase_price`、`purchase_date` | 将此 P0 降级；改为在 assets select 中补查 `purchase_price`、`purchase_date` |
-| 2 | 信用分扣减标准混乱 | 代码中 `updateDamageReportStatus()` 使用 minor:-10 / moderate:-20 / severe:-30，但 §5.3 文档标准为 minor:-5 / moderate:-15 / severe:-30；`DamageSeverityModal` 显示的也是 -10/-20/-30 | 全部统一为 §5.3 标准：**minor:-5 / moderate:-15 / severe:-30** |
+| 2 | 信用分扣减标准混乱 | 代码中的损坏扣分曾与 §5.3 文档标准不一致，界面展示也未同步 | 全部统一为 §5.3 标准：**minor:-5 / moderate:-15 / severe:-30** |
 | 3 | `createDamageReport()` 方法 | 与 `reportDamage()` 功能高度重复，且项目中无任何调用方 | 已删除，避免维护歧义 |
 | 4 | `lib/authFetch.ts` 文件 | 导出函数从未被任何文件 import，属于遗留死代码 | 已删除 |
 
@@ -1415,30 +1416,55 @@ booking: active → overdue
 用户手机端 DamageReportScreen
 选择"设备丢失"→ 提交损坏报告
     │
-    ▼ 管理员在 Damage Reports 页收到报告
-点 Update → 确认 severity=Lost → Confirm
+    ▼ 系统立即进入“待确认丢失”中间态
+damage_report: severity=lost, status=open
+booking: active / overdue / returned → lost_reported
+asset: → maintenance
+
+    │ 管理员确认前，用户仍可纠正
+    ├── 方案 A：把 severity 从 lost 改为普通损坏
+    │         ▼
+    │   booking 恢复到 active / overdue / returned（按当前借用进度判断）
+    │   若原本还没归还 → 回到“拍照归还”流程
+    │   若原本已提交归还照片 → 回到“已归还待核验”流程
     │
-    ▼
-信用分 -30（诚信申报，从轻处理）
-赔偿金额 = 原价 × 折旧比例（有折旧优惠）
-资产状态标记为 retired
+    ├── 方案 B：直接撤销这条报修单
+    │         ▼
+    │   damage_report.status → dismissed
+    │   booking 同样恢复到 active / overdue / returned
+    │
+    └── 管理员确认真实丢失
+              ▼
+        damage_report.status → resolved
+        booking → lost
+        asset → retired
+        信用分 -30（诚信申报，从轻处理）
+        赔偿金额 = 原价 × 折旧比例（有折旧优惠）
 ```
 
 #### 场景三：归还时管理员发现调包（欺诈行为）
 
 ```
-学生归还了物品（booking → returned）
-管理员在归还验证页对比照片发现物品被调包
+学生归还了物品（booking 通常已进入 returned 或核验阶段）
+管理员在归还验证页对比照片发现物品被调包 / 实物缺失
     │
-    ▼ 两个入口均可处理：
+    ▼ 管理员先创建 lost 类型损坏报告（不是直接终态）：
 
 入口 A：归还验证页 → "Report Damage" → DamageSeverityModal → 选 Lost
 入口 B：损坏报告页 → Update Modal → 选 Lost
 
-    ▼ 管理员确认
+    │
+    ▼ 系统先进入 lost_reported（待确认丢失）
+booking → lost_reported
+asset → maintenance
+
+    │
+    ▼ 管理员在 Damage Reports 页最终确认
+damage_report.status → resolved
+booking → lost
+asset → retired
 信用分 -50（主动欺骗，重罚）
 赔偿金额 = 全款（不计折旧）
-资产状态标记为 retired
 ```
 
 #### 赔偿追缴通用流程
@@ -1631,100 +1657,141 @@ function calcOverduePenalty(overdueDays):
 
 ---
 
-## 八、损坏归还冲突处理 — suspended 预约暂停机制（2026-03-26 补充）
+## 八、损坏处理、maintenance 锁定与 suspended 预约恢复机制（2026-03-29 更新）
 
-> **背景**：当借用者归还设备时发现损坏，设备进入维修状态（`maintenance`）。若此时已有其他用户预约了未来日期，这些预约既不能立刻取消（设备可能很快修好），也不能继续有效（设备不可用）。本章记录"暂停 + 自动恢复/取消"的完整设计方案。
-
----
-
-### 8.1 核心设计思路
-
-采用 **suspended（暂停）** 中间状态，而非立刻取消：
-
-```
-归还时发现损坏
-      │
-      ▼
-设备 → maintenance
-未来预约 pending/approved → suspended（保留，不销毁）
-      │
-      ├─── 管理员重新上架
-      │         │
-      │    start_date > 现在  → 恢复为 pending（重新审批）→ 通知用户"已恢复"
-      │    start_date ≤ 现在  → 自动 cancelled              → 通知用户"已过期取消"
-      │
-      └─── 取货日前 12 小时设备仍在维修
-                │
-                ▼
-           自动 cancelled → 通知用户"紧急：已自动取消"
-```
-
-**用户（学生）权利**：在 `suspended` 状态下，用户可随时主动取消，无需等待设备修复。
+> **背景**：当前系统不再等待管理员手动把设备改成 `maintenance`。只要损坏报告进入 `open` 或 `investigating`，后端就会立刻锁定设备，并同步处理未来预约、通知与重新上架权限。
 
 ---
 
-### 8.2 新增数据库枚举值
+### 8.1 当前系统的核心规则
 
-**迁移文件**：`database/migrations/014_add_suspended_booking_status.sql`
-
-```sql
--- 新增枚举值
-ALTER TYPE booking_status ADD VALUE IF NOT EXISTS 'suspended';
-
--- create_booking RPC：suspended 预约也纳入日期冲突检测（占位）
--- restrict_booking_update 触发器：允许学生取消自己的 suspended 预约
-```
-
-> ⚠️ **需手动在 Supabase SQL Editor 执行此迁移文件**，Postgres 枚举值新增无法回滚。
+1. 任何 `damage_reports.status in ('open', 'investigating')` 的记录一旦创建或回填，系统立即执行：
+   - `assets.status → maintenance`
+   - 该设备所有 `start_date > now()` 的 `pending/approved` 预约 → `suspended`
+   - 为受影响预约逐条写入 `booking_suspended` 通知
+2. 对于普通损坏（`minor / moderate / severe`），当前这笔借用仍按归还生命周期继续走；`suspended` 只作用于未来预约，不回写到当前借用单本身。
+3. 对于 `lost` 报告，当前借用会先进入可逆中间态：
+   - `booking.status → lost_reported`
+   - 手机端隐藏“拍照归还”，只保留“编辑报修 / 撤销报告”
+   - 该状态表示“待确认丢失”，不是最终丢失
+4. 在 `lost_reported` 阶段，用户若后来找回设备，可以：
+   - 把 `severity` 从 `lost` 改成普通损坏；系统恢复到 `active / overdue / returned`
+   - 或直接撤销自己的未处理报修单；系统同样恢复到 `active / overdue / returned`
+   - 恢复后**不会**回到 `approved`，因此不会重新进入“扫码取货”，而是回到当前应处的归还阶段
+5. 只有管理员最终确认真实丢失后，才进入终态：
+   - `damage_report.status → resolved`
+   - `booking.status → lost`
+   - `assets.status → retired`
+   - 相关 `suspended` 预约全部自动取消
+6. 学生在 `suspended` 状态下可随时主动取消预约，无需等待设备修复。
+7. 只要设备仍存在 `open/investigating` 的损坏报告，网页端不得 `Re-list`，数据库层也会阻止把资产改回 `available`。
+8. `resolved/dismissed` 结束的是“损坏审核”，不是“赔偿结算”：
+   - 非 `lost`：资产继续保持 `maintenance`，等待管理员修复后手动重新上架
+   - `lost`：资产直接改为 `retired`
+9. 当前实现以“损坏审核是否结束”作为 `Re-list` 门槛，而不是“赔偿是否已付清”。赔偿流程与设备可否重新上架相互独立。
 
 ---
 
-### 8.3 `rejection_reason` 字段复用约定
+### 8.2 当前以哪些迁移和函数为准
+
+| 文件 | 当前口径 |
+|------|---------|
+| `database/migrations/014_add_suspended_booking_status.sql` | 引入 `suspended` 预约状态，作为后续暂停/恢复机制的基础 |
+| `database/migrations/025_damage_maintenance_enforcement.sql` | 新增 `apply_damage_report_maintenance()`、`prevent_relist_with_unresolved_damage_reports()`、`check_suspended_maintenance_bookings()`；并重写 `return_booking()`，使其在存在未结损坏报告时保持 `maintenance` |
+| `database/migrations/026_fix_return_booking_asset_status_cast.sql` | 修复 `return_booking()` 中 `asset_status` 枚举赋值问题 |
+| `database/migrations/027_lost_reported_booking_flow.sql` | 引入 `lost_reported` / `lost` 借用状态，以及可恢复的“待确认丢失”流程 |
+| `database/migrations/028_lost_reported_flow_followups.sql` | 让 `lost` 的 DB 触发器、赔偿同步和 `returned → lost_reported` 的回写规则保持一致 |
+| `database/migrations/029_withdraw_own_damage_report.sql` | 允许用户撤销自己未处理的报修单，并恢复借用/资产流程 |
+| `database/migrations/030_fix_withdraw_damage_report_dependencies.sql` | 补齐撤销报修所需的 helper functions，避免依赖缺失 |
+| `database/migrations/031_fix_damage_flow_restore_status.sql` | 修复“撤销报失后误回到 approved/扫码取货”的问题，统一恢复到 `active / overdue / returned` |
+
+> `025` 会回填已有的 `open/investigating` 损坏报告；`031` 会回填那些曾被错误恢复成 `approved` 的历史借用单。
+
+---
+
+### 8.3 `rejection_reason` 约定
 
 | 值 | 含义 |
 |----|------|
-| `ASSET_MAINTENANCE` | 因设备维修被暂停（`suspended`）的预约，用于 `restoreMaintenanceBookings()` 识别 |
-| `ASSET_MAINTENANCE_EXPIRED` | 因维修期内取货日已过被自动取消的预约 |
-| `VERIFIED` | 归还已核验（无损或损坏报告已创建） |
+| `ASSET_MAINTENANCE` | 因设备进入维修流程而被挂起的预约 |
+| `ASSET_MAINTENANCE_EXPIRED` | 取货前 12 小时仍未恢复，系统自动取消 |
+| `ASSET_LOST_CONFIRMED` | 设备最终确认丢失，原 `suspended` 预约直接取消 |
+| `LOST_REPORTED` | 当前借用已进入“待确认丢失”中间态 |
+| `LOST_CONFIRMED` | 当前借用已被管理员确认为最终丢失 |
+| `VERIFIED` | 归还已核验（无损或损坏流程已建立） |
 
 ---
 
-### 8.4 改动文件清单
+### 8.4 暂停、恢复与取消的执行规则
 
-| 文件 | 改动内容 |
-|------|---------|
-| `database/migrations/014_add_suspended_booking_status.sql` | 新增；添加 `suspended` 枚举；更新 `create_booking` RPC 冲突检测；更新 `restrict_booking_update` 触发器 |
-| `database/types/supabase.ts` | `BookingStatus` 添加 `'suspended'` |
-| `app-web/lib/bookingService.ts` | `BookingWithDetails` 类型扩展 `purchase_date/price`；`reportDamage()` 新增：批量将未来预约改为 `suspended` + 逐用户发通知；新增 `restoreMaintenanceBookings(assetId)` 函数 |
-| `app-web/app/dashboard/assets/page.tsx` | 引入 `bookingService`；`handleRelist()` 完成上架后调用 `restoreMaintenanceBookings()` |
-| `app-mobile/src/screens/booking/BookingHistoryScreen.tsx` | `getStatusLabel` 添加 `'suspended' → '暂停中'`；`getStatusColor` 添加 `suspended → amber`；`canCancel` 条件添加 `suspended`；`useEffect` 中调用 `checkSuspendedBookingsExpiring()` |
-| `app-mobile/src/services/notificationService.ts` | 新增 `checkSuspendedBookingsExpiring()`：检测 12h 内到期仍暂停的预约，发紧急通知并自动取消 |
+```
+损坏报告进入 open / investigating
+      │
+      ▼
+资产 → maintenance
+未来预约 pending / approved → suspended
+      │
+      ├── 当前借用若 severity = lost
+      │        ▼
+      │   booking → lost_reported
+      │   手机端暂停“拍照归还”
+      │
+      │   ├── 用户改回普通损坏
+      │   │        ▼
+      │   │   booking 恢复为 active / overdue / returned
+      │   │
+      │   ├── 用户撤销未处理报修单
+      │   │        ▼
+      │   │   damage_report → dismissed
+      │   │   booking 恢复为 active / overdue / returned
+      │   │
+      │   └── 管理员确认真实丢失
+      │            ▼
+      │       booking → lost
+      │       asset → retired
+      │
+      ├── 学生主动取消 → cancelled
+      │
+      ├── 管理员修复并重新上架
+      │        │
+      │   start_date > now   → 恢复为 pending → 通知 booking_restored
+      │   start_date ≤ now   → 自动 cancelled → 通知 booking_cancelled
+      │
+      ├── 距离取货时间 ≤ 12h 仍在 maintenance
+      │        ▼
+      │   自动 cancelled（ASSET_MAINTENANCE_EXPIRED）
+      │
+      └── 最终确认 lost
+               ▼
+          资产 → retired
+          所有 suspended 预约 → cancelled（ASSET_LOST_CONFIRMED）
+```
+
+补充说明：
+- `check_suspended_maintenance_bookings()` 是统一的后端 RPC；当前由网页端和移动端在拉取相关列表前触发一次检查。
+- 管理员 `Re-list` 后，网页端会调用 `restoreMaintenanceBookings(assetId)`，把仍然有效的预约恢复成 `pending`，过期预约则直接取消。
 
 ---
 
-### 8.5 通知类型及内容模板
+### 8.5 通知与移动端展示
 
-| 场景 | `type` | 标题 | 接收方 |
-|------|--------|------|--------|
-| 预约被暂停 | `booking_suspended` | 预约已暂停 — 设备维修中 | 受影响用户 |
-| 预约恢复 | `booking_restored` | 好消息！设备已修好，预约已恢复 | 受影响用户 |
-| 取货日过期自动取消 | `booking_cancelled` | 预约已自动取消 | 受影响用户 |
-| 12h 内仍维修紧急取消 | `booking_cancelled` | 紧急通知：预约即将自动取消 | 受影响用户 |
+| 场景 | `type` | 用户端表现 |
+|------|--------|-----------|
+| 预约被暂停 | `booking_suspended` | 通知页提示设备维修中，借用记录允许用户主动取消 |
+| 预约恢复 | `booking_restored` | 通知页提示预约恢复为待审批状态 |
+| 维修过久自动取消 | `booking_cancelled` | 通知页提示因维修无法履约而取消 |
+| 设备最终确认丢失 | `booking_cancelled` | 通知页提示设备无法恢复，本次预约已取消 |
+| 赔偿流程更新 | `compensation_update` | 手机端赔偿中心与通知页同步显示金额、状态、已付/待付进度 |
 
-**暂停通知示例：**
-```
-标题：预约已暂停 — 设备维修中
-正文：您预约的「{设备名}」因归还时发现损坏，已进入维修流程，
-      您的预约（取货日：{日期}）已暂时挂起。
-      维修完成重新上架后将自动恢复，您也可以选择直接取消。
-```
+移动端借用记录对 `lost_reported` / `lost` 的当前实现如下：
+- `lost_reported`：显示“已报失待确认”，隐藏“拍照归还”，保留“编辑报修 / 撤销报告”
+- 若用户把 `lost` 改回普通损坏，或撤销自己的未处理报修单：自动恢复到 `active / overdue / returned`
+- `lost`：显示“已确认丢失”，不再允许归还，但仍可继续查看赔偿进度
 
-**恢复通知示例：**
-```
-标题：好消息！设备已修好，预约已恢复
-正文：您暂停中的「{设备名}」预约（取货日：{日期}）已自动恢复
-      为待审批状态，请等待管理员重新审批。
-```
+移动端借用记录中的赔偿状态采用业务化文案：
+- 已进入赔偿流程且未结案：显示 `等待赔款`
+- 赔偿单状态为 `paid` 或 `waived`：显示 `已完成`
+- 未进入损坏/赔偿流程：不额外显示赔偿状态条
 
 ---
 
@@ -1744,19 +1811,33 @@ ALTER TYPE booking_status ADD VALUE IF NOT EXISTS 'suspended';
                                                               ▼
                                                           returned
 
-────── suspended 分支 ──────────────────────────────────────────
+────── 资产维修 / 损坏处理分支 ─────────────────────────────────
 
-  pending/approved
+  active / overdue / returned
       │
-  (归还时发现损坏)
+  (创建 open / investigating 损坏报告)
       ▼
-  suspended ──(设备修好重新上架, start_date > now)──→ pending（重新流转）
+  damage_report 处理中
       │
-      ├─ (设备修好但 start_date 已过) ──→ cancelled
+      ├── 资产 → maintenance
+      ├── 未来 pending / approved → suspended
+      ├── 未结案时禁止 Re-list
       │
-      ├─ (取货日前 12h 设备仍维修) ──→ cancelled（自动）
+      ├── (severity = lost 且 open / investigating)
+      │          ▼
+      │      booking → lost_reported
+      │          │
+      │          ├─ 用户改回普通损坏 ──→ active / overdue / returned
+      │          ├─ 用户撤销报告 ─────→ active / overdue / returned
+      │          ├─ 管理员驳回 lost ──→ active / overdue / returned
+      │          └─ 管理员确认 lost ──→ booking lost + asset retired
       │
-      └─ (学生主动取消) ──→ cancelled
+      ├── (dismissed / resolved 非 lost) ──→ 维修后管理员 Re-list
+      │                                      │
+      │                                      ├─ start_date > now → pending
+      │                                      └─ start_date ≤ now → cancelled
+      │
+      └── (resolved 且 lost) ──→ asset retired + suspended 预约全部 cancelled
 ```
 
 ---
@@ -1765,9 +1846,9 @@ ALTER TYPE booking_status ADD VALUE IF NOT EXISTS 'suspended';
 
 | 机制 | 相互独立 | 说明 |
 |------|---------|------|
-| 逾期扣分（第七章） | ✅ 独立 | `suspended` 仅影响未来预约，不影响已完成的归还流程 |
-| 损坏赔偿（第五章） | ✅ 独立 | 损坏报告在 Damage Reports 页面单独处理 |
-| 通知系统 | 复用 | `booking_suspended/restored/cancelled` 均写入 `notifications` 表 |
+| 逾期扣分（第七章） | ✅ 独立 | `suspended` 只影响未来预约，不回滚已产生的逾期记录 |
+| 损坏审核与赔偿 | ✅ 独立 | `Re-list` 看损坏审核是否结束；赔偿是否已付清不阻止设备重新上架 |
+| 通知系统 | 复用 | `booking_suspended` / `booking_restored` / `booking_cancelled` / `compensation_update` 均写入 `notifications` 表 |
 
 ---
 
@@ -1789,12 +1870,22 @@ ALTER TYPE booking_status ADD VALUE IF NOT EXISTS 'suspended';
 
 1. 处于 `active`（已借用）或 `overdue`（已逾期）状态的记录，均可发起归还。
 2. 归还时用户需要上传归还照片，系统会保存归还时间和归还凭证。
-3. 若设备存在问题，用户可提交损坏报告：
+3. 若设备存在问题，用户可提交损坏报告，管理员也可在归还核验页补录损坏单：
    - 轻微损坏 / 中度损坏 / 严重损坏：需上传证据照片
    - 设备丢失：允许无照片提交
-4. 损坏报告处理流转为：`open`（待处理）→ `investigating`（核验中）→ `resolved`（确认成立）或 `dismissed`（驳回）。
-5. 管理员确认损坏成立后，系统会按损坏程度扣减信用分，并依据设备信息估算赔偿金额。
-6. 若设备先完成归还、后续又确认存在损坏，系统可能撤销之前的 `+5` 归还奖励。
+4. 只要损坏报告进入 `open` 或 `investigating`，系统会立即：
+   - 将设备状态切到 `maintenance`
+   - 将该设备未来的 `pending/approved` 预约批量改为 `suspended`
+   - 向受影响用户发送暂停通知
+5. 普通损坏不会把当前借用切离归还流程；但若报告类型为 `lost`，当前借用会先进入 `lost_reported`（已报失待确认）中间态：
+   - 手机端隐藏“拍照归还”
+   - 保留“编辑报修 / 撤销报告”
+   - 管理员确认前，用户可将 `lost` 改回普通损坏，或直接撤销报修单
+6. 若用户把 `lost` 改回普通损坏，或撤销自己的未处理报修单，系统会把借用自动恢复到 `active / overdue / returned` 中正确的那个阶段；**不会**回到 `approved`，因此不会重新出现“扫码取货”。
+7. 损坏报告处理流转为：`open`（待处理）→ `investigating`（核验中）→ `resolved`（确认成立）或 `dismissed`（驳回 / 撤销）。
+8. 管理员确认损坏成立后，系统会按损坏程度扣减信用分、同步赔偿单，并依据设备信息估算赔偿金额。
+9. 若设备先完成归还、后续又确认存在损坏，系统可能撤销之前的 `+5` 归还奖励。
+10. 只要仍有 `open/investigating` 的损坏报告，设备不可重新上架；待审核结束后，管理员才可决定修复后重新上架或在 `lost` 场景下直接退役设备。
 
 ### A.3 业务状态说明
 
@@ -1804,9 +1895,13 @@ ALTER TYPE booking_status ADD VALUE IF NOT EXISTS 'suspended';
 | `approved` | 管理员已通过预约，等待用户扫码取货 |
 | `active` | 用户已扫码取货，借用周期进行中 |
 | `overdue` | 超过应还日期仍未归还 |
+| `lost_reported` | 已提交丢失报告，等待管理员确认；当前属于可恢复中间态 |
+| `lost` | 管理员已确认设备真实丢失，借用单进入最终丢失状态 |
 | `returned` | 用户已完成归还，系统已记录归还结果 |
 | `cancelled` | 用户主动取消或系统自动取消预约 |
 | `suspended` | 设备因维修等原因导致预约被临时挂起 |
+
+> `maintenance` 是 **资产状态**，不是借用单状态；它表示设备因损坏审核或维修暂时不可再借。
 
 ### A.4 信用分规则
 
@@ -1855,9 +1950,14 @@ ALTER TYPE booking_status ADD VALUE IF NOT EXISTS 'suspended';
    - 用户主动上报丢失：按**折旧后价格**赔偿
    - 系统自动判定丢失或管理员确认丢失：按**设备全价**赔偿，不计折旧
 5. 如果设备没有录入购置价格，系统不会自动给出赔偿金额，需由管理员人工核验后线下确认。
+6. 赔偿单由损坏报告自动同步生成，管理员可在 Web 端更新签字金额、已付金额和结案状态，系统会向移动端同步通知。
+7. 手机端借用记录对赔偿流程采用简化业务状态：
+   - 赔偿未结案：显示 `等待赔款`
+   - 赔偿单为 `paid` 或 `waived`：显示 `已完成`
 
 ### A.7 可直接用于答辩的总结表述
 
-> UniGear 采用“先申请、后审批、扫码取货、拍照归还”的闭环借用流程。  
-> 系统通过信用分机制约束用户行为：正常归还可加分，逾期与损坏会分级扣分；逾期 30 天将自动判定为丢失。  
-> 在赔偿方面，系统结合设备购置价、使用年限和损坏程度给出估算结果，并保留管理员人工核验入口，以保证制度透明和处理公平。
+> UniGear 采用“先申请、后审批、扫码取货、拍照归还”的闭环借用流程。
+> 当损坏报告进入处理中状态时，系统会立即把设备切换到 `maintenance`，并把未来预约挂起为 `suspended`，待设备修复后再恢复或取消，从而避免“坏设备继续被借出”。
+> 对于“设备丢失”场景，UniGear 采用可恢复的 `lost_reported` 中间态：管理员最终确认前，用户既可以把报失改回普通损坏，也可以直接撤销未处理报修单，系统会自动回到正确的归还阶段，而不会错误地重新进入扫码取货流程。
+> 系统通过信用分与赔偿双轨机制约束用户行为：正常归还可加分，逾期与损坏会分级扣分；赔偿金额则结合设备购置价、使用年限和损坏程度进行估算，并允许管理员在线维护签字、付款与结案进度。

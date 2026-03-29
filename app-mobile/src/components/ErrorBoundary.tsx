@@ -2,6 +2,7 @@ import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../theme';
+import i18n from '../i18n';
 
 interface Props {
   children: ReactNode;
@@ -44,16 +45,16 @@ export default class ErrorBoundary extends Component<Props, State> {
       return (
         <View style={styles.container}>
           <Ionicons name="alert-circle-outline" size={60} color={theme.colors.danger || '#ff4d4f'} />
-          <Text style={styles.title}>组件崩溃了</Text>
+          <Text style={styles.title}>{i18n.t('errorBoundary.title')}</Text>
 
           <Text style={styles.message}>
-            由于某些意外原因，此功能暂时无法使用。
+            {i18n.t('errorBoundary.message')}
           </Text>
           {__DEV__ && (
             <Text style={styles.errorDetail}>{this.state.error?.toString()}</Text>
           )}
           <TouchableOpacity style={styles.button} onPress={this.handleReset}>
-            <Text style={styles.buttonText}>尝试通过重启解决</Text>
+            <Text style={styles.buttonText}>{i18n.t('errorBoundary.reset')}</Text>
           </TouchableOpacity>
         </View>
       );

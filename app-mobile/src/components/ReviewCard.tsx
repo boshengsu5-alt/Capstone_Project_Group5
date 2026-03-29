@@ -1,13 +1,15 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  TextInput, ActivityIndicator, Alert,
+  TextInput, ActivityIndicator,
 } from 'react-native';
+import { alertManager } from '../utils/alertManager';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../theme';
 import { getReviewReplies, postReviewReply } from '../services/assetService';
 import type { Review, ReviewReply } from '../../../database/types/supabase';
 import { useTranslation } from 'react-i18next';
+import { getDisplayErrorMessage } from '../utils/errorHandler';
 
 export type ReviewWithMeta = Review & { reviewer_name: string };
 type ReplyWithAuthor = ReviewReply & { author_name: string };
@@ -79,7 +81,7 @@ export default function ReviewCard({ review, currentUserId }: ReviewCardProps) {
       await fetchReplies();
       setExpanded(true);
     } catch (err: unknown) {
-      Alert.alert(t('reviewCard.sendFailed'), err instanceof Error ? err.message : t('reviewCard.tryAgain'));
+      alertManager.alert(t('reviewCard.sendFailed'), getDisplayErrorMessage(err) || t('reviewCard.tryAgain'));
     } finally {
       setSubmitting(false);
     }

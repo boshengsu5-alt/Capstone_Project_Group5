@@ -17,6 +17,8 @@ const STATUS_OPTIONS: { value: 'all' | BookingStatus; label: string }[] = [
     { value: 'pending', label: 'Pending' },
     { value: 'approved', label: 'Approved' },
     { value: 'active', label: 'Active' },
+    { value: 'lost_reported', label: 'Lost Reported' },
+    { value: 'lost', label: 'Lost' },
     { value: 'returned', label: 'Returned' },
     { value: 'overdue', label: 'Overdue' },
     { value: 'rejected', label: 'Rejected' },
@@ -30,7 +32,7 @@ export default function BookingsPage() {
     const [isLoading, setIsLoading] = useState(true);
 
     // 从 URL 查询参数读取初始筛选状态（如 ?status=pending）
-    const validStatuses: (BookingStatus | 'all')[] = ['all', 'pending', 'approved', 'active', 'returned', 'overdue', 'rejected', 'cancelled'];
+    const validStatuses: (BookingStatus | 'all')[] = ['all', 'pending', 'approved', 'active', 'lost_reported', 'lost', 'returned', 'overdue', 'rejected', 'cancelled'];
     const initialStatus = validStatuses.includes(searchParams.get('status') as any)
         ? (searchParams.get('status') as 'all' | BookingStatus)
         : 'all';
@@ -89,6 +91,7 @@ export default function BookingsPage() {
         }
         const statusMap: Record<string, string> = {
             pending: '待审批', approved: '已批准', active: '借出中',
+            lost_reported: '已报失待确认', lost: '已确认丢失',
             returned: '已归还', overdue: '逾期', rejected: '已拒绝', cancelled: '已取消',
         };
         const exportData = filteredBookings.map(b => ({

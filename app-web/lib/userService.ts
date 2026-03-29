@@ -1,7 +1,12 @@
 'use client';
 
 import { supabase } from '@/lib/supabase';
-import type { BookingStatus, CreditScoreLog } from '@/types/database';
+import type { BookingStatus, CreditScoreLog, UserRole } from '@/types/database';
+
+// Hand-written Database types and Supabase client generics do not fully align for
+// updates/RPC calls in this repo. Keep a local alias to preserve runtime behavior.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const db = supabase as any;
 
 export interface UserDetailStats {
   totalBookings: number;
@@ -45,11 +50,11 @@ export function getCreditReasonLabel(reason: string): string {
 
 export async function getUserDetailStats(userId: string): Promise<UserDetailStats> {
   const [bookingsResult, latestCreditResult] = await Promise.all([
-    supabase
+    db
       .from('bookings')
       .select('id, status')
       .eq('borrower_id', userId),
-    supabase
+    db
       .from('credit_score_logs')
       .select('*')
       .eq('user_id', userId)
@@ -70,7 +75,7 @@ export async function getUserDetailStats(userId: string): Promise<UserDetailStat
   const bookingIds = bookings.map((booking) => booking.id);
 
   const { count: damageReports, error: damageError } = bookingIds.length
-    ? await supabase
+    ? await db
         .from('damage_reports')
         .select('id', { count: 'exact', head: true })
         .in('booking_id', bookingIds)
@@ -90,7 +95,7 @@ export async function getUserDetailStats(userId: string): Promise<UserDetailStat
 }
 
 export async function getUserCreditLogs(userId: string): Promise<CreditScoreLog[]> {
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from('credit_score_logs')
     .select('*')
     .eq('user_id', userId)
@@ -101,4 +106,52 @@ export async function getUserCreditLogs(userId: string): Promise<CreditScoreLog[
   }
 
   return data ?? [];
+}
+
+interface UpdateUserProfileInput {
+  userId: string;
+  role: UserRole;
+  creditScore: number;
+  currentRole: UserRole;
+  currentCreditScore: number;
+}
+
+export async function updateUserProfile({
+  userId,
+  role,
+  creditScore,
+  currentRole,
+  currentCreditScore,
+}: UpdateUserProfileInput): Promise<void> {
+  const nextCreditScore = Math.max(0, Math.min(200, Math.round(creditScore)));
+  const creditDelta = nextCreditScore - currentCreditScore;
+
+  if (role !== currentRole) {
+    const { data, error } = await db
+      .from('profiles')
+      .update({ role })
+      .eq('id', userId)
+      .select('id')
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    if (!data) {
+      throw new Error('User role update was blocked. Please verify admin permissions.');
+    }
+  }
+
+  if (creditDelta !== 0) {
+    const { error } = await db.rpc('update_credit_score', {
+      p_user_id: userId,
+      p_delta: creditDelta,
+      p_reason: 'admin_manual',
+    });
+
+    if (error) {
+      throw error;
+    }
+  }
 }

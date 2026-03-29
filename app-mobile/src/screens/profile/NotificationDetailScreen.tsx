@@ -13,20 +13,31 @@ import { RouteProp } from '@react-navigation/native';
 import { ProfileStackParamList } from '../../navigation/ProfileStackNavigator';
 import { theme } from '../../theme';
 import { useTranslation } from 'react-i18next';
-import { getNotificationText, getOverdueNotificationDetails } from '../../utils/notificationText';
+import type { NotificationType } from '../../../../database/types/supabase';
+import {
+  getCompensationNotificationDetails,
+  getNotificationText,
+  getOverdueNotificationDetails,
+} from '../../utils/notificationText';
 
-const TYPE_CONFIG: Record<string, { icon: string; color: string }> = {
+const TYPE_CONFIG: Record<NotificationType, { icon: string; color: string }> = {
   booking_approved: { icon: 'checkmark-circle', color: '#10b981' },
   booking_rejected: { icon: 'close-circle', color: theme.colors.danger },
+  booking_pending: { icon: 'hourglass-outline', color: '#3b82f6' },
+  booking_suspended: { icon: 'pause-circle-outline', color: '#f59e0b' },
+  booking_restored: { icon: 'refresh-circle-outline', color: '#14b8a6' },
+  booking_cancelled: { icon: 'close-circle-outline', color: '#f97316' },
+  return_submitted: { icon: 'checkmark-done-circle-outline', color: '#0ea5e9' },
   return_reminder: { icon: 'time', color: '#f59e0b' },
   overdue_alert: { icon: 'alert-circle', color: theme.colors.danger },
   damage_reported: { icon: 'warning', color: '#f97316' },
+  compensation_update: { icon: 'receipt-outline', color: '#8b5cf6' },
   review_reply: { icon: 'chatbubbles', color: '#8b5cf6' },
   system: { icon: 'information-circle', color: theme.colors.primary },
 };
 
-function formatFullTime(dateStr: string): string {
-  return new Date(dateStr).toLocaleString('zh-CN', {
+function formatFullTime(dateStr: string, language: string): string {
+  return new Date(dateStr).toLocaleString(language?.startsWith('zh') ? 'zh-CN' : 'en-US', {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
@@ -35,19 +46,34 @@ function formatFullTime(dateStr: string): string {
   });
 }
 
+function formatMoney(amount?: number) {
+  if (typeof amount !== 'number' || Number.isNaN(amount)) return '—';
+  return `¥${amount.toLocaleString()}`;
+}
+
 type Props = {
   navigation: NativeStackNavigationProp<ProfileStackParamList, 'NotificationDetail'>;
   route: RouteProp<ProfileStackParamList, 'NotificationDetail'>;
 };
 
 export default function NotificationDetailScreen({ navigation, route }: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { notification } = route.params;
   const config = TYPE_CONFIG[notification.type] ?? TYPE_CONFIG.system;
   const { title, message } = getNotificationText(t, notification);
   const overdueDetails = notification.type === 'overdue_alert'
     ? getOverdueNotificationDetails(notification)
     : null;
+  const compensationDetails = notification.type === 'compensation_update'
+    ? getCompensationNotificationDetails(notification)
+    : null;
+  const compensationStatus = compensationDetails?.status
+    ? (() => {
+        const key = `compensation.status.${compensationDetails.status}`;
+        const label = t(key);
+        return label !== key ? label : compensationDetails.status;
+      })()
+    : '—';
 
   return (
     <SafeAreaView style={styles.container}>
@@ -66,7 +92,7 @@ export default function NotificationDetailScreen({ navigation, route }: Props) {
         <Text style={styles.title}>{title}</Text>
 
         {/* 时间 */}
-        <Text style={styles.time}>{formatFullTime(notification.created_at)}</Text>
+        <Text style={styles.time}>{formatFullTime(notification.created_at, i18n.language)}</Text>
 
         {/* 分割线 */}
         <View style={styles.divider} />
@@ -99,6 +125,82 @@ export default function NotificationDetailScreen({ navigation, route }: Props) {
                     points: overdueDetails.deductedPoints,
                   })}
                 </Text>
+              </View>
+            ) : null}
+          </View>
+        ) : null}
+
+        {compensationDetails ? (
+          <View style={styles.detailCard}>
+            <Text style={styles.detailCardTitle}>{t('notifications.detail.compensationSection')}</Text>
+
+            {compensationDetails.assetName ? (
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>{t('notifications.detail.asset')}</Text>
+                <Text style={styles.detailValue}>{compensationDetails.assetName}</Text>
+              </View>
+            ) : null}
+
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>{t('notifications.detail.caseStatus')}</Text>
+              <Text style={styles.detailValue}>{compensationStatus}</Text>
+            </View>
+
+            {typeof compensationDetails.assessedAmount === 'number' ? (
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>{t('notifications.detail.assessedAmount')}</Text>
+                <Text style={styles.detailValue}>{formatMoney(compensationDetails.assessedAmount)}</Text>
+              </View>
+            ) : null}
+
+            {typeof compensationDetails.agreedAmount === 'number' ? (
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>{t('notifications.detail.agreedAmount')}</Text>
+                <Text style={styles.detailValue}>{formatMoney(compensationDetails.agreedAmount)}</Text>
+              </View>
+            ) : null}
+
+            {typeof compensationDetails.paymentAmount === 'number' ? (
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>{t('notifications.detail.paymentAmount')}</Text>
+                <Text style={[styles.detailValue, { color: theme.colors.primary }]}>
+                  {formatMoney(compensationDetails.paymentAmount)}
+                </Text>
+              </View>
+            ) : null}
+
+            {typeof compensationDetails.paidAmount === 'number' ? (
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>{t('notifications.detail.paidAmount')}</Text>
+                <Text style={[styles.detailValue, { color: theme.colors.success }]}>
+                  {formatMoney(compensationDetails.paidAmount)}
+                </Text>
+              </View>
+            ) : null}
+
+            {typeof compensationDetails.outstandingAmount === 'number' ? (
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>{t('notifications.detail.outstandingAmount')}</Text>
+                <Text style={[
+                  styles.detailValue,
+                  compensationDetails.outstandingAmount > 0 ? styles.detailDanger : styles.detailSuccess,
+                ]}>
+                  {formatMoney(compensationDetails.outstandingAmount)}
+                </Text>
+              </View>
+            ) : null}
+
+            {compensationDetails.dueDate ? (
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>{t('notifications.detail.dueDate')}</Text>
+                <Text style={styles.detailValue}>{formatFullTime(compensationDetails.dueDate, i18n.language)}</Text>
+              </View>
+            ) : null}
+
+            {compensationDetails.paymentReference ? (
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>{t('notifications.detail.paymentReference')}</Text>
+                <Text style={styles.detailValue}>{compensationDetails.paymentReference}</Text>
               </View>
             ) : null}
           </View>
@@ -198,6 +300,9 @@ const styles = StyleSheet.create({
   },
   detailDanger: {
     color: theme.colors.danger,
+  },
+  detailSuccess: {
+    color: theme.colors.success,
   },
   message: {
     fontSize: 15,

@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import type { Database, DamageReport, DamageReportStatus } from '@/types/database';
 import { auditService } from './auditService';
+import { compensationService } from './compensationService';
 
 // ============================================================
 // Booking Service (Web Admin). Web 管理端借用服务
@@ -11,7 +12,7 @@ export type BookingWithDetails = Database['public']['Tables']['bookings']['Row']
     assets: Pick<Database['public']['Tables']['assets']['Row'], 'name' | 'qr_code' | 'images' | 'purchase_date' | 'purchase_price'> | null;
     profiles: Pick<Database['public']['Tables']['profiles']['Row'], 'full_name' | 'student_id'> | null;
     /** 学生端已提交的损坏报告（open/investigating 表示未处理）。 Student-submitted damage reports for this booking. */
-    damage_reports: Array<{ id: string; status: string }> | null;
+    damage_reports: Array<{ id: string; status: string; severity: string }> | null;
 };
 
 /** Damage report with joined asset, reporter, and borrower details. 包含资产、报告者和借用者详情的损坏报告 */
@@ -57,7 +58,56 @@ export function calcOverduePenalty(overdueDays: number): number {
 }
 
 function getSeverityLabel(severity: string): string {
-    return { minor: 'Minor', moderate: 'Moderate', severe: 'Severe' }[severity] ?? severity;
+    return { minor: 'Minor', moderate: 'Moderate', severe: 'Severe', lost: 'Lost' }[severity] ?? severity;
+}
+
+function normalizeBookingLostState<T extends {
+    status: string;
+    rejection_reason?: string | null;
+    damage_reports?: Array<{ status: string; severity: string }> | null;
+    end_date?: string | null;
+    actual_return_date?: string | null;
+}>(booking: T): T {
+    const reports = Array.isArray(booking.damage_reports) ? booking.damage_reports : [];
+    const hasUnresolvedLost = reports.some(
+        (report) => report.severity === 'lost' && (report.status === 'open' || report.status === 'investigating')
+    );
+    const hasResolvedLost = reports.some(
+        (report) => report.severity === 'lost' && report.status === 'resolved'
+    );
+
+    if (hasUnresolvedLost) {
+        return {
+            ...booking,
+            status: 'lost_reported',
+            rejection_reason: 'LOST_REPORTED',
+        };
+    }
+
+    if (hasResolvedLost) {
+        return {
+            ...booking,
+            status: 'lost',
+            rejection_reason: 'LOST_CONFIRMED',
+        };
+    }
+
+    if (booking.status === 'approved' && reports.length > 0) {
+        const resumeStatus =
+            booking.actual_return_date
+                ? 'returned'
+                : booking.end_date && new Date(booking.end_date).getTime() < Date.now()
+                    ? 'overdue'
+                    : 'active';
+
+        return {
+            ...booking,
+            status: resumeStatus,
+            rejection_reason: resumeStatus === 'returned' ? 'VERIFIED' : booking.rejection_reason ?? '',
+        };
+    }
+
+    return booking;
 }
 
 function getMetadataString(metadata: unknown, key: string): string | null {
@@ -146,13 +196,18 @@ export const bookingService = {
      * 获取所有借用记录，包含资产和借用者详情
      */
     async getBookings(): Promise<BookingWithDetails[]> {
+        const { error: suspendedCheckError } = await (supabase as any).rpc('check_suspended_maintenance_bookings');
+        if (suspendedCheckError) {
+            console.warn('Failed to run suspended maintenance booking check:', suspendedCheckError.message);
+        }
+
         const { data, error } = await supabase
             .from('bookings')
             .select(`
                 *,
                 assets ( name, qr_code, images, purchase_date, purchase_price ),
                 profiles!borrower_id ( full_name, student_id ),
-                damage_reports ( id, status )
+                damage_reports ( id, status, severity )
             `)
             .order('created_at', { ascending: false });
 
@@ -161,7 +216,18 @@ export const bookingService = {
             return [];
         }
 
-        return (data as unknown) as BookingWithDetails[];
+        return ((data as unknown) as BookingWithDetails[]).map(normalizeBookingLostState);
+    },
+
+    async getPendingDamageAssetIds(): Promise<string[]> {
+        const { data, error } = await (supabase as any)
+            .from('damage_reports')
+            .select('asset_id')
+            .in('status', ['open', 'investigating']);
+
+        if (error || !data) return [];
+
+        return [...new Set((data as Array<{ asset_id: string | null }>).map((item) => item.asset_id).filter(Boolean) as string[])];
     },
 
     /**
@@ -442,6 +508,10 @@ export const bookingService = {
         const borrowerId = (booking as any).borrower_id;
         const assetId = (booking as any).asset_id;
         const { data: { user } } = await supabase.auth.getUser();
+        if (!user?.id) {
+            console.error('Error creating damage report: missing authenticated admin session');
+            return false;
+        }
 
         // 以 open 状态创建损坏报告，等待管理员在 Damage Reports 页面审核 (open → investigating → resolved)
         const { error: reportError } = await (supabase as any)
@@ -449,14 +519,20 @@ export const bookingService = {
             .insert({
                 booking_id: bookingId,
                 asset_id: assetId,
-                reporter_id: user?.id ?? borrowerId,
+                reporter_id: user.id,
                 description,
                 severity,
                 photo_urls: [],
+                status: 'open',
             });
 
         if (reportError) {
-            console.error('Error creating damage report:', reportError);
+            console.error('Error creating damage report:', {
+                message: reportError.message,
+                details: reportError.details,
+                hint: reportError.hint,
+                code: reportError.code,
+            });
             return false;
         }
 
@@ -465,8 +541,10 @@ export const bookingService = {
         await (supabase as any).from('notifications').insert({
             user_id: borrowerId,
             type: 'damage_reported',
-            title: 'Damage Report Filed — Review Pending',
-            message: `Your borrowed item "${assetName}" was reported as damaged (${getSeverityLabel(severity)}). Credit score adjustment is pending review.`,
+            title: severity === 'lost' ? 'Lost Item Report Filed — Confirmation Pending' : 'Damage Report Filed — Review Pending',
+            message: severity === 'lost'
+                ? `Your borrowed item "${assetName}" has been marked as lost pending confirmation. The normal return flow is temporarily paused until the report is confirmed or revised.`
+                : `Your borrowed item "${assetName}" was reported as damaged (${getSeverityLabel(severity)}). Credit score adjustment is pending review.`,
             metadata: {
                 booking_id: bookingId,
                 asset_id: assetId,
@@ -476,57 +554,36 @@ export const bookingService = {
             },
         });
 
-        // 更新借用状态为 returned，标记已核验 (prevent duplicate damage reports)
-        await (supabase as any)
-            .from('bookings')
-            .update({ status: 'returned', rejection_reason: 'VERIFIED' })
-            .eq('id', bookingId);
-
-        // 资产进入维护状态，同时根据损坏程度更新 condition (minor→fair, moderate→poor, severe→damaged)
-        // lost 时资产状态暂为 maintenance，等管理员确认后在 updateDamageReportStatus 改为 retired
-        const conditionMap: Record<string, string> = { minor: 'fair', moderate: 'poor', severe: 'damaged', lost: 'damaged' };
-        await (supabase as any)
-            .from('assets')
-            .update({ status: 'maintenance', condition: conditionMap[severity] ?? 'poor' })
-            .eq('id', assetId);
-
-        // ── 暂停未来预约（suspended 维修保留）────────────────────────
-        // 找出该设备所有 pending/approved 且 start_date > now 的预约，改为 suspended
-        // rejection_reason 设为 ASSET_MAINTENANCE 以便 restoreMaintenanceBookings 识别
-        const now = new Date().toISOString();
         const { data: futureBookings } = await (supabase as any)
             .from('bookings')
-            .select('id, borrower_id, start_date, assets(name)')
+            .select('id')
             .eq('asset_id', assetId)
             .in('status', ['pending', 'approved'])
-            .gt('start_date', now);
+            .gt('start_date', new Date().toISOString());
 
-        if (futureBookings && futureBookings.length > 0) {
-            const futureIds = futureBookings.map((b: any) => b.id);
+        if (severity === 'lost') {
+            // 可逆的“报失处理中”状态：等待管理员最终确认前，不再显示普通归还流程。
             await (supabase as any)
                 .from('bookings')
-                .update({ status: 'suspended', rejection_reason: 'ASSET_MAINTENANCE' })
-                .in('id', futureIds);
-
-            // 逐条发送暂停通知给受影响用户
-            for (const fb of futureBookings) {
-                await (supabase as any).from('notifications').insert({
-                    user_id: fb.borrower_id,
-                    type: 'booking_suspended',
-                    title: '预约已暂停 — 设备维修中',
-                    message: `您预约的「${(booking as any).assets?.name ?? '设备'}」因归还时发现损坏，已进入维修流程，您的预约（取货日：${new Date(fb.start_date).toLocaleDateString('en-CA')}）已暂时挂起。维修完成重新上架后将自动恢复，您也可以选择直接取消。`,
-                    metadata: { booking_id: fb.id, asset_id: assetId },
-                });
-            }
+                .update({ status: 'lost_reported', rejection_reason: 'LOST_REPORTED' })
+                .eq('id', bookingId)
+                .in('status', ['active', 'overdue', 'returned']);
+        } else {
+            // 普通损坏：该笔借用仍视为已提交归还，等待损坏审核。
+            await (supabase as any)
+                .from('bookings')
+                .update({ status: 'returned', rejection_reason: 'VERIFIED' })
+                .eq('id', bookingId);
         }
-        // ─────────────────────────────────────────────────────────
 
         await auditService.logAction({
             operation_type: 'CREATE',
             resource_type: 'damage_report',
             resource_id: bookingId,
             resource_name: (booking as any).assets?.name,
-            change_description: `Admin reported damage (${severity}). Asset set to maintenance. ${futureBookings?.length ?? 0} future booking(s) suspended. Pending review on Damage Reports page.`,
+            change_description: severity === 'lost'
+                ? `Admin filed a reversible lost-item report. Booking → lost_reported, asset locked from circulation, ${futureBookings?.length ?? 0} future booking(s) paused pending confirmation.`
+                : `Admin reported damage (${severity}). Booking marked as returned for verification, asset locked from circulation, ${futureBookings?.length ?? 0} future booking(s) paused pending review.`,
         });
 
         return true;
@@ -676,8 +733,10 @@ export const bookingService = {
                 await (supabase as any).from('notifications').insert({
                     user_id: (booking as any).borrower_id,
                     type: 'damage_reported',
-                    title: 'Damage Review Started',
-                    message: `The damage report for "${assetName}" is now under investigation. We will notify you once the review is completed.`,
+                    title: severity === 'lost' ? 'Lost-Item Confirmation In Progress' : 'Damage Review Started',
+                    message: severity === 'lost'
+                        ? `The lost-item report for "${assetName}" is now being verified. If the device is found before final confirmation, the normal return flow can still be restored.`
+                        : `The damage report for "${assetName}" is now under investigation. We will notify you once the review is completed.`,
                     metadata: {
                         booking_id: (report as any).booking_id,
                         asset_id: (report as any).asset_id,
@@ -701,8 +760,10 @@ export const bookingService = {
                 await (supabase as any).from('notifications').insert({
                     user_id: (booking as any).borrower_id,
                     type: 'damage_reported',
-                    title: 'Damage Report Dismissed',
-                    message: `The damage report for "${assetName}" has been dismissed. No credit deduction or compensation will be applied.`,
+                    title: severity === 'lost' ? 'Lost Report Cancelled — Return Flow Restored' : 'Damage Report Dismissed',
+                    message: severity === 'lost'
+                        ? `The lost-item report for "${assetName}" has been cancelled. No loss will be recorded, and the normal return / damage flow is available again.`
+                        : `The damage report for "${assetName}" has been dismissed. No credit deduction or compensation will be applied.`,
                     metadata: {
                         booking_id: (report as any).booking_id,
                         asset_id: (report as any).asset_id,
@@ -794,11 +855,61 @@ export const bookingService = {
                     }
                 }
 
-                // 确认丢失 → 资产标记为 retired（不可再借）
+                // 管理员 resolve 时，按最终确认的 severity 更新资产 condition
+                const resolvedConditionMap: Record<string, string> = {
+                    minor: 'fair',
+                    moderate: 'poor',
+                    severe: 'damaged',
+                    lost: 'damaged',
+                };
+                const newCondition = resolvedConditionMap[severity] ?? 'poor';
+
                 if (severity === 'lost') {
+                    // 确认丢失 → 资产标记为 retired（不可再借）
                     await (supabase as any)
                         .from('assets')
-                        .update({ status: 'retired', condition: 'damaged' })
+                        .update({ status: 'retired', condition: newCondition })
+                        .eq('id', (report as any).asset_id);
+
+                    await (supabase as any)
+                        .from('bookings')
+                        .update({ status: 'lost', rejection_reason: 'LOST_CONFIRMED' })
+                        .eq('id', (report as any).booking_id);
+
+                    const { data: suspendedBookings } = await (supabase as any)
+                        .from('bookings')
+                        .select('id, borrower_id, start_date')
+                        .eq('asset_id', (report as any).asset_id)
+                        .eq('status', 'suspended')
+                        .eq('rejection_reason', 'ASSET_MAINTENANCE');
+
+                    if (suspendedBookings?.length) {
+                        const suspendedIds = suspendedBookings.map((item: any) => item.id);
+
+                        await (supabase as any)
+                            .from('bookings')
+                            .update({ status: 'cancelled', rejection_reason: 'ASSET_LOST_CONFIRMED' })
+                            .in('id', suspendedIds);
+
+                        for (const suspendedBooking of suspendedBookings) {
+                            await (supabase as any).from('notifications').insert({
+                                user_id: suspendedBooking.borrower_id,
+                                type: 'booking_cancelled',
+                                title: '预约已取消',
+                                message: `您预约的「${(booking as any).assets?.name ?? '设备'}」已被最终确认丢失，相关预约无法恢复，系统已自动取消本次预约。`,
+                                metadata: {
+                                    booking_id: suspendedBooking.id,
+                                    asset_id: (report as any).asset_id,
+                                    reason: 'ASSET_LOST_CONFIRMED',
+                                },
+                            });
+                        }
+                    }
+                } else {
+                    // 非丢失：更新品相，状态保持 maintenance（管理员修复后再从 Assets 页重新上架）
+                    await (supabase as any)
+                        .from('assets')
+                        .update({ condition: newCondition })
                         .eq('id', (report as any).asset_id);
                 }
 
@@ -811,7 +922,7 @@ export const bookingService = {
                 await (supabase as any).from('notifications').insert({
                     user_id: borrowerId,
                     type: 'damage_reported',
-                    title: severity === 'lost' ? '设备丢失已确认 — 请处理赔偿' : 'Damage Review Result — Credit Updated',
+                    title: severity === 'lost' ? 'Lost Item Confirmed — Compensation Required' : 'Damage Review Result — Credit Updated',
                     message: `Damage to "${assetName}" has been confirmed as ${getSeverityLabel(severity)}. ${creditMsg}${compensation != null ? ` Compensation due: ¥${compensation.toLocaleString()}.` : ''}`,
                     metadata: {
                         booking_id: (report as any).booking_id,
@@ -828,6 +939,8 @@ export const bookingService = {
                 });
             }
         }
+
+        await compensationService.syncCaseFromDamageReport(id);
 
         // ── 审计日志：记录损坏报告每次状态变更 ──────────────────────
         const { data: assetData } = await (supabase as any)
