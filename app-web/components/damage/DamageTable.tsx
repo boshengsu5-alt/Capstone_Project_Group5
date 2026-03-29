@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { formatDate, formatDateTime, formatDateTimeRange, formatTime } from '@/lib/dateTime';
 import { ChevronDown, ChevronRight, X, AlertTriangle } from 'lucide-react';
 import type { DamageReportWithDetails } from '@/lib/bookingService';
+import { useLanguage } from '@/components/providers/LanguageProvider';
 
 interface DamageTableProps {
     reports: DamageReportWithDetails[];
@@ -431,6 +432,8 @@ function UpdateModal({ report, onSave, onClose }: UpdateModalProps) {
 // ============================================================
 
 function ExpandedDetail({ report }: { report: DamageReportWithDetails }) {
+    const { t } = useLanguage();
+
     const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
     const compensation = estimateCompensation(report);
 
@@ -474,15 +477,15 @@ function ExpandedDetail({ report }: { report: DamageReportWithDetails }) {
 
             <div className="grid gap-3 md:grid-cols-3">
                 <div className="rounded-xl border border-white/5 bg-white/5 px-4 py-3">
-                    <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Booking Period</h4>
+                    <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">{t('damageDetails.bookingPeriod')}</h4>
                     <p className="text-sm text-gray-200 leading-relaxed">{bookingPeriod}</p>
                 </div>
                 <div className="rounded-xl border border-white/5 bg-white/5 px-4 py-3">
-                    <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Reported At</h4>
+                    <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">{t('damageDetails.reportedAt')}</h4>
                     <p className="text-sm text-gray-200">{formatDateTime(report.created_at)}</p>
                 </div>
                 <div className="rounded-xl border border-white/5 bg-white/5 px-4 py-3">
-                    <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Actual Return</h4>
+                    <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">{t('damageDetails.actualReturn')}</h4>
                     <p className="text-sm text-gray-200">{formatDateTime(report.bookings?.actual_return_date ?? null)}</p>
                 </div>
             </div>
@@ -490,12 +493,12 @@ function ExpandedDetail({ report }: { report: DamageReportWithDetails }) {
             {/* 取货 / 归还照片对比（来自借用记录） */}
             {hasBookingPhotos && (
                 <div>
-                    <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Booking Photos — Pickup vs Return</h4>
+                    <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">{t('damageDetails.bookingPhotos')}</h4>
                     <div className="grid grid-cols-2 gap-3 max-w-md">
                         <div>
                             <p className="text-xs text-blue-400 mb-1 flex items-center gap-1">
                                 <span className="w-1.5 h-1.5 rounded-full bg-blue-400 inline-block" />
-                                Pickup / Original
+                                {t('damageDetails.pickupPhoto')}
                             </p>
                             {pickupPhoto ? (
                                 <img
@@ -506,14 +509,14 @@ function ExpandedDetail({ report }: { report: DamageReportWithDetails }) {
                                 />
                             ) : (
                                 <div className="w-full aspect-[4/3] rounded-lg border border-dashed border-white/10 flex items-center justify-center">
-                                    <span className="text-xs text-gray-600">No pickup photo</span>
+                                    <span className="text-xs text-gray-600">{t('damageDetails.noPickupPhoto')}</span>
                                 </div>
                             )}
                         </div>
                         <div>
                             <p className="text-xs text-amber-400 mb-1 flex items-center gap-1">
                                 <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" />
-                                Return Photo
+                                {t('damageDetails.returnPhoto')}
                             </p>
                             {returnPhoto ? (
                                 <img
@@ -524,7 +527,7 @@ function ExpandedDetail({ report }: { report: DamageReportWithDetails }) {
                                 />
                             ) : (
                                 <div className="w-full aspect-[4/3] rounded-lg border border-dashed border-white/10 flex items-center justify-center">
-                                    <span className="text-xs text-gray-600">No return photo</span>
+                                    <span className="text-xs text-gray-600">{t('damageDetails.noReturnPhoto')}</span>
                                 </div>
                             )}
                         </div>
@@ -535,7 +538,7 @@ function ExpandedDetail({ report }: { report: DamageReportWithDetails }) {
             {/* 损坏照片（学生额外上传的证据） */}
             {report.photo_urls && report.photo_urls.length > 0 && (
                 <div>
-                    <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Damage Photos</h4>
+                    <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">{t('damageDetails.damagePhotos')}</h4>
                     <div className="flex gap-3 flex-wrap">
                         {report.photo_urls.map((url, i) => (
                             <img
@@ -552,14 +555,14 @@ function ExpandedDetail({ report }: { report: DamageReportWithDetails }) {
 
             {/* 完整描述 */}
             <div>
-                <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Full Description</h4>
+                <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">{t('damageDetails.fullDescription')}</h4>
                 <p className="text-sm text-gray-300 whitespace-pre-wrap">{report.description || '—'}</p>
             </div>
 
             {/* 赔偿估算 */}
             {report.assets?.purchase_price != null && (
                 <div>
-                    <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Compensation Estimate</h4>
+                    <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">{t('damageDetails.compEstimate')}</h4>
                     <p className="text-sm text-gray-300">
                         {(() => {
                             const p = report.assets!.purchase_price!;
@@ -582,7 +585,7 @@ function ExpandedDetail({ report }: { report: DamageReportWithDetails }) {
             {/* 处理备注 */}
             {report.resolution_notes && (
                 <div>
-                    <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Resolution Notes</h4>
+                    <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">{t('damageDetails.resNotes')}</h4>
                     <p className="text-sm text-gray-300 whitespace-pre-wrap">{report.resolution_notes}</p>
                 </div>
             )}
@@ -606,6 +609,8 @@ function ExpandedDetail({ report }: { report: DamageReportWithDetails }) {
  * 损坏报告管理表格，支持行展开和弹窗处理
  */
 export default function DamageTable({ reports, onUpdateStatus }: DamageTableProps) {
+    const { t } = useLanguage();
+    
     const [expandedId, setExpandedId] = useState<string | null>(null);
     const [modalReport, setModalReport] = useState<DamageReportWithDetails | null>(null);
 
@@ -631,13 +636,13 @@ export default function DamageTable({ reports, onUpdateStatus }: DamageTableProp
                         <thead className="bg-white/5">
                             <tr>
                                 <th className="w-8 py-4 pl-4" />
-                                <th className="py-4 pr-3 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Asset</th>
-                                <th className="px-3 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Borrower</th>
-                                <th className="px-3 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Severity</th>
-                                <th className="px-3 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Condition</th>
-                                <th className="px-3 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Est. Comp.</th>
-                                <th className="px-3 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Status</th>
-                                <th className="px-3 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Date</th>
+                                <th className="py-4 pr-3 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">{t('tables.asset')}</th>
+                                <th className="px-3 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">{t('tables.borrower')}</th>
+                                <th className="px-3 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">{t('tables.severity')}</th>
+                                <th className="px-3 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">{t('tables.condition')}</th>
+                                <th className="px-3 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">{t('tables.estComp')}</th>
+                                <th className="px-3 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">{t('tables.status')}</th>
+                                <th className="px-3 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">{t('tables.date')}</th>
                                 <th className="relative py-4 pl-3 pr-6">
                                     <span className="sr-only">Actions</span>
                                 </th>

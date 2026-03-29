@@ -330,10 +330,10 @@ function UpdateModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
       <div
-        className="relative z-10 w-full max-w-2xl overflow-hidden rounded-3xl border border-white/10 bg-[#111111] shadow-2xl shadow-black/60"
+        className="relative z-10 flex w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-white/10 bg-[#111111] shadow-2xl shadow-black/60 max-h-[90vh]"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="flex items-start justify-between border-b border-white/5 px-6 py-5">
+        <div className="flex shrink-0 items-start justify-between border-b border-white/5 px-6 py-5">
           <div>
             <p className="text-xs uppercase tracking-[0.24em] text-violet-300">Compensation Workflow</p>
             <h3 className="mt-2 text-2xl font-bold text-white">{item.assets?.name ?? 'Unknown Asset'}</h3>
@@ -346,7 +346,7 @@ function UpdateModal({
           </button>
         </div>
 
-        <div className="grid gap-5 px-6 py-5 lg:grid-cols-[1.1fr_0.9fr]">
+        <div className="grid gap-5 overflow-y-auto px-6 py-5 lg:grid-cols-[1.1fr_0.9fr]">
           <div className="space-y-5">
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="space-y-2">
@@ -484,7 +484,7 @@ function UpdateModal({
           </div>
         </div>
 
-        <div className="flex items-center justify-between gap-4 border-t border-white/5 px-6 py-5">
+        <div className="flex shrink-0 items-center justify-between gap-4 border-t border-white/5 px-6 py-5">
           <p className="text-sm text-gray-500">
             Saving will update the debt status, refresh the payment progress, and notify the student.
           </p>
