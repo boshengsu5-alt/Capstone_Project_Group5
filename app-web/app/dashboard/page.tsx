@@ -99,7 +99,20 @@ export default function DashboardPage() {
     return acc;
   }, []);
 
-  const PIE_COLORS = ['#8884d8', '#f6ad55', '#4fd1c5', '#f687b3'];
+  // 10 distinct colors — covers all 10 current categories with no repeats.
+  // Data audit: 7 categories currently have assets; 4 more exist. Future-proofed.
+  const PIE_COLORS = [
+    '#8884d8', // purple   — Electronics
+    '#f6ad55', // amber    — Audio & Sound
+    '#4fd1c5', // teal     — Drones
+    '#f687b3', // pink     — Cameras & Media
+    '#68d391', // green    — Lab Equipment
+    '#63b3ed', // blue     — Sports & Fitness
+    '#fc8181', // coral    — Keys & Access
+    '#b794f4', // lavender — Books & Materials
+    '#fbd38d', // yellow   — Furniture
+    '#76e4f7', // cyan     — Other
+  ];
 
   // 2. Line/Area Chart Data: Growth Trend
   const processGrowthData = () => {

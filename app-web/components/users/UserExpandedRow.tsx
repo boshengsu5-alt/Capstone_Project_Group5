@@ -1,7 +1,7 @@
 'use client';
 
 import type { ComponentType } from 'react';
-import { AlertTriangle, ArrowUpRight, BookCopy, Building2, CalendarDays, GraduationCap, Mail, Phone, ShieldAlert, Sparkles, Star } from 'lucide-react';
+import { AlertTriangle, ArrowUpRight, BookCopy, Building2, CalendarDays, GraduationCap, Mail, Phone, ShieldAlert, Sparkles, Star, UserCog } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getCreditReasonLabel, type UserDetailStats } from '@/lib/userService';
 import type { Profile } from '@/types/database';
@@ -15,6 +15,7 @@ interface UserExpandedRowProps {
   error?: string;
   onRetry: () => void;
   onOpenCreditHistory: () => void;
+  onEditUser: () => void;
 }
 
 function getCreditTone(score: number) {
@@ -116,6 +117,7 @@ export default function UserExpandedRow({
   error,
   onRetry,
   onOpenCreditHistory,
+  onEditUser,
 }: UserExpandedRowProps) {
   const { t, locale } = useLanguage();
   const tone = getCreditTone(user.credit_score);
@@ -184,15 +186,26 @@ export default function UserExpandedRow({
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={onOpenCreditHistory}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-slate-900 shadow-lg shadow-black/10 transition hover:-translate-y-0.5 hover:bg-slate-100"
-            >
-              <Star className="h-4 w-4 text-amber-500" />
-              {t('users.viewCreditHistory')}
-              <ArrowUpRight className="h-4 w-4" />
-            </button>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <button
+                type="button"
+                onClick={onOpenCreditHistory}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-slate-900 shadow-lg shadow-black/10 transition hover:-translate-y-0.5 hover:bg-slate-100"
+              >
+                <Star className="h-4 w-4 text-amber-500" />
+                {t('users.viewCreditHistory')}
+                <ArrowUpRight className="h-4 w-4" />
+              </button>
+              
+              <button
+                type="button"
+                onClick={onEditUser}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-indigo-500/20 px-4 py-3 text-sm font-semibold text-indigo-100 ring-1 ring-inset ring-indigo-500/30 shadow-lg shadow-black/10 transition hover:-translate-y-0.5 hover:bg-indigo-500/30"
+              >
+                <UserCog className="h-4 w-4 text-indigo-300" />
+                Edit Profile
+              </button>
+            </div>
           </div>
 
           <div className="mt-8 grid gap-5 md:grid-cols-[1fr_auto] md:items-end">

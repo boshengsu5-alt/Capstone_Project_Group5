@@ -14,6 +14,7 @@ import UserCreditHistoryModal from '@/components/users/UserCreditHistoryModal';
 import { useLanguage } from '@/components/providers/LanguageProvider';
 import { getIntlLocale, getRoleLabel } from '@/lib/i18n';
 import Header from '@/components/layout/Header';
+import UserEditModal from '@/components/ui/UserEditModal';
 
 export default function UsersPage() {
   const { t, locale } = useLanguage();
@@ -29,6 +30,7 @@ export default function UsersPage() {
   const [detailLoadingMap, setDetailLoadingMap] = useState<Record<string, boolean>>({});
   const [detailErrorMap, setDetailErrorMap] = useState<Record<string, string>>({});
   const [creditHistoryUser, setCreditHistoryUser] = useState<Profile | null>(null);
+  const [editUser, setEditUser] = useState<Profile | null>(null);
 
   useEffect(() => {
     if (!authLoading && !canManageUsers) {
@@ -312,6 +314,7 @@ export default function UsersPage() {
                                   error={detailErrorMap[user.id]}
                                   onRetry={() => void loadDetailForUser(user.id, true)}
                                   onOpenCreditHistory={() => setCreditHistoryUser(user)}
+                                  onEditUser={() => setEditUser(user)}
                                 />
                               </td>
                             </tr>
@@ -331,6 +334,18 @@ export default function UsersPage() {
           isOpen={Boolean(creditHistoryUser)}
           onClose={() => setCreditHistoryUser(null)}
         />
+
+        {editUser && (
+          <UserEditModal
+            user={editUser}
+            isOpen={true}
+            onClose={() => setEditUser(null)}
+            onSuccess={() => {
+              void loadUsers();
+              void loadDetailForUser(editUser.id, true);
+            }}
+          />
+        )}
       </main>
     </div>
   );
