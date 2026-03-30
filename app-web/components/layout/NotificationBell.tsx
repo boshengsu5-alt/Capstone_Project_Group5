@@ -8,48 +8,30 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import type { Notification, NotificationType } from '@/types/database';
+import { formatRelativeTime } from '@/lib/i18n';
+import { useLanguage } from '@/components/providers/LanguageProvider';
 
-// Hand-written Database types and Supabase client generics do not fully align for
-// update/select helpers in this repo. Use a local alias to avoid noisy false positives.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase as any;
 
-// ============================================================
-// Icon + color config per notification type. 各通知类型图标配色
-// ============================================================
-
 const TYPE_CONFIG: Record<NotificationType, { icon: React.ElementType; color: string; bg: string; route: string }> = {
-  booking_pending:  { icon: Package,      color: 'text-indigo-400',  bg: 'bg-indigo-500/10',  route: '/dashboard/bookings' },
+  booking_pending:  { icon: Package, color: 'text-indigo-400', bg: 'bg-indigo-500/10', route: '/dashboard/bookings' },
   booking_approved: { icon: CheckCircle2, color: 'text-emerald-400', bg: 'bg-emerald-500/10', route: '/dashboard/bookings' },
-  booking_rejected: { icon: XCircle,      color: 'text-rose-400',    bg: 'bg-rose-500/10',    route: '/dashboard/bookings' },
-  booking_suspended:{ icon: PauseCircle,  color: 'text-amber-400',   bg: 'bg-amber-500/10',   route: '/dashboard/bookings' },
-  booking_restored: { icon: RotateCcw,    color: 'text-sky-400',     bg: 'bg-sky-500/10',     route: '/dashboard/bookings' },
-  booking_cancelled:{ icon: XCircle,      color: 'text-rose-400',    bg: 'bg-rose-500/10',    route: '/dashboard/bookings' },
-  return_submitted: { icon: RotateCcw,    color: 'text-sky-400',     bg: 'bg-sky-500/10',     route: '/dashboard/returns'  },
-  return_reminder:  { icon: Clock,        color: 'text-amber-400',   bg: 'bg-amber-500/10',   route: '/dashboard/returns'  },
-  overdue_alert:    { icon: Clock,        color: 'text-rose-400',    bg: 'bg-rose-500/10',    route: '/dashboard/bookings' },
-  damage_reported:  { icon: AlertTriangle,color: 'text-orange-400',  bg: 'bg-orange-500/10',  route: '/dashboard/damage'   },
+  booking_rejected: { icon: XCircle, color: 'text-rose-400', bg: 'bg-rose-500/10', route: '/dashboard/bookings' },
+  booking_suspended:{ icon: PauseCircle, color: 'text-amber-400', bg: 'bg-amber-500/10', route: '/dashboard/bookings' },
+  booking_restored: { icon: RotateCcw, color: 'text-sky-400', bg: 'bg-sky-500/10', route: '/dashboard/bookings' },
+  booking_cancelled:{ icon: XCircle, color: 'text-rose-400', bg: 'bg-rose-500/10', route: '/dashboard/bookings' },
+  return_submitted: { icon: RotateCcw, color: 'text-sky-400', bg: 'bg-sky-500/10', route: '/dashboard/returns' },
+  return_reminder:  { icon: Clock, color: 'text-amber-400', bg: 'bg-amber-500/10', route: '/dashboard/returns' },
+  overdue_alert:    { icon: Clock, color: 'text-rose-400', bg: 'bg-rose-500/10', route: '/dashboard/bookings' },
+  damage_reported:  { icon: AlertTriangle, color: 'text-orange-400', bg: 'bg-orange-500/10', route: '/dashboard/damage' },
   compensation_update: { icon: BadgeDollarSign, color: 'text-amber-300', bg: 'bg-amber-500/10', route: '/dashboard/compensation' },
-  review_reply:     { icon: Star,         color: 'text-yellow-400',  bg: 'bg-yellow-500/10',  route: '/dashboard/bookings' },
-  system:           { icon: Bell,         color: 'text-gray-400',    bg: 'bg-gray-700',        route: ''                    },
+  review_reply:     { icon: Star, color: 'text-yellow-400', bg: 'bg-yellow-500/10', route: '/dashboard/bookings' },
+  system:           { icon: Bell, color: 'text-gray-400', bg: 'bg-gray-700', route: '' },
 };
 
-function timeAgo(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  const mins  = Math.floor(diff / 60000);
-  const hours = Math.floor(diff / 3600000);
-  const days  = Math.floor(diff / 86400000);
-  if (mins  <  1) return 'Just now';
-  if (mins  < 60) return `${mins}m ago`;
-  if (hours < 24) return `${hours}h ago`;
-  return `${days}d ago`;
-}
-
-// ============================================================
-// Component. 组件
-// ============================================================
-
 export default function NotificationBell() {
+  const { t, locale } = useLanguage();
   const router = useRouter();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isOpen, setIsOpen] = useState(false);
@@ -58,7 +40,6 @@ export default function NotificationBell() {
 
   const unreadCount = notifications.filter((n) => !n.is_read).length;
 
-  // ── Fetch notifications ───────────────────────────────────
   const fetchNotifications = async (uid: string) => {
     const { data } = await db
       .from('notifications')
@@ -69,7 +50,6 @@ export default function NotificationBell() {
     if (data) setNotifications(data as Notification[]);
   };
 
-  // ── Init: get user, load data, subscribe realtime ─────────
   useEffect(() => {
     let channel: ReturnType<typeof supabase.channel> | null = null;
 
@@ -78,7 +58,6 @@ export default function NotificationBell() {
       setUserId(user.id);
       fetchNotifications(user.id);
 
-      // Real-time: insert new notifications for this user
       channel = supabase
         .channel(`notif-${user.id}`)
         .on('postgres_changes', {
@@ -97,7 +76,6 @@ export default function NotificationBell() {
     };
   }, []);
 
-  // ── Close dropdown on outside click ──────────────────────
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
@@ -108,7 +86,6 @@ export default function NotificationBell() {
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
-  // ── Mark single notification as read + navigate ───────────
   const handleClick = async (n: Notification) => {
     if (!n.is_read) {
       await db
@@ -126,7 +103,6 @@ export default function NotificationBell() {
     }
   };
 
-  // ── Mark all as read ──────────────────────────────────────
   const markAllRead = async () => {
     if (!userId || unreadCount === 0) return;
     await db
@@ -139,44 +115,40 @@ export default function NotificationBell() {
 
   return (
     <div className="relative" ref={dropdownRef}>
-      {/* Bell button */}
       <button
         type="button"
         onClick={() => setIsOpen((v) => !v)}
-        className="-m-2.5 p-2.5 text-gray-400 hover:text-purple-300 transition-colors relative"
-        aria-label="View notifications"
+        className="relative rounded-2xl border border-white/10 bg-white/[0.03] p-3 text-gray-300 transition hover:bg-white/[0.06] hover:text-white"
+        aria-label={t('notificationBell.ariaLabel')}
       >
         <Bell className="h-5 w-5" />
         {unreadCount > 0 && (
-          <span className="absolute top-1.5 right-1.5 h-4 w-4 flex items-center justify-center rounded-full bg-rose-500 text-[9px] font-bold text-white leading-none">
+          <span className="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[9px] font-bold leading-none text-white">
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
       </button>
 
-      {/* Dropdown */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 bg-gray-900 border border-white/10 rounded-2xl shadow-2xl shadow-black/60 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
-          {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-white/5">
-            <span className="text-sm font-bold text-white">Notifications</span>
+        <div className="dashboard-panel-strong absolute right-0 z-50 mt-3 w-80 overflow-hidden rounded-[28px] animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="flex items-center justify-between border-b border-white/6 px-4 py-4">
+            <span className="text-sm font-bold text-white">{t('notificationBell.title')}</span>
             {unreadCount > 0 && (
               <button
                 onClick={markAllRead}
-                className="flex items-center gap-1 text-xs text-purple-400 hover:text-purple-300 transition-colors"
+                className="flex items-center gap-1 text-xs text-amber-300 transition-colors hover:text-amber-200"
               >
                 <CheckCheck size={12} />
-                Mark all read
+                {t('notificationBell.markAllRead')}
               </button>
             )}
           </div>
 
-          {/* List */}
           <div className="max-h-96 overflow-y-auto divide-y divide-white/[0.04]">
             {notifications.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-10 gap-3 text-gray-500">
+              <div className="flex flex-col items-center justify-center gap-3 py-10 text-[color:var(--dashboard-text-muted)]">
                 <Inbox size={32} className="opacity-40" />
-                <p className="text-sm">No notifications yet</p>
+                <p className="text-sm">{t('notificationBell.empty')}</p>
               </div>
             ) : (
               notifications.map((n) => {
@@ -186,24 +158,24 @@ export default function NotificationBell() {
                   <button
                     key={n.id}
                     onClick={() => handleClick(n)}
-                    className={`w-full flex items-start gap-3 px-4 py-3 text-left hover:bg-white/[0.04] transition-colors ${!n.is_read ? 'bg-purple-500/[0.04]' : ''}`}
+                    className={`flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-white/[0.04] ${!n.is_read ? 'bg-amber-500/[0.04]' : ''}`}
                   >
-                    <div className={`mt-0.5 flex-shrink-0 p-1.5 rounded-lg ${cfg.bg}`}>
+                    <div className={`mt-0.5 flex-shrink-0 rounded-lg p-1.5 ${cfg.bg}`}>
                       <Icon size={14} className={cfg.color} />
                     </div>
-                    <div className="flex-1 min-w-0">
+                    <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-2">
-                        <p className={`text-xs font-semibold truncate ${n.is_read ? 'text-gray-400' : 'text-white'}`}>
+                        <p className={`truncate text-xs font-semibold ${n.is_read ? 'text-gray-400' : 'text-white'}`}>
                           {n.title}
                         </p>
                         {!n.is_read && (
-                          <span className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-purple-400" />
+                          <span className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-amber-300" />
                         )}
                       </div>
-                      <p className="text-xs text-gray-500 mt-0.5 line-clamp-2 leading-relaxed">
+                      <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-gray-500">
                         {n.message}
                       </p>
-                      <p className="text-[10px] text-gray-600 mt-1">{timeAgo(n.created_at)}</p>
+                      <p className="mt-1 text-[10px] text-gray-600">{formatRelativeTime(n.created_at, locale)}</p>
                     </div>
                   </button>
                 );

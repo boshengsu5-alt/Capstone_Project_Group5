@@ -6,6 +6,7 @@ import CompensationTable from '@/components/compensation/CompensationTable';
 import { compensationService, type CompensationCaseWithDetails, type UpdateCompensationCaseInput } from '@/lib/compensationService';
 import { getOutstandingAmount } from '@/lib/compensation';
 import { useToast } from '@/components/ui/Toast';
+import { useLanguage } from '@/components/providers/LanguageProvider';
 
 type CompensationCategory = 'all' | 'open' | 'outstanding' | 'paid';
 
@@ -18,6 +19,7 @@ function normalizeNumber(value: number): string {
 }
 
 export default function CompensationPage() {
+  const { t } = useLanguage();
   const { showToast } = useToast();
   const [cases, setCases] = useState<CompensationCaseWithDetails[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -31,7 +33,7 @@ export default function CompensationPage() {
       setCases(data);
     } catch (error) {
       console.error('Failed to load compensation cases:', error);
-      showToast('Failed to load compensation cases.', 'error');
+      showToast(t('compensationPage.loadFailed'), 'error');
     } finally {
       setIsLoading(false);
     }
@@ -120,78 +122,78 @@ export default function CompensationPage() {
   const activeCategoryLabel = useMemo(() => {
     switch (activeCategory) {
       case 'open':
-        return 'Open Cases';
+        return t('compensationPage.openCases');
       case 'outstanding':
-        return 'Outstanding';
+        return t('compensationPage.outstanding');
       case 'paid':
-        return 'Recorded Paid';
+        return t('compensationPage.recordedPaid');
       case 'all':
       default:
-        return 'Total Cases';
+        return t('compensationPage.totalCases');
     }
-  }, [activeCategory]);
+  }, [activeCategory, t]);
 
   const handleUpdateCase = async (input: UpdateCompensationCaseInput) => {
     const success = await compensationService.updateCompensationCase(input);
     if (!success) {
-      showToast('Failed to update compensation case.', 'error');
+      showToast(t('compensationPage.updateFailed'), 'error');
       return;
     }
 
-    showToast('Compensation case updated.', 'success');
+    showToast(t('compensationPage.updateSuccess'), 'success');
     await loadCases();
   };
 
-  const summaryCards: Array<{
+  const summaryCards = useMemo<Array<{
     key: CompensationCategory;
     title: string;
     value: string | number;
     hint: string;
     baseClassName: string;
     activeClassName: string;
-  }> = [
+  }>>(() => [
     {
       key: 'all',
-      title: 'Total Cases',
+      title: t('compensationPage.totalCases'),
       value: totals.totalCases,
-      hint: 'View every compensation case',
+      hint: t('compensationPage.hintAll'),
       baseClassName: 'border-white/5 bg-white/[0.03]',
       activeClassName: 'border-violet-400/40 bg-violet-500/12 shadow-[0_0_0_1px_rgba(167,139,250,0.2)]',
     },
     {
       key: 'open',
-      title: 'Open Cases',
+      title: t('compensationPage.openCases'),
       value: totals.openCases,
-      hint: 'Cases still in progress',
+      hint: t('compensationPage.hintOpen'),
       baseClassName: 'border-sky-500/15 bg-sky-500/5',
       activeClassName: 'border-sky-400/40 bg-sky-500/12 shadow-[0_0_0_1px_rgba(56,189,248,0.2)]',
     },
     {
       key: 'outstanding',
-      title: 'Outstanding',
+      title: t('compensationPage.outstanding'),
       value: `¥${totals.totalOutstanding.toLocaleString()}`,
-      hint: 'Cases with unpaid balance',
+      hint: t('compensationPage.hintOutstanding'),
       baseClassName: 'border-rose-500/15 bg-rose-500/5',
       activeClassName: 'border-rose-400/40 bg-rose-500/12 shadow-[0_0_0_1px_rgba(251,113,133,0.18)]',
     },
     {
       key: 'paid',
-      title: 'Recorded Paid',
+      title: t('compensationPage.recordedPaid'),
       value: `¥${totals.totalPaid.toLocaleString()}`,
-      hint: 'Cases with payment records',
+      hint: t('compensationPage.hintPaid'),
       baseClassName: 'border-emerald-500/15 bg-emerald-500/5',
       activeClassName: 'border-emerald-400/40 bg-emerald-500/12 shadow-[0_0_0_1px_rgba(52,211,153,0.18)]',
     },
-  ];
+  ], [t, totals]);
 
   const emptyState = searchQuery
     ? {
-        title: 'No matching compensation cases',
-        message: `No results were found for "${searchQuery}" in ${activeCategoryLabel}. Try another student, asset, or amount keyword.`,
+        title: t('compensationPage.noMatchingTitle'),
+        message: t('compensationPage.noMatchingMessage', { query: searchQuery, category: activeCategoryLabel }),
       }
     : {
-        title: `No cases in ${activeCategoryLabel}`,
-        message: 'Try another category, or refresh after new compensation cases are created from damage reports.',
+        title: t('compensationPage.noCasesTitle', { category: activeCategoryLabel }),
+        message: t('compensationPage.noCasesMessage'),
       };
 
   return (
@@ -204,13 +206,12 @@ export default function CompensationPage() {
                 <BadgeDollarSign className="h-5 w-5 text-amber-300" />
               </div>
               <div>
-                <p className="text-xs uppercase tracking-[0.3em] text-amber-300">Compensation Center</p>
-                <h1 className="mt-1 text-3xl font-bold tracking-tight text-white">Claims, Payments, and Settlement Status</h1>
+                <p className="text-xs uppercase tracking-[0.3em] text-amber-300">{t('compensationPage.eyebrow')}</p>
+                <h1 className="mt-1 text-3xl font-bold tracking-tight text-white">{t('compensationPage.title')}</h1>
               </div>
             </div>
             <p className="max-w-3xl text-sm leading-6 text-gray-400">
-              Manage all student compensation cases created from damage reports. Track the assessed amount, the signed amount,
-              payment progress, and the exact handoff instructions the student sees on mobile.
+              {t('compensationPage.subtitle')}
             </p>
           </div>
 
@@ -220,7 +221,7 @@ export default function CompensationPage() {
             className="inline-flex items-center gap-2 self-start rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold text-gray-200 transition hover:bg-white/[0.07] disabled:opacity-50"
           >
             <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-            Refresh
+            {t('compensationPage.refresh')}
           </button>
         </div>
 
@@ -246,7 +247,7 @@ export default function CompensationPage() {
                   </div>
                   {isActive ? (
                     <span className="rounded-full border border-white/10 bg-white/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-200">
-                      Active
+                      {t('compensationPage.active')}
                     </span>
                   ) : null}
                 </div>
@@ -263,7 +264,7 @@ export default function CompensationPage() {
               type="text"
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="Search by student name, asset name, or amount"
+              placeholder={t('compensationPage.searchPlaceholder')}
               className="w-full rounded-2xl border border-white/10 bg-white/[0.04] py-3 pl-11 pr-4 text-sm text-white outline-none transition placeholder:text-gray-500 focus:border-violet-400 focus:bg-white/[0.06]"
             />
           </div>
@@ -272,14 +273,14 @@ export default function CompensationPage() {
             <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 font-medium text-gray-300">
               {activeCategoryLabel}
             </span>
-            <span>{filteredCases.length} result(s)</span>
+            <span>{t('compensationPage.resultsCount', { count: filteredCases.length })}</span>
           </div>
         </div>
 
         {isLoading ? (
           <div className="flex h-64 flex-col items-center justify-center rounded-3xl border border-white/5 bg-white/[0.03]">
             <div className="mb-4 h-10 w-10 animate-spin rounded-full border-4 border-amber-400 border-t-transparent" />
-            <p className="text-sm font-medium text-gray-400">Loading compensation cases...</p>
+            <p className="text-sm font-medium text-gray-400">{t('common.loading')}</p>
           </div>
         ) : (
           <CompensationTable

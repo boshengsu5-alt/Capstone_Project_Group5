@@ -5,6 +5,7 @@ import { formatDate, formatDateTime, formatDateTimeRange, formatTime } from '@/l
 import { ChevronDown, ChevronRight, X, AlertTriangle } from 'lucide-react';
 import type { DamageReportWithDetails } from '@/lib/bookingService';
 import { useLanguage } from '@/components/providers/LanguageProvider';
+import { getConditionLabel, getDamageSeverityLabel, getStatusLabel } from '@/lib/i18n';
 
 interface DamageTableProps {
     reports: DamageReportWithDetails[];
@@ -34,13 +35,19 @@ const DAMAGE_COEFFICIENT: Record<string, number> = { minor: 0.2, moderate: 0.5, 
 /** Credit deduction by severity. 信用分扣减标准 (§5.3) */
 const CREDIT_DEDUCTION: Record<string, number> = { minor: -5, moderate: -15, severe: -30, lost: -50 };
 
-function getDepreciationLabel(purchaseDate: string | null): string {
-    if (!purchaseDate) return '50% (unknown age)';
+function getDepreciationLabel(purchaseDate: string | null, locale: 'en' | 'zh'): string {
+    if (!purchaseDate) return locale === 'zh' ? '50%（年限未知）' : '50% (unknown age)';
     const years = (Date.now() - new Date(purchaseDate).getTime()) / (1000 * 60 * 60 * 24 * 365.25);
-    if (years <= 1) return `100% (< 1y)`;
-    if (years <= 3) return `80% (1-3y)`;
-    if (years <= 5) return `50% (3-5y)`;
-    return `20% (> 5y)`;
+    if (locale === 'zh') {
+        if (years <= 1) return '100%（1 年内）';
+        if (years <= 3) return '80%（1-3 年）';
+        if (years <= 5) return '50%（3-5 年）';
+        return '20%（5 年以上）';
+    }
+    if (years <= 1) return '100% (< 1y)';
+    if (years <= 3) return '80% (1-3y)';
+    if (years <= 5) return '50% (3-5y)';
+    return '20% (> 5y)';
 }
 
 /**
@@ -76,6 +83,7 @@ function estimateCompensation(report: DamageReportWithDetails): number | null {
 // ============================================================
 
 function StatusBadge({ status }: { status: string }) {
+    const { t } = useLanguage();
     const styles: Record<string, string> = {
         open: 'bg-rose-500/10 text-rose-400 border-rose-500/20 shadow-[0_0_8px_rgba(244,63,94,0.15)]',
         investigating: 'bg-amber-500/10 text-amber-400 border-amber-500/20 shadow-[0_0_8px_rgba(245,158,11,0.15)]',
@@ -84,38 +92,38 @@ function StatusBadge({ status }: { status: string }) {
     };
     return (
         <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border ${styles[status] ?? styles.dismissed}`}>
-            {status.charAt(0).toUpperCase() + status.slice(1)}
+            {getStatusLabel(status, t)}
         </span>
     );
 }
 
 function SeverityBadge({ severity }: { severity: string }) {
+    const { t } = useLanguage();
     const styles: Record<string, string> = {
         minor: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20',
         moderate: 'bg-orange-500/10 text-orange-400 border-orange-500/20 shadow-[0_0_6px_rgba(249,115,22,0.15)]',
         severe: 'bg-red-500/10 text-red-400 border-red-500/20 shadow-[0_0_8px_rgba(239,68,68,0.2)]',
         lost: 'bg-rose-900/30 text-rose-300 border-rose-800/50 shadow-[0_0_8px_rgba(153,27,27,0.3)]',
     };
-    const labels: Record<string, string> = { minor: 'Minor', moderate: 'Moderate', severe: 'Severe', lost: 'Lost' };
     return (
         <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold border ${styles[severity] ?? 'bg-gray-500/10 text-gray-400 border-gray-500/20'}`}>
-            {labels[severity] ?? severity.charAt(0).toUpperCase() + severity.slice(1)}
+            {getDamageSeverityLabel(severity, t)}
         </span>
     );
 }
 
 function ConditionBadge({ condition }: { condition: string }) {
-    const styles: Record<string, { color: string; label: string }> = {
-        new: { color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20', label: 'New' },
-        good: { color: 'bg-blue-500/10 text-blue-400 border-blue-500/20', label: 'Good' },
-        fair: { color: 'bg-amber-500/10 text-amber-400 border-amber-500/20', label: 'Fair' },
-        poor: { color: 'bg-orange-500/10 text-orange-400 border-orange-500/20', label: 'Poor' },
-        damaged: { color: 'bg-red-500/10 text-red-400 border-red-500/20', label: 'Damaged' },
+    const { t } = useLanguage();
+    const styles: Record<string, string> = {
+        new: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+        good: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+        fair: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+        poor: 'bg-orange-500/10 text-orange-400 border-orange-500/20',
+        damaged: 'bg-red-500/10 text-red-400 border-red-500/20',
     };
-    const b = styles[condition] ?? { color: 'bg-gray-500/10 text-gray-400 border-gray-500/20', label: condition };
     return (
-        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold border ${b.color}`}>
-            {b.label}
+        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold border ${styles[condition] ?? 'bg-gray-500/10 text-gray-400 border-gray-500/20'}`}>
+            {getConditionLabel(condition, t)}
         </span>
     );
 }
@@ -133,26 +141,26 @@ interface UpdateModalProps {
 type DamageStatus = 'open' | 'investigating' | 'resolved' | 'dismissed';
 
 // 单向状态流转：每个状态只能前进到指定的下一步
-const NEXT_STATES: Record<DamageStatus, { value: DamageStatus; label: string }[]> = {
-    open:          [{ value: 'investigating', label: 'Begin Investigation' }, { value: 'dismissed', label: 'Dismiss (No Fault)' }],
-    investigating: [{ value: 'resolved',      label: 'Mark Resolved'       }, { value: 'dismissed', label: 'Dismiss (No Fault)' }],
+const NEXT_STATES: Record<DamageStatus, { value: DamageStatus; labelKey: string }[]> = {
+    open:          [{ value: 'investigating', labelKey: 'damageTable.beginInvestigation' }, { value: 'dismissed', labelKey: 'damageTable.dismissNoFault' }],
+    investigating: [{ value: 'resolved',      labelKey: 'damageTable.markResolved'       }, { value: 'dismissed', labelKey: 'damageTable.dismissNoFault' }],
     resolved:      [],
     dismissed:     [],
 };
 
-function getNextStateOptions(status: DamageStatus, severity: string) {
+function getNextStateOptions(status: DamageStatus, severity: string, t: (path: string) => string) {
     if (severity !== 'lost') return NEXT_STATES[status] ?? [];
 
     switch (status) {
         case 'open':
             return [
-                { value: 'investigating' as const, label: 'Begin Lost Confirmation' },
-                { value: 'dismissed' as const, label: 'Mark Found / Restore Return Flow' },
+                { value: 'investigating' as const, label: t('damageTable.beginLostConfirmation') },
+                { value: 'dismissed' as const, label: t('damageTable.markFound') },
             ];
         case 'investigating':
             return [
-                { value: 'resolved' as const, label: 'Confirm Final Loss' },
-                { value: 'dismissed' as const, label: 'Mark Found / Restore Return Flow' },
+                { value: 'resolved' as const, label: t('damageTable.confirmFinalLoss') },
+                { value: 'dismissed' as const, label: t('damageTable.markFound') },
             ];
         default:
             return [];
@@ -160,8 +168,12 @@ function getNextStateOptions(status: DamageStatus, severity: string) {
 }
 
 function UpdateModal({ report, onSave, onClose }: UpdateModalProps) {
+    const { t, locale } = useLanguage();
     const currentStatus = report.status as DamageStatus;
-    const options = getNextStateOptions(currentStatus, report.severity);
+    const options = getNextStateOptions(currentStatus, report.severity, t).map((option) => ({
+        ...option,
+        label: 'labelKey' in option ? t(option.labelKey) : option.label,
+    }));
 
     const [nextStatus, setNextStatus] = useState<DamageStatus>(options[0]?.value ?? 'investigating');
     // 管理员可以在处理时调整最终 severity（学生可能申报有误）
@@ -172,8 +184,8 @@ function UpdateModal({ report, onSave, onClose }: UpdateModalProps) {
 
     const price = report.assets?.purchase_price;
     const depRatio = getDepreciationRatio(report.assets?.purchase_date ?? null);
-    const depLabel = getDepreciationLabel(report.assets?.purchase_date ?? null);
-    const borrowerName = report.bookings?.profiles?.full_name || report.profiles?.full_name || 'Unknown';
+    const depLabel = getDepreciationLabel(report.assets?.purchase_date ?? null, locale);
+    const borrowerName = report.bookings?.profiles?.full_name || report.profiles?.full_name || t('common.unknownUser');
     const borrowerSid = report.bookings?.profiles?.student_id || report.profiles?.student_id || '';
     const isLostWorkflow = report.severity === 'lost';
 
@@ -227,20 +239,20 @@ function UpdateModal({ report, onSave, onClose }: UpdateModalProps) {
                         <div>
                             <h2 className="text-lg font-bold text-white">
                                 {currentStatus === 'open'
-                                    ? (isLostWorkflow ? 'Review Lost Report' : 'Review Report')
-                                    : (isLostWorkflow ? 'Resolve Lost Report' : 'Resolve Case')}
+                                    ? (isLostWorkflow ? t('damageTable.reviewLostReport') : t('damageTable.reviewReport'))
+                                    : (isLostWorkflow ? t('damageTable.resolveLostReport') : t('damageTable.resolveCase'))}
                             </h2>
-                            <p className="text-xs text-gray-500 mt-0.5">{report.assets?.name ?? 'Unknown Asset'}</p>
+                            <p className="text-xs text-gray-500 mt-0.5">{report.assets?.name ?? t('common.unknownAsset')}</p>
                         </div>
                     </div>
-                    <button onClick={onClose} className="rounded-lg p-1.5 text-gray-500 hover:bg-white/5 hover:text-gray-300 transition-colors">
+                    <button onClick={onClose} aria-label={t('common.close')} className="rounded-lg p-1.5 text-gray-500 hover:bg-white/5 hover:text-gray-300 transition-colors">
                         <X className="h-4 w-4" />
                     </button>
                 </div>
 
                 {/* 借用人信息 */}
                 <div className="mx-6 mb-4 rounded-xl border border-white/5 bg-white/5 px-4 py-3 flex items-center justify-between">
-                    <span className="text-xs text-gray-500">Borrower (liable)</span>
+                    <span className="text-xs text-gray-500">{t('damageTable.borrowerLiable')}</span>
                     <span className="text-sm text-white font-medium">
                         {borrowerName}
                         {borrowerSid && <span className="text-gray-500 font-mono text-xs ml-1.5">({borrowerSid})</span>}
@@ -249,14 +261,12 @@ function UpdateModal({ report, onSave, onClose }: UpdateModalProps) {
 
                 {isLostWorkflow && currentStatus !== 'resolved' && currentStatus !== 'dismissed' && (
                     <div className="mx-6 mb-4 rounded-xl border border-orange-500/20 bg-orange-500/5 px-4 py-3 space-y-1.5">
-                        <p className="text-xs font-semibold text-orange-300 uppercase tracking-wider">Lost Workflow</p>
+                        <p className="text-xs font-semibold text-orange-300 uppercase tracking-wider">{t('damageTable.lostWorkflow')}</p>
                         <p className="text-xs text-gray-300 leading-relaxed">
-                            The student has reported this device as lost. The booking is currently frozen in a reversible
-                            <span className="text-orange-300 font-semibold"> lost pending confirmation</span> state, so the normal return flow is paused.
+                            {t('damageTable.lostWorkflowBody1')}
                         </p>
                         <p className="text-xs text-gray-400 leading-relaxed">
-                            Choose <span className="text-emerald-300 font-medium">Mark Found / Restore Return Flow</span> if the device has been found.
-                            Choose <span className="text-rose-300 font-medium">Confirm Final Loss</span> only when the loss is confirmed and the asset should be retired.
+                            {t('damageTable.lostWorkflowBody2')}
                         </p>
                     </div>
                 )}
@@ -266,7 +276,7 @@ function UpdateModal({ report, onSave, onClose }: UpdateModalProps) {
                     <>
                         <div className="mx-6 mb-4">
                             <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-                                Final Severity — admin may adjust
+                                {t('damageTable.finalSeverity')}
                             </label>
                             <div className="grid grid-cols-2 gap-2">
                                 {(['minor', 'moderate', 'severe', 'lost'] as const).map((s) => {
@@ -278,19 +288,18 @@ function UpdateModal({ report, onSave, onClose }: UpdateModalProps) {
                                         severe:   active ? 'border-red-500    bg-red-500/10    text-red-300'    : 'border-white/10 text-gray-400 hover:border-red-500/40',
                                         lost:     active ? 'border-rose-800   bg-rose-900/30   text-rose-300'   : 'border-white/10 text-gray-400 hover:border-rose-800/40',
                                     };
-                                    const labels = { minor: 'Minor', moderate: 'Moderate', severe: 'Severe', lost: '❌ Lost' };
                                     return (
                                         <button
                                             key={s}
                                             onClick={() => { setSeverity(s); setConfirming(false); }}
                                             className={`rounded-xl border px-3 py-2.5 text-center text-xs font-semibold transition-all ${colors[s]}`}
                                         >
-                                            <div className="mb-1">{labels[s]}</div>
+                                            <div className="mb-1">{s === 'lost' && locale === 'en' ? `❌ ${getDamageSeverityLabel(s, t)}` : getDamageSeverityLabel(s, t)}</div>
                                             <div className="text-[10px] opacity-70">
                                                 {comp != null ? `¥${comp.toLocaleString()}` : '—'} · {s === 'lost'
                                                     ? (isAutoGenerated ? 0 : isUserSelfReport ? 30 : 50)
                                                     : Math.abs(CREDIT_DEDUCTION[s] ?? 5)
-                                                }pt
+                                                }{t('common.pointsShort')}
                                             </div>
                                         </button>
                                     );
@@ -301,27 +310,27 @@ function UpdateModal({ report, onSave, onClose }: UpdateModalProps) {
                         {/* 赔偿公式（仅在标记为 Resolved 时显示） */}
                         {price != null && (
                             <div className="mx-6 mb-4 rounded-xl border border-amber-500/15 bg-amber-500/5 px-4 py-3 space-y-1">
-                                <p className="text-xs font-semibold text-amber-400 uppercase tracking-wider mb-1.5">Compensation Estimate</p>
+                                <p className="text-xs font-semibold text-amber-400 uppercase tracking-wider mb-1.5">{t('damageTable.compensationEstimate')}</p>
                                 {severity === 'lost' ? (
                                     isUserSelfReport ? (
                                         <p className="text-xs text-gray-400">
-                                            ¥{price.toLocaleString()} <span className="text-gray-600">（购入价）</span>
-                                            × {depLabel} <span className="text-gray-600">（折旧率，用户主动申报）</span>
+                                            ¥{price.toLocaleString()} <span className="text-gray-600">({t('damageTable.purchasePrice')})</span>
+                                            × {depLabel} <span className="text-gray-600">({t('damageTable.depreciation')}，{t('damageTable.selfReported')})</span>
                                         </p>
                                     ) : isAutoGenerated ? (
                                         <p className="text-xs text-gray-400">
-                                            ¥{price.toLocaleString()} <span className="text-gray-600">（全款，系统自动判定丢失，不计折旧）</span>
+                                            ¥{price.toLocaleString()} <span className="text-gray-600">({t('damageTable.fullPrice')}，{t('damageTable.autoLost')})</span>
                                         </p>
                                     ) : (
                                         <p className="text-xs text-gray-400">
-                                            ¥{price.toLocaleString()} <span className="text-gray-600">（全款，管理员发现调包，不计折旧）</span>
+                                            ¥{price.toLocaleString()} <span className="text-gray-600">({t('damageTable.fullPrice')}，{t('damageTable.adminFoundLoss')})</span>
                                         </p>
                                     )
                                 ) : (
                                     <p className="text-xs text-gray-400">
-                                        ¥{price.toLocaleString()} <span className="text-gray-600">（购入价）</span>
-                                        × {depLabel} <span className="text-gray-600">（折旧率）</span>
-                                        × {DAMAGE_COEFFICIENT[severity] ?? 0.5} <span className="text-gray-600">（{severity} 系数）</span>
+                                        ¥{price.toLocaleString()} <span className="text-gray-600">({t('damageTable.purchasePrice')})</span>
+                                        × {depLabel} <span className="text-gray-600">({t('damageTable.depreciation')})</span>
+                                        × {DAMAGE_COEFFICIENT[severity] ?? 0.5} <span className="text-gray-600">({getDamageSeverityLabel(severity, t)} {t('damageTable.coefficient')})</span>
                                     </p>
                                 )}
                                 <p className="text-sm font-bold text-amber-400">
@@ -334,7 +343,7 @@ function UpdateModal({ report, onSave, onClose }: UpdateModalProps) {
 
                 {/* 下一步状态选择 */}
                 <div className="mx-6 mb-4">
-                    <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Next Step</label>
+                    <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">{t('damageTable.nextStep')}</label>
                     <div className="flex gap-2">
                         {options.map((opt) => (
                             <button
@@ -357,20 +366,20 @@ function UpdateModal({ report, onSave, onClose }: UpdateModalProps) {
                     {nextStatus === 'dismissed' && (
                         <p className="mt-2 text-xs text-emerald-400">
                             {isLostWorkflow
-                                ? 'Marking this lost report as found will restore the normal return / damage flow.'
-                                : 'No fault determined — no credit deduction.'}
+                                ? t('damageTable.dismissedHintLost')
+                                : t('damageTable.dismissedHintNormal')}
                         </p>
                     )}
                 </div>
 
                 {/* Notes */}
                 <div className="mx-6 mb-4">
-                    <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Notes</label>
+                    <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">{t('damageTable.notes')}</label>
                     <textarea
                         value={notes}
                         onChange={(e) => setNotes(e.target.value)}
                         rows={2}
-                        placeholder="Describe findings or resolution details..."
+                        placeholder={t('damageTable.notesPlaceholder')}
                         className="block w-full rounded-xl border border-white/10 bg-white/5 py-2.5 px-4 text-sm text-gray-200 placeholder:text-gray-600 focus:ring-2 focus:ring-purple-500/50 outline-none resize-none"
                     />
                 </div>
@@ -379,20 +388,20 @@ function UpdateModal({ report, onSave, onClose }: UpdateModalProps) {
                 {confirming && isResolvePath && (
                     <div className="mx-6 mb-4 rounded-xl border border-rose-500/30 bg-rose-500/5 px-4 py-3 space-y-1">
                         <p className="text-xs font-semibold text-rose-400 flex items-center gap-1.5">
-                            <AlertTriangle className="w-3.5 h-3.5" /> This action cannot be undone
+                            <AlertTriangle className="w-3.5 h-3.5" /> {t('damageTable.irreversible')}
                         </p>
                         <p className="text-xs text-gray-400">
-                            Borrower <span className="text-white font-medium">{borrowerName}</span> will receive:
+                            {t('damageTable.borrowerWillReceive', { name: borrowerName })}
                         </p>
                         <ul className="text-xs text-gray-300 space-y-0.5 ml-2">
-                            <li>• Credit deduction: <span className="text-rose-400 font-semibold">−{Math.abs(creditDelta)} points</span></li>
+                            <li>• {t('damageTable.creditDeduction')} <span className="text-rose-400 font-semibold">−{Math.abs(creditDelta)} {t('common.pointsShort')}</span></li>
                             {compensation != null && (
-                                <li>• Compensation record: <span className="text-amber-400 font-semibold">¥{compensation.toLocaleString()}</span></li>
+                                <li>• {t('damageTable.compensationRecord')} <span className="text-amber-400 font-semibold">¥{compensation.toLocaleString()}</span></li>
                             )}
                             {severity === 'lost' && (
                                 <>
-                                    <li>• Booking final state: <span className="text-rose-300 font-semibold">lost</span></li>
-                                    <li>• Asset circulation state: <span className="text-rose-300 font-semibold">retired</span></li>
+                                    <li>• {t('damageTable.bookingFinalState')} <span className="text-rose-300 font-semibold">{getStatusLabel('lost', t)}</span></li>
+                                    <li>• {t('damageTable.assetFinalState')} <span className="text-rose-300 font-semibold">{getStatusLabel('retired', t)}</span></li>
                                 </>
                             )}
                         </ul>
@@ -405,7 +414,7 @@ function UpdateModal({ report, onSave, onClose }: UpdateModalProps) {
                         onClick={confirming ? () => setConfirming(false) : onClose}
                         className="flex-1 rounded-xl border border-white/10 py-2.5 text-sm text-gray-400 hover:bg-white/5 transition-colors"
                     >
-                        {confirming ? 'Back' : 'Cancel'}
+                        {confirming ? t('damageTable.back') : t('common.cancel')}
                     </button>
                     <button
                         onClick={handleAction}
@@ -416,10 +425,10 @@ function UpdateModal({ report, onSave, onClose }: UpdateModalProps) {
                         }`}
                     >
                         {isResolvePath && !confirming
-                            ? (severity === 'lost' ? 'Review Final Loss →' : 'Review & Confirm →')
+                            ? (severity === 'lost' ? `${t('damageTable.reviewFinalLoss')} →` : `${t('damageTable.reviewAndConfirm')} →`)
                             : isResolvePath
-                                ? 'Confirm & Execute'
-                                : 'Save'}
+                                ? t('damageTable.confirmAndExecute')
+                                : t('damageTable.save')}
                     </button>
                 </div>
             </div>
@@ -432,7 +441,7 @@ function UpdateModal({ report, onSave, onClose }: UpdateModalProps) {
 // ============================================================
 
 function ExpandedDetail({ report }: { report: DamageReportWithDetails }) {
-    const { t } = useLanguage();
+    const { t, locale } = useLanguage();
 
     const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
     const compensation = estimateCompensation(report);
@@ -460,17 +469,17 @@ function ExpandedDetail({ report }: { report: DamageReportWithDetails }) {
                                 : 'text-orange-300'
                     }`}>
                         {report.status === 'resolved'
-                            ? 'Final Lost State'
+                            ? t('damageTable.lostFinalState')
                             : report.status === 'dismissed'
-                                ? 'Lost Report Reversed'
-                                : 'Lost Pending Confirmation'}
+                                ? t('damageTable.lostReversed')
+                                : t('damageTable.lostPending')}
                     </p>
                     <p className="text-xs text-gray-300 leading-relaxed">
                         {report.status === 'resolved'
-                            ? 'This report has been confirmed as a real loss. The linked booking should now be closed as lost and the asset should be retired from circulation.'
+                            ? t('damageTable.lostFinalStateText')
                             : report.status === 'dismissed'
-                                ? 'This lost report was cancelled or the device was found. The linked booking can return to the normal borrowing / return flow.'
-                                : 'The device is temporarily treated as reported lost. Before final confirmation, the student may still find the device and edit the report back into the normal return flow.'}
+                                ? t('damageTable.lostReversedText')
+                                : t('damageTable.lostPendingText')}
                     </p>
                 </div>
             )}
@@ -503,7 +512,7 @@ function ExpandedDetail({ report }: { report: DamageReportWithDetails }) {
                             {pickupPhoto ? (
                                 <img
                                     src={pickupPhoto}
-                                    alt="Pickup condition"
+                                    alt={t('damageDetails.pickupPhoto')}
                                     onClick={() => setLightboxUrl(pickupPhoto)}
                                     className="w-full aspect-[4/3] object-cover rounded-lg border border-white/10 cursor-pointer hover:ring-2 hover:ring-blue-500/50 transition-all"
                                 />
@@ -521,7 +530,7 @@ function ExpandedDetail({ report }: { report: DamageReportWithDetails }) {
                             {returnPhoto ? (
                                 <img
                                     src={returnPhoto}
-                                    alt="Return condition"
+                                    alt={t('damageDetails.returnPhoto')}
                                     onClick={() => setLightboxUrl(returnPhoto)}
                                     className="w-full aspect-[4/3] object-cover rounded-lg border border-white/10 cursor-pointer hover:ring-2 hover:ring-amber-500/50 transition-all"
                                 />
@@ -544,7 +553,7 @@ function ExpandedDetail({ report }: { report: DamageReportWithDetails }) {
                             <img
                                 key={i}
                                 src={url}
-                                alt={`Damage photo ${i + 1}`}
+                                alt={`${t('damageDetails.damagePhotos')} ${i + 1}`}
                                 onClick={() => setLightboxUrl(url)}
                                 className="w-24 h-24 object-cover rounded-lg border border-white/10 cursor-pointer hover:ring-2 hover:ring-purple-500/50 transition-all"
                             />
@@ -566,14 +575,14 @@ function ExpandedDetail({ report }: { report: DamageReportWithDetails }) {
                     <p className="text-sm text-gray-300">
                         {(() => {
                             const p = report.assets!.purchase_price!;
-                            const depLabel = getDepreciationLabel(report.assets!.purchase_date ?? null);
+                            const depLabel = getDepreciationLabel(report.assets!.purchase_date ?? null, locale);
                             if (report.severity === 'lost') {
                                 const selfReport = !report.auto_generated && report.reporter_id === report.bookings?.borrower_id;
                                 return selfReport
-                                    ? `¥${p.toLocaleString()} × ${depLabel}（折旧，用户自报）`
-                                    : `¥${p.toLocaleString()}（全款，不计折旧）`;
+                                    ? `¥${p.toLocaleString()} × ${depLabel} (${t('damageTable.depreciation')}, ${t('damageTable.selfReported')})`
+                                    : `¥${p.toLocaleString()} (${t('damageTable.fullPrice')}, ${report.auto_generated ? t('damageTable.autoLost') : t('damageTable.adminFoundLoss')})`;
                             }
-                            return `¥${p.toLocaleString()} × ${depLabel} × ${DAMAGE_COEFFICIENT[report.severity] ?? 0.5} (${report.severity})`;
+                            return `¥${p.toLocaleString()} × ${depLabel} × ${DAMAGE_COEFFICIENT[report.severity] ?? 0.5} (${getDamageSeverityLabel(report.severity, t)} ${t('damageTable.coefficient')})`;
                         })()}
                         {compensation !== null && (
                             <span className="ml-2 text-amber-400 font-semibold">= ¥{compensation.toLocaleString()}</span>
@@ -593,7 +602,7 @@ function ExpandedDetail({ report }: { report: DamageReportWithDetails }) {
             {/* Lightbox 全屏预览 */}
             {lightboxUrl && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm" onClick={() => setLightboxUrl(null)}>
-                    <img src={lightboxUrl} alt="Damage photo full" className="max-w-[90vw] max-h-[90vh] object-contain rounded-xl shadow-2xl" />
+                    <img src={lightboxUrl} alt={t('damageDetails.damagePhotos')} className="max-w-[90vw] max-h-[90vh] object-contain rounded-xl shadow-2xl" />
                 </div>
             )}
         </div>
@@ -622,8 +631,8 @@ export default function DamageTable({ reports, onUpdateStatus }: DamageTableProp
     if (reports.length === 0) {
         return (
             <div className="text-center py-16 bg-gray-900/40 rounded-2xl border border-white/5 backdrop-blur-sm">
-                <p className="text-gray-300 text-lg font-medium">No damage reports found</p>
-                <p className="text-gray-500 text-sm mt-1">All equipment is in good condition.</p>
+                <p className="text-gray-300 text-lg font-medium">{t('damageTable.noReports')}</p>
+                <p className="text-gray-500 text-sm mt-1">{t('damageTable.noReportsSub')}</p>
             </div>
         );
     }
@@ -644,7 +653,7 @@ export default function DamageTable({ reports, onUpdateStatus }: DamageTableProp
                                 <th className="px-3 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">{t('tables.status')}</th>
                                 <th className="px-3 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">{t('tables.date')}</th>
                                 <th className="relative py-4 pl-3 pr-6">
-                                    <span className="sr-only">Actions</span>
+                                    <span className="sr-only">{t('damageTable.actionsSr')}</span>
                                 </th>
                             </tr>
                         </thead>
@@ -674,12 +683,12 @@ export default function DamageTable({ reports, onUpdateStatus }: DamageTableProp
                                                         <div className="w-10 h-10 rounded-lg bg-gray-800 flex-shrink-0 border border-white/10" />
                                                     )}
                                                     <span className="text-sm font-medium text-white whitespace-nowrap">
-                                                        {report.assets?.name || 'Unknown Asset'}
+                                                        {report.assets?.name || t('common.unknownAsset')}
                                                     </span>
                                                 </div>
                                             </td>
                                             <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-300">
-                                                {report.bookings?.profiles?.full_name || report.profiles?.full_name || 'Unknown'}
+                                                {report.bookings?.profiles?.full_name || report.profiles?.full_name || t('common.unknownUser')}
                                                 {(report.bookings?.profiles?.student_id || report.profiles?.student_id) && (
                                                     <span className="block text-xs text-gray-500 font-mono mt-0.5">
                                                         {report.bookings?.profiles?.student_id || report.profiles?.student_id}
@@ -711,7 +720,7 @@ export default function DamageTable({ reports, onUpdateStatus }: DamageTableProp
                                                         }}
                                                         className="text-sm font-semibold text-purple-400 hover:text-purple-300 transition-colors"
                                                     >
-                                                        Update
+                                                        {t('damageTable.update')}
                                                     </button>
                                                 )}
                                             </td>

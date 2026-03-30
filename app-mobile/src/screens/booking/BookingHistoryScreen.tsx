@@ -22,7 +22,7 @@ import { theme } from '../../theme';
 import { Ionicons } from '@expo/vector-icons';
 import { handleApiError } from '../../utils/errorHandler';
 import { formatDateTime } from '../../utils/dateTime';
-import { getOutstandingAmount } from '../../utils/compensation';
+import { getDisplayOutstandingAmount, shouldHideCompensationAmounts } from '../../utils/compensation';
 import { useTranslation } from 'react-i18next';
 
 type BookingWithAsset = Booking & {
@@ -186,12 +186,16 @@ export default function BookingHistoryScreen() {
     const existingReview = isReturned ? reviewsMap[item.id] : undefined;
     const hasReview = !!existingReview;
     const compensationOutstanding = compensationCase
-      ? getOutstandingAmount(
+      ? getDisplayOutstandingAmount(
+          compensationCase.status,
           compensationCase.agreed_amount,
           compensationCase.assessed_amount,
           compensationCase.paid_amount
         )
       : 0;
+    const compensationPendingReview = compensationCase
+      ? shouldHideCompensationAmounts(compensationCase.status)
+      : false;
     const compensationMeta = compensationCase ? getCompensationStatusMeta(compensationCompleted) : null;
     const compensationStatusLabel = compensationCase
       ? compensationCompleted
@@ -201,6 +205,8 @@ export default function BookingHistoryScreen() {
     const compensationSummary = compensationCase
       ? compensationCompleted
         ? t('bookings.compensationSettled')
+        : compensationPendingReview
+        ? t('bookings.compensationInProgress')
         : compensationOutstanding > 0
         ? t('bookings.compensationOutstanding', { amount: compensationOutstanding.toLocaleString() })
         : t('bookings.compensationInProgress')

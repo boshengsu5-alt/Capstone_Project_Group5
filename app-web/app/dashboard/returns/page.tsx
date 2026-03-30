@@ -7,6 +7,7 @@ import DamageSeverityModal from '@/components/damage/DamageSeverityModal';
 import { AlertCircle, CheckCircle2, RefreshCw, RotateCcw } from 'lucide-react';
 import { useToast } from '@/components/ui/Toast';
 import { useLanguage } from '@/components/providers/LanguageProvider';
+import { getDamageSeverityLabel } from '@/lib/i18n';
 
 export default function ReturnsPage() {
     const { t } = useLanguage();
@@ -25,15 +26,18 @@ export default function ReturnsPage() {
         setIsLoading(true);
         try {
             const allBookings = await bookingService.getBookings();
-            // 筛选待验证的归还：用户已填写归还日期/照片，但管理员还未标记 status 为 returned
-            const pendingReturns = allBookings.filter(b =>
-                (b.actual_return_date || b.return_photo_url) && b.status !== 'returned'
-            );
+            // 筛选待验证的归还：
+            // 学生提交归还后，booking 已经会变成 returned；管理员核验完成后才会写入 rejection_reason = VERIFIED。
+            const pendingReturns = allBookings.filter((booking) => {
+                const hasReturnSubmission = Boolean(booking.actual_return_date || booking.return_photo_url);
+                const isAdminVerified = booking.rejection_reason === 'VERIFIED';
+                return hasReturnSubmission && !isAdminVerified;
+            });
 
             setReturns(pendingReturns);
         } catch (error) {
             console.error('Failed to load returns:', error);
-            showToast('Failed to load returns. Please check your connection.', 'error');
+            showToast(t('returns.loadFailed'), 'error');
         } finally {
             setIsLoading(false);
         }
@@ -72,13 +76,13 @@ export default function ReturnsPage() {
     const executeReturn = async (id: string) => {
         try {
             await bookingService.processReturn(id, 'returned');
-            showToast('Return verification passed', 'success');
+            showToast(t('returns.verifySuccess'), 'success');
             setReturns(prev => prev.filter(r => r.id !== id));
             if (selectedId === id) setSelectedId(null);
             await loadReturns();
         } catch (error) {
             console.error('Verification failed', error);
-            showToast('Verification failed, network error', 'error');
+            showToast(t('returns.verifyFailed'), 'error');
         }
     };
 
@@ -87,14 +91,14 @@ export default function ReturnsPage() {
         try {
             const success = await bookingService.acknowledgeReturnWithExistingDamage(id);
             if (success) {
-                showToast('Return acknowledged. Asset remains in maintenance pending damage review.', 'success');
+                showToast(t('returns.acknowledgeSuccess'), 'success');
                 setReturns(prev => prev.filter(r => r.id !== id));
                 if (selectedId === id) setSelectedId(null);
             } else {
-                showToast('Failed to acknowledge return', 'error');
+                showToast(t('returns.acknowledgeFailed'), 'error');
             }
         } catch (error) {
-            showToast('Network error, please try again', 'error');
+            showToast(t('returns.verifyFailed'), 'error');
         }
     };
 
@@ -115,15 +119,15 @@ export default function ReturnsPage() {
         try {
             const success = await bookingService.reportDamage(bookingId, severity, description);
             if (success) {
-                showToast(`Damage reported (${severity}). Pending review on Damage Reports page.`, 'success');
+                showToast(t('bookings.damageReported', { severity: getDamageSeverityLabel(severity, t) }), 'success');
                 setReturns(prev => prev.filter(r => r.id !== bookingId));
                 await loadReturns();
             } else {
-                showToast('Failed to create damage report', 'error');
+                showToast(t('returns.damageReportFailed'), 'error');
             }
         } catch (error) {
             console.error('Damage report failed', error);
-            showToast('Verification failed, network error', 'error');
+            showToast(t('returns.verifyFailed'), 'error');
         }
     };
 
@@ -155,7 +159,7 @@ export default function ReturnsPage() {
                 {isLoading ? (
                     <div className="w-full h-64 flex flex-col items-center justify-center bg-gray-900/40 rounded-2xl border border-white/5 backdrop-blur-sm">
                         <div className="w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mb-4" />
-                        <p className="text-gray-400 font-medium">Loading items pending verification...</p>
+                        <p className="text-gray-400 font-medium">{t('returns.loading')}</p>
                     </div>
                 ) : returns.length === 0 ? (
                     <div className="w-full bg-gray-900/40 rounded-2xl border border-white/5 p-12 flex flex-col items-center justify-center text-center backdrop-blur-sm">
@@ -255,36 +259,36 @@ export default function ReturnsPage() {
                                 <AlertCircle className="h-5 w-5 text-amber-400" />
                             </div>
                             <div>
-                                <h2 className="text-base font-bold text-white">逾期归还确认</h2>
-                                <p className="text-xs text-gray-500 mt-0.5">逾期扣分已由系统自动处理</p>
+                                <h2 className="text-base font-bold text-white">{t('returns.overdueModalTitle')}</h2>
+                                <p className="text-xs text-gray-500 mt-0.5">{t('returns.overdueModalSubtitle')}</p>
                             </div>
                         </div>
 
                         <div className="rounded-xl border border-white/5 bg-white/5 px-4 py-3 mb-5 space-y-1.5">
-                            <p className="text-sm text-gray-200 font-medium">{overdueConfirm.booking.assets?.name ?? 'Unknown Asset'}</p>
+                            <p className="text-sm text-gray-200 font-medium">{overdueConfirm.booking.assets?.name ?? t('common.unknownAsset')}</p>
                             <p className="text-xs text-gray-400">
-                                借用人：{overdueConfirm.booking.profiles?.full_name ?? 'Unknown'}
+                                {t('returns.borrower')}：{overdueConfirm.booking.profiles?.full_name ?? t('common.unknownUser')}
                             </p>
                             <p className="text-xs text-amber-400 font-semibold mt-1">
-                                逾期 {overdueConfirm.days} 天归还
+                                {t('returns.overdueReturned', { days: overdueConfirm.days })}
                             </p>
                             <p className="text-xs text-gray-500 mt-0.5">
-                                系统已按三节点规则自动扣分（Day 1 / Day 7 / Day 30），此处仅确认物品实际归还。
+                                {t('returns.overdueNote')}
                             </p>
                         </div>
 
                         <div className="flex gap-3">
                             <button
-                                onClick={() => setOverdueConfirm(null)}
-                                className="flex-1 rounded-xl border border-white/10 py-2.5 text-sm text-gray-400 hover:bg-white/5 transition-colors"
-                            >
-                                取消
+                            onClick={() => setOverdueConfirm(null)}
+                            className="flex-1 rounded-xl border border-white/10 py-2.5 text-sm text-gray-400 hover:bg-white/5 transition-colors"
+                        >
+                                {t('common.cancel')}
                             </button>
                             <button
                                 onClick={handleOverdueConfirm}
                                 className="flex-1 rounded-xl bg-amber-500/20 border border-amber-500/30 py-2.5 text-sm font-semibold text-amber-300 hover:bg-amber-500/30 transition-colors"
                             >
-                                确认归还
+                                {t('returns.confirmReturn')}
                             </button>
                         </div>
                     </div>

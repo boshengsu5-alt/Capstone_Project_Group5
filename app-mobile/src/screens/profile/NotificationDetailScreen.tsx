@@ -19,6 +19,7 @@ import {
   getNotificationText,
   getOverdueNotificationDetails,
 } from '../../utils/notificationText';
+import { shouldHideCompensationAmounts } from '../../utils/compensation';
 
 const TYPE_CONFIG: Record<NotificationType, { icon: string; color: string }> = {
   booking_approved: { icon: 'checkmark-circle', color: '#10b981' },
@@ -74,6 +75,7 @@ export default function NotificationDetailScreen({ navigation, route }: Props) {
         return label !== key ? label : compensationDetails.status;
       })()
     : '—';
+  const hideCompensationAmounts = shouldHideCompensationAmounts(compensationDetails?.status);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -146,14 +148,14 @@ export default function NotificationDetailScreen({ navigation, route }: Props) {
               <Text style={styles.detailValue}>{compensationStatus}</Text>
             </View>
 
-            {typeof compensationDetails.assessedAmount === 'number' ? (
+            {!hideCompensationAmounts && typeof compensationDetails.assessedAmount === 'number' ? (
               <View style={styles.detailRow}>
                 <Text style={styles.detailLabel}>{t('notifications.detail.assessedAmount')}</Text>
                 <Text style={styles.detailValue}>{formatMoney(compensationDetails.assessedAmount)}</Text>
               </View>
             ) : null}
 
-            {typeof compensationDetails.agreedAmount === 'number' ? (
+            {!hideCompensationAmounts && typeof compensationDetails.agreedAmount === 'number' ? (
               <View style={styles.detailRow}>
                 <Text style={styles.detailLabel}>{t('notifications.detail.agreedAmount')}</Text>
                 <Text style={styles.detailValue}>{formatMoney(compensationDetails.agreedAmount)}</Text>
@@ -178,7 +180,7 @@ export default function NotificationDetailScreen({ navigation, route }: Props) {
               </View>
             ) : null}
 
-            {typeof compensationDetails.outstandingAmount === 'number' ? (
+            {!hideCompensationAmounts && typeof compensationDetails.outstandingAmount === 'number' ? (
               <View style={styles.detailRow}>
                 <Text style={styles.detailLabel}>{t('notifications.detail.outstandingAmount')}</Text>
                 <Text style={[

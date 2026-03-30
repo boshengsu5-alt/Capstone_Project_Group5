@@ -91,8 +91,8 @@ export default function BookingTable({ bookings, onReview, onReportDamage, highl
                 <div className="w-16 h-16 bg-purple-500/10 rounded-full flex items-center justify-center mb-4">
                     <span className="text-2xl">📋</span>
                 </div>
-                <h3 className="text-lg font-medium text-white mb-1">No bookings found</h3>
-                <p className="text-sm text-gray-500 max-w-sm">When students request equipment, their applications will appear here for your review.</p>
+                <h3 className="text-lg font-medium text-white mb-1">{t('bookings.noBookings')}</h3>
+                <p className="text-sm text-gray-500 max-w-sm">{t('bookings.noBookingsSub')}</p>
             </div>
         );
     }
@@ -131,18 +131,18 @@ export default function BookingTable({ bookings, onReview, onReportDamage, highl
                                             <div className="w-10 h-10 rounded-lg bg-gray-800 flex-shrink-0 border border-white/10" />
                                         )}
                                         <div>
-                                            <div className="font-medium text-white">{booking.assets?.name ?? 'Unknown Asset'}</div>
-                                            <div className="text-gray-500 text-xs mt-1 font-mono">{booking.assets?.qr_code ?? 'N/A'}</div>
+                                            <div className="font-medium text-white">{booking.assets?.name ?? t('common.unknownAsset')}</div>
+                                            <div className="text-gray-500 text-xs mt-1 font-mono">{booking.assets?.qr_code ?? t('common.none')}</div>
                                         </div>
                                     </div>
                                 </td>
                                 <td className="px-6 py-4">
-                                    <div className="text-gray-200">{booking.profiles?.full_name ?? 'Unknown'}</div>
-                                    <div className="text-gray-500 text-xs mt-0.5 font-mono">{booking.profiles?.student_id ?? 'No ID'}</div>
+                                    <div className="text-gray-200">{booking.profiles?.full_name ?? t('common.unknownUser')}</div>
+                                    <div className="text-gray-500 text-xs mt-0.5 font-mono">{booking.profiles?.student_id ?? t('common.noId')}</div>
                                 </td>
                                 <td className="px-6 py-4">
                                     <div className="text-gray-200 leading-tight">{formatDateTime(booking.start_date)}</div>
-                                    <div className="text-gray-500 text-xs mt-1 leading-tight">to {formatDateTime(booking.end_date)}</div>
+                                    <div className="text-gray-500 text-xs mt-1 leading-tight">{t('bookings.reportDateTo')} {formatDateTime(booking.end_date)}</div>
                                 </td>
                                 <td className="px-6 py-4">
                                     {getStatusBadge(booking.status)}

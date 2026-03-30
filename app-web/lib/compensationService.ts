@@ -174,11 +174,12 @@ async function insertCompensationNotification(payload: {
   paymentAmount?: number;
 }) {
   const outstandingAmount = getOutstandingAmount(payload.agreedAmount, payload.assessedAmount, payload.paidAmount);
+  const hideAmounts = payload.stage === 'under_review' || payload.status === 'under_review';
 
   const stageCopy: Record<string, { title: string; message: string }> = {
     under_review: {
       title: 'Compensation Case Opened',
-      message: `A compensation case for "${payload.assetName}" has been opened. The current estimate is ¥${(payload.assessedAmount ?? 0).toLocaleString()}.`,
+      message: `A compensation case for "${payload.assetName}" has been opened and is now under admin review. We will notify you again once the final amount is confirmed.`,
     },
     awaiting_signature: {
       title: 'Compensation Amount Confirmed',
@@ -219,13 +220,13 @@ async function insertCompensationNotification(payload: {
         stage: payload.stage,
         status: payload.status,
         asset_name: payload.assetName,
-        assessed_amount: payload.assessedAmount,
-        agreed_amount: payload.agreedAmount,
-        paid_amount: payload.paidAmount,
-        outstanding_amount: outstandingAmount,
+        assessed_amount: hideAmounts ? null : payload.assessedAmount,
+        agreed_amount: hideAmounts ? null : payload.agreedAmount,
+        paid_amount: hideAmounts ? null : payload.paidAmount,
+        outstanding_amount: hideAmounts ? null : outstandingAmount,
         due_date: payload.dueDate,
         payment_reference: payload.paymentReference,
-        payment_amount: payload.paymentAmount ?? null,
+        payment_amount: hideAmounts ? null : (payload.paymentAmount ?? null),
       },
     });
 }

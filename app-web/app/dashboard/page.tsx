@@ -34,9 +34,10 @@ import {
 } from 'recharts';
 import { bookingService, BookingWithDetails } from '@/lib/bookingService';
 import { useLanguage } from '@/components/providers/LanguageProvider';
+import { getConditionLabel, getStatusLabel, localizeCategoryName } from '@/lib/i18n';
 
 export default function DashboardPage() {
-  const { t } = useLanguage();
+  const { t, locale } = useLanguage();
   const [assets, setAssets] = useState<Asset[]>([]);
   const [bookings, setBookings] = useState<BookingWithDetails[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -88,7 +89,7 @@ export default function DashboardPage() {
   
   // 1. Pie Chart Data: Category Distribution
   const pieData = assets.reduce((acc: any[], asset: any) => {
-    const categoryName = asset.categories?.name || 'Uncategorized';
+    const categoryName = localizeCategoryName(asset.categories, locale);
     const existing = acc.find(item => item.name === categoryName);
     if (existing) {
       existing.value += 1;
@@ -170,7 +171,7 @@ export default function DashboardPage() {
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full" style={{ backgroundColor: payload[0].fill || payload[0].color }} />
             <p className="text-white font-bold text-sm">
-              {payload[0].value} {payload[0].name === 'total' ? 'Assets' : ''}
+              {payload[0].value} {payload[0].name === 'total' ? t('dashboard.seriesAssets') : ''}
             </p>
           </div>
         </div>
@@ -193,7 +194,7 @@ export default function DashboardPage() {
             </div>
             <div className="flex-1">
               <p className="text-2xl font-bold text-white">{totalAssets}</p>
-              <p className="text-xs text-gray-500">Total Assets</p>
+              <p className="text-xs text-gray-500">{t('dashboard.kpiTotal')}</p>
             </div>
             <ChevronRight className="w-4 h-4 text-gray-600 group-hover:text-purple-400 transition-colors" />
           </Link>
@@ -203,7 +204,7 @@ export default function DashboardPage() {
             </div>
             <div className="flex-1">
               <p className="text-2xl font-bold text-white">{loanedAssets}</p>
-              <p className="text-xs text-gray-500">Currently Loaned</p>
+              <p className="text-xs text-gray-500">{t('dashboard.kpiLoaned')}</p>
             </div>
             <ChevronRight className="w-4 h-4 text-gray-600 group-hover:text-amber-400 transition-colors" />
           </Link>
@@ -213,7 +214,7 @@ export default function DashboardPage() {
             </div>
             <div className="flex-1">
               <p className="text-2xl font-bold text-white">{pendingBookings}</p>
-              <p className="text-xs text-gray-500">Pending Approval</p>
+              <p className="text-xs text-gray-500">{t('dashboard.kpiPending')}</p>
             </div>
             <ChevronRight className="w-4 h-4 text-gray-600 group-hover:text-blue-400 transition-colors" />
           </Link>
@@ -223,7 +224,7 @@ export default function DashboardPage() {
             </div>
             <div className="flex-1">
               <p className="text-2xl font-bold text-white">{overdueBookings}</p>
-              <p className="text-xs text-gray-500">Overdue</p>
+              <p className="text-xs text-gray-500">{t('dashboard.kpiOverdue')}</p>
             </div>
             <ChevronRight className="w-4 h-4 text-gray-600 group-hover:text-rose-400 transition-colors" />
           </Link>
@@ -411,14 +412,14 @@ export default function DashboardPage() {
                     <td colSpan={6} className="px-6 py-20 text-center">
                       <div className="flex flex-col items-center gap-3">
                          <div className="w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
-                         <p className="text-gray-500 text-sm">Syncing with database...</p>
+                         <p className="text-gray-500 text-sm">{t('dashboard.syncing')}</p>
                       </div>
                     </td>
                   </tr>
                 ) : filteredAssets.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="px-6 py-20 text-center text-gray-500 italic">
-                       No assets match your current criteria.
+                       {t('dashboard.noMatch')}
                     </td>
                   </tr>
                 ) : (
@@ -434,8 +435,8 @@ export default function DashboardPage() {
                               )}
                            </div>
                            <div>
-                              <p className="font-semibold text-white truncate max-w-[180px]">{asset.name || 'Unknown Asset'}</p>
-                              <p className="text-xs text-gray-500">{asset.location || 'No location'}</p>
+                              <p className="font-semibold text-white truncate max-w-[180px]">{asset.name || t('common.unknownAsset')}</p>
+                              <p className="text-xs text-gray-500">{asset.location || t('common.noLocation')}</p>
                            </div>
                         </div>
                       </td>
@@ -445,7 +446,7 @@ export default function DashboardPage() {
                              <div
                                className="group relative w-10 h-10 cursor-pointer flex-shrink-0"
                                onClick={() => setSelectedAssetForQR(asset)}
-                               title="Click to view QR label"
+                               title={t('dashboard.qrTooltip')}
                              >
                                <QRCodeSVG
                                  value={asset.qr_code}
@@ -460,7 +461,7 @@ export default function DashboardPage() {
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <span className="text-sm text-gray-400">{(asset as any).categories?.name || 'General'}</span>
+                        <span className="text-sm text-gray-400">{localizeCategoryName((asset as any).categories, locale) || t('common.general')}</span>
                       </td>
                       <td className="px-6 py-4">
                         <span className={cn(
@@ -470,19 +471,19 @@ export default function DashboardPage() {
                           asset.status === 'maintenance' && "bg-yellow-500/10 text-yellow-400 ring-yellow-500/20",
                           asset.status === 'retired' && "bg-red-500/10 text-red-400 ring-red-500/20"
                         )}>
-                          {asset.status}
+                          {getStatusLabel(asset.status, t)}
                         </span>
                       </td>
                       <td className="px-6 py-4">
                         {(() => {
                           const condBadge: Record<string, { color: string; label: string }> = {
-                            new:     { color: 'bg-emerald-500/10 text-emerald-400 ring-emerald-500/20', label: 'New' },
-                            good:    { color: 'bg-blue-500/10 text-blue-400 ring-blue-500/20',         label: 'Good' },
-                            fair:    { color: 'bg-amber-500/10 text-amber-400 ring-amber-500/20',     label: 'Fair' },
-                            poor:    { color: 'bg-orange-500/10 text-orange-400 ring-orange-500/20',  label: 'Poor' },
-                            damaged: { color: 'bg-red-500/10 text-red-400 ring-red-500/20',           label: 'Damaged' },
+                            new:     { color: 'bg-emerald-500/10 text-emerald-400 ring-emerald-500/20', label: getConditionLabel('new', t) },
+                            good:    { color: 'bg-blue-500/10 text-blue-400 ring-blue-500/20',         label: getConditionLabel('good', t) },
+                            fair:    { color: 'bg-amber-500/10 text-amber-400 ring-amber-500/20',     label: getConditionLabel('fair', t) },
+                            poor:    { color: 'bg-orange-500/10 text-orange-400 ring-orange-500/20',  label: getConditionLabel('poor', t) },
+                            damaged: { color: 'bg-red-500/10 text-red-400 ring-red-500/20',           label: getConditionLabel('damaged', t) },
                           };
-                          const b = condBadge[asset.condition] ?? { color: 'bg-gray-500/10 text-gray-400 ring-gray-500/20', label: asset.condition };
+                          const b = condBadge[asset.condition] ?? { color: 'bg-gray-500/10 text-gray-400 ring-gray-500/20', label: getConditionLabel(asset.condition, t) };
                           return (
                             <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset ${b.color}`}>
                               {b.label}
@@ -492,7 +493,7 @@ export default function DashboardPage() {
                       </td>
                       <td className="px-6 py-4 text-right">
                         <button className="text-gray-500 hover:text-white transition-colors text-xs font-bold uppercase tracking-widest">
-                           Explore
+                           {t('common.viewDetails')}
                         </button>
                       </td>
                     </tr>

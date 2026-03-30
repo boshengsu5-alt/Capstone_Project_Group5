@@ -6,8 +6,11 @@ import DamageTable from '@/components/damage/DamageTable';
 import { Download, ShieldAlert, RefreshCw } from 'lucide-react';
 import { exportToExcel } from '@/lib/exportUtils';
 import { useToast } from '@/components/ui/Toast';
+import { useLanguage } from '@/components/providers/LanguageProvider';
+import { getDamageSeverityLabel } from '@/lib/i18n';
 
 export default function DamageReportsPage() {
+    const { t, locale } = useLanguage();
     const { showToast } = useToast();
     const [reports, setReports] = useState<DamageReportWithDetails[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -19,7 +22,7 @@ export default function DamageReportsPage() {
             setReports(data || []);
         } catch (error) {
             console.error('Failed to load damage reports:', error);
-            showToast('Failed to load damage reports.', 'error');
+            showToast(t('damagePage.loadFailed'), 'error');
         } finally {
             setIsLoading(false);
         }
@@ -32,34 +35,33 @@ export default function DamageReportsPage() {
     const handleUpdateStatus = async (id: string, status: string, notes: string, severity: string) => {
         try {
             await bookingService.updateDamageReportStatus(id, status, notes, severity);
-            showToast('Report status updated', 'success');
+            showToast(t('damagePage.updateSuccess'), 'success');
             await loadReports();
         } catch (error) {
             console.error('Failed to update report status:', error);
-            showToast('Failed to update report. Please try again.', 'error');
+            showToast(t('damagePage.updateFailed'), 'error');
         }
     };
 
     const handleExport = () => {
         if (reports.length === 0) {
-            showToast('No data to export', 'info');
+            showToast(t('damagePage.noDataToExport'), 'info');
             return;
         }
-        const severityMap: Record<string, string> = { minor: '轻微', moderate: '中等', severe: '严重', lost: '丢失' };
         const exportData = reports.map(r => ({
-            'Asset': r.assets?.name || 'N/A',
-            'Borrower': r.bookings?.profiles?.full_name || r.profiles?.full_name || 'N/A',
-            'Severity': severityMap[r.severity] || r.severity,
-            'Description': r.description,
-            'Status': r.status,
-            'Notes': r.resolution_notes || '',
-            'Date': new Date(r.created_at).toLocaleString(),
+            [t('tables.asset')]: r.assets?.name || t('common.none'),
+            [t('tables.borrower')]: r.bookings?.profiles?.full_name || r.profiles?.full_name || t('common.none'),
+            [t('tables.severity')]: getDamageSeverityLabel(r.severity, t),
+            [t('audit.description')]: r.description,
+            [t('tables.status')]: r.status,
+            [t('damageDetails.resNotes')]: r.resolution_notes || '',
+            [t('tables.date')]: new Date(r.created_at).toLocaleString(locale === 'zh' ? 'zh-CN' : 'en-US'),
         }));
         try {
-            exportToExcel(exportData, `Damage_Reports_${new Date().toISOString().split('T')[0]}`, 'Damage Reports');
-            showToast('Report exported successfully', 'success');
+            exportToExcel(exportData, `Damage_Reports_${new Date().toISOString().split('T')[0]}`, t('damagePage.exportSheet'));
+            showToast(t('damagePage.exportSuccess'), 'success');
         } catch {
-            showToast('Export failed', 'error');
+            showToast(t('damagePage.exportFailed'), 'error');
         }
     };
 
@@ -72,10 +74,10 @@ export default function DamageReportsPage() {
                     <div>
                         <div className="flex items-center gap-2.5 mb-1">
                             <ShieldAlert className="w-5 h-5 text-rose-400" />
-                            <h1 className="text-2xl font-bold text-white tracking-tight">Damage Reports & Claims</h1>
+                            <h1 className="text-2xl font-bold text-white tracking-tight">{t('damagePage.title')}</h1>
                         </div>
                         <p className="text-sm text-gray-500">
-                            Manage equipment damage incidents, track repairs, and resolve student claims.
+                            {t('damagePage.subtitle')}
                         </p>
                     </div>
                     
@@ -84,7 +86,7 @@ export default function DamageReportsPage() {
                             onClick={handleExport}
                             className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-300 bg-gray-900/60 border border-white/10 rounded-xl hover:bg-white/5 transition-colors shadow-sm backdrop-blur-sm"
                         >
-                            <Download className="w-4 h-4" /> Export
+                            <Download className="w-4 h-4" /> {t('common.export')}
                         </button>
                         <button
                             onClick={loadReports}
@@ -92,7 +94,7 @@ export default function DamageReportsPage() {
                             className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-300 bg-gray-900/60 border border-white/10 rounded-xl hover:bg-white/5 transition-colors shadow-sm disabled:opacity-50 backdrop-blur-sm"
                         >
                             <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-                            Refresh
+                            {t('common.refresh')}
                         </button>
                     </div>
                 </div>
@@ -101,7 +103,7 @@ export default function DamageReportsPage() {
                 {isLoading ? (
                     <div className="w-full h-64 flex flex-col items-center justify-center bg-gray-900/40 rounded-2xl border border-white/5 backdrop-blur-sm">
                         <div className="w-8 h-8 border-4 border-rose-500 border-t-transparent rounded-full animate-spin mb-4" />
-                        <p className="text-gray-400 font-medium">Loading incident reports...</p>
+                        <p className="text-gray-400 font-medium">{t('damagePage.loading')}</p>
                     </div>
                 ) : (
                     <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 relative z-10">

@@ -18,6 +18,8 @@ import {
 } from 'lucide-react';
 import { getOutstandingAmount } from '@/lib/compensation';
 import { formatDateTime, formatDateTimeRange } from '@/lib/dateTime';
+import { useLanguage } from '@/components/providers/LanguageProvider';
+import { getCompensationStatusLabel, getDamageSeverityLabel, getStatusLabel } from '@/lib/i18n';
 import type { CompensationCaseWithDetails, UpdateCompensationCaseInput } from '@/lib/compensationService';
 import type { CompensationStatus } from '@/types/database';
 
@@ -37,60 +39,54 @@ const STATUS_OPTIONS: CompensationStatus[] = [
   'waived',
 ];
 
-function getStatusMeta(status: CompensationStatus) {
+function getStatusMeta(status: CompensationStatus, label: string) {
   switch (status) {
     case 'under_review':
       return {
-        label: 'Under Review',
+        label,
         badge: 'bg-sky-500/10 text-sky-300 border-sky-500/20',
       };
     case 'awaiting_signature':
       return {
-        label: 'Awaiting Signature',
+        label,
         badge: 'bg-violet-500/10 text-violet-300 border-violet-500/20',
       };
     case 'awaiting_payment':
       return {
-        label: 'Awaiting Payment',
+        label,
         badge: 'bg-amber-500/10 text-amber-300 border-amber-500/20',
       };
     case 'partially_paid':
       return {
-        label: 'Partially Paid',
+        label,
         badge: 'bg-orange-500/10 text-orange-300 border-orange-500/20',
       };
     case 'paid':
       return {
-        label: 'Paid',
+        label,
         badge: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20',
       };
     case 'waived':
       return {
-        label: 'Waived',
+        label,
         badge: 'bg-gray-500/10 text-gray-300 border-gray-500/20',
       };
     default:
       return {
-        label: status,
+        label,
         badge: 'bg-white/5 text-gray-300 border-white/10',
       };
   }
 }
 
-function formatMoney(amount: number | null | undefined) {
-  if (typeof amount !== 'number' || Number.isNaN(amount)) return 'Pending';
+function formatMoney(amount: number | null | undefined, pendingLabel: string) {
+  if (typeof amount !== 'number' || Number.isNaN(amount)) return pendingLabel;
   return `¥${amount.toLocaleString()}`;
 }
 
 function RecordTypeBadge({ type }: { type: string }) {
-  const label = {
-    assessment: 'Assessment',
-    status_update: 'Status Update',
-    signature: 'Signature',
-    payment: 'Payment',
-    adjustment: 'Adjustment',
-    note: 'Note',
-  }[type] ?? type;
+  const { t } = useLanguage();
+  const label = t(`compensation.recordTypes.${type}`) || type;
 
   return (
     <span className="inline-flex items-center rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-gray-300">
@@ -100,7 +96,8 @@ function RecordTypeBadge({ type }: { type: string }) {
 }
 
 function StatusBadge({ status }: { status: CompensationStatus }) {
-  const meta = getStatusMeta(status);
+  const { t } = useLanguage();
+  const meta = getStatusMeta(status, getCompensationStatusLabel(status, t));
   return (
     <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold ${meta.badge}`}>
       {meta.label}
@@ -120,35 +117,42 @@ function StepDot({ active, done }: { active: boolean; done: boolean }) {
 }
 
 function ProcessGuide({ item }: { item: CompensationCaseWithDetails }) {
+  const { t } = useLanguage();
   const outstanding = getOutstandingAmount(item.agreed_amount, item.assessed_amount, item.paid_amount);
   const steps = [
     {
       key: 'review',
-      title: '1. Damage review completed',
-      text: 'The asset office confirms the final compensation amount after checking return photos, damage evidence, and the booking record.',
+      title: t('compensation.stepReviewTitle'),
+      text: t('compensation.stepReviewText'),
       done: item.status !== 'under_review',
       active: item.status === 'under_review',
     },
     {
       key: 'signature',
-      title: '2. Sign the acknowledgement form',
-      text: `The student contacts ${item.contact_person} at ${item.contact_office} during ${item.office_hours} to confirm the agreed amount and receive a payment reference.`,
+      title: t('compensation.stepSignatureTitle'),
+      text: t('compensation.stepSignatureText', {
+        person: item.contact_person,
+        office: item.contact_office,
+        hours: item.office_hours,
+      }),
       done: ['awaiting_payment', 'partially_paid', 'paid'].includes(item.status),
       active: item.status === 'awaiting_signature',
     },
     {
       key: 'payment',
-      title: '3. Complete the payment',
-      text: `Pay against reference ${item.payment_reference || 'to be assigned'} via the campus finance desk or approved bank transfer. Bring student ID and the booking number for verification.`,
+      title: t('compensation.stepPaymentTitle'),
+      text: t('compensation.stepPaymentText', {
+        reference: item.payment_reference || t('common.pendingAssignment'),
+      }),
       done: ['partially_paid', 'paid'].includes(item.status),
       active: item.status === 'awaiting_payment',
     },
     {
       key: 'close',
-      title: '4. Finance confirmation and closure',
+      title: t('compensation.stepCloseTitle'),
       text: outstanding > 0
-        ? `A remaining balance of ${formatMoney(outstanding)} is still open. Once the balance reaches zero, the case can be marked as paid.`
-        : 'The finance office confirms the receipt, uploads the payment record, and closes the case as paid.',
+        ? t('compensation.stepCloseTextOpen', { amount: formatMoney(outstanding, t('compensation.pendingAmount')) })
+        : t('compensation.stepCloseTextDone'),
       done: item.status === 'paid' || item.status === 'waived',
       active: item.status === 'partially_paid',
     },
@@ -158,7 +162,7 @@ function ProcessGuide({ item }: { item: CompensationCaseWithDetails }) {
     <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-5">
       <div className="mb-4 flex items-center gap-2">
         <ClipboardPenLine className="h-4 w-4 text-violet-300" />
-        <h4 className="text-sm font-semibold text-white">Student Compensation Guide</h4>
+        <h4 className="text-sm font-semibold text-white">{t('compensation.studentGuide')}</h4>
       </div>
       <div className="space-y-4">
         {steps.map((step) => (
@@ -185,6 +189,7 @@ function DetailRow({ label, value }: { label: string; value: string }) {
 }
 
 function ExpandedDetail({ item }: { item: CompensationCaseWithDetails }) {
+  const { t } = useLanguage();
   const outstanding = getOutstandingAmount(item.agreed_amount, item.assessed_amount, item.paid_amount);
 
   return (
@@ -193,30 +198,30 @@ function ExpandedDetail({ item }: { item: CompensationCaseWithDetails }) {
         <div className="rounded-2xl border border-amber-500/15 bg-amber-500/5 px-4 py-4">
           <div className="mb-2 flex items-center gap-2 text-amber-300">
             <CircleDollarSign className="h-4 w-4" />
-            <span className="text-xs font-semibold uppercase tracking-wider">Assessed</span>
+            <span className="text-xs font-semibold uppercase tracking-wider">{t('compensation.assessed')}</span>
           </div>
-          <p className="text-2xl font-bold text-white">{formatMoney(item.assessed_amount)}</p>
+          <p className="text-2xl font-bold text-white">{formatMoney(item.assessed_amount, t('compensation.pendingAmount'))}</p>
         </div>
         <div className="rounded-2xl border border-violet-500/15 bg-violet-500/5 px-4 py-4">
           <div className="mb-2 flex items-center gap-2 text-violet-300">
             <FileSignature className="h-4 w-4" />
-            <span className="text-xs font-semibold uppercase tracking-wider">Agreed</span>
+            <span className="text-xs font-semibold uppercase tracking-wider">{t('compensation.agreed')}</span>
           </div>
-          <p className="text-2xl font-bold text-white">{formatMoney(item.agreed_amount)}</p>
+          <p className="text-2xl font-bold text-white">{formatMoney(item.agreed_amount, t('compensation.pendingAmount'))}</p>
         </div>
         <div className="rounded-2xl border border-emerald-500/15 bg-emerald-500/5 px-4 py-4">
           <div className="mb-2 flex items-center gap-2 text-emerald-300">
             <HandCoins className="h-4 w-4" />
-            <span className="text-xs font-semibold uppercase tracking-wider">Paid</span>
+            <span className="text-xs font-semibold uppercase tracking-wider">{t('compensation.paid')}</span>
           </div>
-          <p className="text-2xl font-bold text-white">{formatMoney(item.paid_amount)}</p>
+          <p className="text-2xl font-bold text-white">{formatMoney(item.paid_amount, t('compensation.pendingAmount'))}</p>
         </div>
         <div className="rounded-2xl border border-rose-500/15 bg-rose-500/5 px-4 py-4">
           <div className="mb-2 flex items-center gap-2 text-rose-300">
             <Wallet className="h-4 w-4" />
-            <span className="text-xs font-semibold uppercase tracking-wider">Outstanding</span>
+            <span className="text-xs font-semibold uppercase tracking-wider">{t('compensation.outstanding')}</span>
           </div>
-          <p className="text-2xl font-bold text-white">{formatMoney(outstanding)}</p>
+          <p className="text-2xl font-bold text-white">{formatMoney(outstanding, t('compensation.pendingAmount'))}</p>
         </div>
       </div>
 
@@ -227,7 +232,7 @@ function ExpandedDetail({ item }: { item: CompensationCaseWithDetails }) {
           <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-5">
             <div className="mb-4 flex items-center gap-2">
               <ReceiptText className="h-4 w-4 text-amber-300" />
-              <h4 className="text-sm font-semibold text-white">Compensation Record Log</h4>
+              <h4 className="text-sm font-semibold text-white">{t('compensation.recordLog')}</h4>
             </div>
 
             <div className="space-y-3">
@@ -245,13 +250,13 @@ function ExpandedDetail({ item }: { item: CompensationCaseWithDetails }) {
                   )}
                   <div className="mt-3 grid gap-2 md:grid-cols-3">
                     {typeof record.amount === 'number' && (
-                      <DetailRow label="Amount" value={formatMoney(record.amount)} />
+                      <DetailRow label={t('compensation.amount')} value={formatMoney(record.amount, t('compensation.pendingAmount'))} />
                     )}
                     {record.payment_method && (
-                      <DetailRow label="Method" value={record.payment_method} />
+                      <DetailRow label={t('compensation.method')} value={record.payment_method} />
                     )}
                     {record.reference_no && (
-                      <DetailRow label="Reference" value={record.reference_no} />
+                      <DetailRow label={t('compensation.reference')} value={record.reference_no} />
                     )}
                   </div>
                 </div>
@@ -264,32 +269,32 @@ function ExpandedDetail({ item }: { item: CompensationCaseWithDetails }) {
           <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-5">
             <div className="mb-4 flex items-center gap-2">
               <ContactRound className="h-4 w-4 text-sky-300" />
-              <h4 className="text-sm font-semibold text-white">Contact & Payment Instructions</h4>
+              <h4 className="text-sm font-semibold text-white">{t('compensation.contactInstructions')}</h4>
             </div>
-            <DetailRow label="Contact" value={item.contact_person} />
-            <DetailRow label="Email" value={item.contact_email} />
-            <DetailRow label="Phone" value={item.contact_phone} />
-            <DetailRow label="Office" value={item.contact_office} />
-            <DetailRow label="Hours" value={item.office_hours} />
-            <DetailRow label="Reference" value={item.payment_reference || 'Pending assignment'} />
-            <DetailRow label="Due Date" value={item.due_date ? formatDateTime(item.due_date) : 'To be scheduled'} />
+            <DetailRow label={t('compensation.contact')} value={item.contact_person} />
+            <DetailRow label={t('compensation.email')} value={item.contact_email} />
+            <DetailRow label={t('compensation.phone')} value={item.contact_phone} />
+            <DetailRow label={t('compensation.office')} value={item.contact_office} />
+            <DetailRow label={t('compensation.hours')} value={item.office_hours} />
+            <DetailRow label={t('compensation.reference')} value={item.payment_reference || t('compensation.referencePending')} />
+            <DetailRow label={t('compensation.dueDate')} value={item.due_date ? formatDateTime(item.due_date) : t('common.toBeScheduled')} />
           </div>
 
           <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-5">
             <div className="mb-4 flex items-center gap-2">
               <CalendarClock className="h-4 w-4 text-emerald-300" />
-              <h4 className="text-sm font-semibold text-white">Case Snapshot</h4>
+              <h4 className="text-sm font-semibold text-white">{t('compensation.caseSnapshot')}</h4>
             </div>
             <DetailRow
-              label="Booking"
+              label={t('compensation.booking')}
               value={formatDateTimeRange(item.bookings?.start_date ?? null, item.bookings?.end_date ?? null)}
             />
-            <DetailRow label="Damage Severity" value={item.damage_reports?.severity ?? '—'} />
-            <DetailRow label="Damage Status" value={item.damage_reports?.status ?? '—'} />
-            <DetailRow label="Last Updated" value={formatDateTime(item.updated_at)} />
+            <DetailRow label={t('compensation.damageSeverity')} value={item.damage_reports?.severity ? getDamageSeverityLabel(item.damage_reports.severity, t) : '—'} />
+            <DetailRow label={t('compensation.damageStatus')} value={item.damage_reports?.status ? getStatusLabel(item.damage_reports.status, t) : '—'} />
+            <DetailRow label={t('compensation.lastUpdated')} value={formatDateTime(item.updated_at)} />
             {item.admin_notes && (
               <div className="mt-4 rounded-xl border border-white/5 bg-black/20 px-4 py-3">
-                <p className="text-xs uppercase tracking-[0.18em] text-gray-500">Admin Notes</p>
+                <p className="text-xs uppercase tracking-[0.18em] text-gray-500">{t('compensation.adminNotes')}</p>
                 <p className="mt-2 text-sm leading-6 text-gray-300 whitespace-pre-wrap">{item.admin_notes}</p>
               </div>
             )}
@@ -309,6 +314,7 @@ function UpdateModal({
   onClose: () => void;
   onSave: (input: UpdateCompensationCaseInput) => Promise<void> | void;
 }) {
+  const { t } = useLanguage();
   const [status, setStatus] = useState<CompensationStatus>(item.status);
   const [assessedAmount, setAssessedAmount] = useState(item.assessed_amount?.toString() ?? '');
   const [agreedAmount, setAgreedAmount] = useState(item.agreed_amount?.toString() ?? '');
@@ -316,7 +322,7 @@ function UpdateModal({
   const [paymentReference, setPaymentReference] = useState(item.payment_reference);
   const [adminNotes, setAdminNotes] = useState(item.admin_notes ?? '');
   const [paymentAmount, setPaymentAmount] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('Campus cashier');
+  const [paymentMethod, setPaymentMethod] = useState(item.payment_method || t('compensation.defaultMethod'));
   const [paymentRecordReference, setPaymentRecordReference] = useState('');
   const [paymentNote, setPaymentNote] = useState('');
 
@@ -335,13 +341,13 @@ function UpdateModal({
       >
         <div className="flex shrink-0 items-start justify-between border-b border-white/5 px-6 py-5">
           <div>
-            <p className="text-xs uppercase tracking-[0.24em] text-violet-300">Compensation Workflow</p>
-            <h3 className="mt-2 text-2xl font-bold text-white">{item.assets?.name ?? 'Unknown Asset'}</h3>
+            <p className="text-xs uppercase tracking-[0.24em] text-violet-300">{t('compensation.workflow')}</p>
+            <h3 className="mt-2 text-2xl font-bold text-white">{item.assets?.name ?? t('compensation.unknownAsset')}</h3>
             <p className="mt-1 text-sm text-gray-400">
-              {item.profiles?.full_name ?? 'Unknown user'} · {item.profiles?.student_id ?? 'No student ID'}
+              {item.profiles?.full_name ?? t('compensation.unknownUser')} · {item.profiles?.student_id ?? t('compensation.noStudentId')}
             </p>
           </div>
-          <button onClick={onClose} className="rounded-full p-2 text-gray-400 hover:bg-white/5 hover:text-white">
+          <button onClick={onClose} aria-label={t('common.close')} className="rounded-full p-2 text-gray-400 hover:bg-white/5 hover:text-white">
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -350,7 +356,7 @@ function UpdateModal({
           <div className="space-y-5">
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="space-y-2">
-                <span className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Case Status</span>
+                <span className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{t('compensation.caseStatus')}</span>
                 <select
                   value={status}
                   onChange={(event) => setStatus(event.target.value as CompensationStatus)}
@@ -358,13 +364,13 @@ function UpdateModal({
                 >
                   {STATUS_OPTIONS.map((option) => (
                     <option key={option} value={option} className="bg-[#111111]">
-                      {getStatusMeta(option).label}
+                      {getStatusMeta(option, getCompensationStatusLabel(option, t)).label}
                     </option>
                   ))}
                 </select>
               </label>
               <label className="space-y-2">
-                <span className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Due Date</span>
+                <span className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{t('compensation.dueDate')}</span>
                 <input
                   type="date"
                   value={dueDate}
@@ -376,7 +382,7 @@ function UpdateModal({
 
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="space-y-2">
-                <span className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Assessed Amount</span>
+                <span className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{t('compensation.assessedAmount')}</span>
                 <input
                   type="number"
                   min="0"
@@ -387,7 +393,7 @@ function UpdateModal({
                 />
               </label>
               <label className="space-y-2">
-                <span className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Signed / Agreed Amount</span>
+                <span className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{t('compensation.agreedAmount')}</span>
                 <input
                   type="number"
                   min="0"
@@ -400,7 +406,7 @@ function UpdateModal({
             </div>
 
             <label className="space-y-2">
-              <span className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Payment Reference</span>
+              <span className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{t('compensation.paymentReference')}</span>
               <input
                 type="text"
                 value={paymentReference}
@@ -410,13 +416,13 @@ function UpdateModal({
             </label>
 
             <label className="space-y-2">
-              <span className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Admin Notes</span>
+              <span className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{t('compensation.adminNotesField')}</span>
               <textarea
                 rows={4}
                 value={adminNotes}
                 onChange={(event) => setAdminNotes(event.target.value)}
                 className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:border-violet-500 resize-none"
-                placeholder="Add context for the student: appointment notes, exemptions, payment rules..."
+                placeholder={t('compensation.adminNotesPlaceholder')}
               />
             </label>
           </div>
@@ -425,22 +431,22 @@ function UpdateModal({
             <div className="rounded-2xl border border-emerald-500/15 bg-emerald-500/5 p-5">
               <div className="flex items-center gap-2 text-emerald-300">
                 <Wallet className="h-4 w-4" />
-                <span className="text-xs font-semibold uppercase tracking-[0.18em]">Live Summary</span>
+                <span className="text-xs font-semibold uppercase tracking-[0.18em]">{t('compensation.liveSummary')}</span>
               </div>
               <div className="mt-4 space-y-3">
-                <DetailRow label="Already Paid" value={formatMoney(item.paid_amount)} />
-                <DetailRow label="Projected Outstanding" value={formatMoney(outstanding)} />
+                <DetailRow label={t('compensation.alreadyPaid')} value={formatMoney(item.paid_amount, t('compensation.pendingAmount'))} />
+                <DetailRow label={t('compensation.projectedOutstanding')} value={formatMoney(outstanding, t('compensation.pendingAmount'))} />
               </div>
             </div>
 
             <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-5">
               <div className="mb-4 flex items-center gap-2">
                 <CreditCard className="h-4 w-4 text-amber-300" />
-                <h4 className="text-sm font-semibold text-white">Add Payment Record</h4>
+                <h4 className="text-sm font-semibold text-white">{t('compensation.addPaymentRecord')}</h4>
               </div>
               <div className="space-y-4">
                 <label className="space-y-2">
-                  <span className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Received Amount</span>
+                  <span className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{t('compensation.receivedAmount')}</span>
                   <input
                     type="number"
                     min="0"
@@ -452,7 +458,7 @@ function UpdateModal({
                   />
                 </label>
                 <label className="space-y-2">
-                  <span className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Method</span>
+                  <span className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{t('compensation.method')}</span>
                   <input
                     type="text"
                     value={paymentMethod}
@@ -461,7 +467,7 @@ function UpdateModal({
                   />
                 </label>
                 <label className="space-y-2">
-                  <span className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Receipt / Transfer Ref</span>
+                  <span className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{t('compensation.receiptRef')}</span>
                   <input
                     type="text"
                     value={paymentRecordReference}
@@ -470,13 +476,13 @@ function UpdateModal({
                   />
                 </label>
                 <label className="space-y-2">
-                  <span className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Payment Note</span>
+                  <span className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">{t('compensation.paymentNote')}</span>
                   <textarea
                     rows={3}
                     value={paymentNote}
                     onChange={(event) => setPaymentNote(event.target.value)}
                     className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none focus:border-violet-500 resize-none"
-                    placeholder="Optional note for this payment entry..."
+                    placeholder={t('compensation.paymentNotePlaceholder')}
                   />
                 </label>
               </div>
@@ -486,14 +492,14 @@ function UpdateModal({
 
         <div className="flex shrink-0 items-center justify-between gap-4 border-t border-white/5 px-6 py-5">
           <p className="text-sm text-gray-500">
-            Saving will update the debt status, refresh the payment progress, and notify the student.
+            {t('compensation.savingHint')}
           </p>
           <div className="flex gap-3">
             <button
               onClick={onClose}
               className="rounded-2xl border border-white/10 px-5 py-3 text-sm font-semibold text-gray-300 hover:bg-white/5"
             >
-              Cancel
+              {t('common.cancel')}
             </button>
             <button
               onClick={() => onSave({
@@ -511,7 +517,7 @@ function UpdateModal({
               })}
               className="rounded-2xl bg-violet-600 px-5 py-3 text-sm font-semibold text-white shadow-[0_0_16px_rgba(139,92,246,0.28)] hover:bg-violet-500"
             >
-              Save Compensation Update
+              {t('compensation.saveUpdate')}
             </button>
           </div>
         </div>
@@ -523,17 +529,20 @@ function UpdateModal({
 export default function CompensationTable({
   cases,
   onUpdateCase,
-  emptyTitle = 'No compensation cases yet',
-  emptyMessage = 'Once a damage report requires financial follow-up, the case will appear here with amounts, payment status, and student-facing instructions.',
+  emptyTitle,
+  emptyMessage,
 }: CompensationTableProps) {
+  const { t } = useLanguage();
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editingCase, setEditingCase] = useState<CompensationCaseWithDetails | null>(null);
+  const resolvedEmptyTitle = emptyTitle ?? t('compensation.noCasesYet');
+  const resolvedEmptyMessage = emptyMessage ?? t('compensation.noCasesYetBody');
 
   if (cases.length === 0) {
     return (
       <div className="rounded-3xl border border-white/5 bg-gray-900/40 px-6 py-20 text-center backdrop-blur-sm">
-        <p className="text-lg font-semibold text-white">{emptyTitle}</p>
-        <p className="mt-2 text-sm text-gray-500">{emptyMessage}</p>
+        <p className="text-lg font-semibold text-white">{resolvedEmptyTitle}</p>
+        <p className="mt-2 text-sm text-gray-500">{resolvedEmptyMessage}</p>
       </div>
     );
   }
@@ -546,13 +555,13 @@ export default function CompensationTable({
             <thead className="bg-white/5">
               <tr>
                 <th className="w-8 py-4 pl-4" />
-                <th className="py-4 pr-3 text-left text-xs font-bold uppercase tracking-[0.24em] text-gray-500">Asset</th>
-                <th className="px-3 py-4 text-left text-xs font-bold uppercase tracking-[0.24em] text-gray-500">Liable User</th>
-                <th className="px-3 py-4 text-left text-xs font-bold uppercase tracking-[0.24em] text-gray-500">Damage</th>
-                <th className="px-3 py-4 text-left text-xs font-bold uppercase tracking-[0.24em] text-gray-500">Financials</th>
-                <th className="px-3 py-4 text-left text-xs font-bold uppercase tracking-[0.24em] text-gray-500">Status</th>
-                <th className="px-3 py-4 text-left text-xs font-bold uppercase tracking-[0.24em] text-gray-500">Updated</th>
-                <th className="py-4 pl-3 pr-6 text-right text-xs font-bold uppercase tracking-[0.24em] text-gray-500">Action</th>
+                <th className="py-4 pr-3 text-left text-xs font-bold uppercase tracking-[0.24em] text-gray-500">{t('compensation.asset')}</th>
+                <th className="px-3 py-4 text-left text-xs font-bold uppercase tracking-[0.24em] text-gray-500">{t('compensation.liableUser')}</th>
+                <th className="px-3 py-4 text-left text-xs font-bold uppercase tracking-[0.24em] text-gray-500">{t('compensation.damage')}</th>
+                <th className="px-3 py-4 text-left text-xs font-bold uppercase tracking-[0.24em] text-gray-500">{t('compensation.financials')}</th>
+                <th className="px-3 py-4 text-left text-xs font-bold uppercase tracking-[0.24em] text-gray-500">{t('tables.status')}</th>
+                <th className="px-3 py-4 text-left text-xs font-bold uppercase tracking-[0.24em] text-gray-500">{t('compensation.updated')}</th>
+                <th className="py-4 pl-3 pr-6 text-right text-xs font-bold uppercase tracking-[0.24em] text-gray-500">{t('compensation.action')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
@@ -560,6 +569,7 @@ export default function CompensationTable({
                 const outstanding = getOutstandingAmount(item.agreed_amount, item.assessed_amount, item.paid_amount);
                 const isExpanded = expandedId === item.id;
                 const isCompleted = item.status === 'paid' || item.status === 'waived' || outstanding <= 0;
+                const pendingAmountLabel = t('compensation.pendingAmount');
 
                 return (
                   <Fragment key={item.id}>
@@ -585,22 +595,22 @@ export default function CompensationTable({
                             <div className="h-11 w-11 rounded-xl border border-white/10 bg-white/5" />
                           )}
                           <div>
-                            <p className="text-sm font-semibold text-white">{item.assets?.name ?? 'Unknown asset'}</p>
-                            <p className="text-xs text-gray-500">{item.payment_reference || 'Reference pending'}</p>
+                            <p className="text-sm font-semibold text-white">{item.assets?.name ?? t('compensation.unknownAsset')}</p>
+                            <p className="text-xs text-gray-500">{item.payment_reference || t('compensation.referencePending')}</p>
                           </div>
                         </div>
                       </td>
                       <td className="px-3 py-4">
-                        <p className="text-sm font-medium text-gray-200">{item.profiles?.full_name ?? 'Unknown'}</p>
-                        <p className="mt-1 text-xs font-mono text-gray-500">{item.profiles?.student_id ?? 'No student ID'}</p>
+                        <p className="text-sm font-medium text-gray-200">{item.profiles?.full_name ?? t('compensation.unknownUser')}</p>
+                        <p className="mt-1 text-xs font-mono text-gray-500">{item.profiles?.student_id ?? t('compensation.noStudentId')}</p>
                       </td>
                       <td className="px-3 py-4">
-                        <p className="text-sm text-gray-200 capitalize">{item.damage_reports?.severity ?? '—'}</p>
-                        <p className="mt-1 text-xs text-gray-500 capitalize">{item.damage_reports?.status ?? '—'}</p>
+                        <p className="text-sm text-gray-200">{item.damage_reports?.severity ? getDamageSeverityLabel(item.damage_reports.severity, t) : '—'}</p>
+                        <p className="mt-1 text-xs text-gray-500">{item.damage_reports?.status ? getStatusLabel(item.damage_reports.status, t) : '—'}</p>
                       </td>
                       <td className="px-3 py-4">
-                        <p className="text-sm font-semibold text-white">{formatMoney(item.agreed_amount ?? item.assessed_amount)}</p>
-                        <p className="mt-1 text-xs text-rose-300">Outstanding {formatMoney(outstanding)}</p>
+                        <p className="text-sm font-semibold text-white">{formatMoney(item.agreed_amount ?? item.assessed_amount, pendingAmountLabel)}</p>
+                        <p className="mt-1 text-xs text-rose-300">{t('compensation.outstandingInline', { amount: formatMoney(outstanding, pendingAmountLabel) })}</p>
                       </td>
                       <td className="px-3 py-4">
                         <StatusBadge status={item.status} />
@@ -608,13 +618,13 @@ export default function CompensationTable({
                       <td className="px-3 py-4">
                         <p className="text-sm text-gray-200">{formatDateTime(item.updated_at)}</p>
                         <p className="mt-1 text-xs text-gray-500">
-                          {item.due_date ? `Due ${formatDateTime(item.due_date)}` : 'No due date'}
+                          {item.due_date ? t('compensation.dueLabel', { date: formatDateTime(item.due_date) }) : t('compensation.noDueDate')}
                         </p>
                       </td>
                       <td className="py-4 pl-3 pr-6 text-right">
                         {isCompleted ? (
                           <span className="inline-flex items-center rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-sm font-semibold text-emerald-300">
-                            Completed
+                            {t('compensation.completed')}
                           </span>
                         ) : (
                           <button
@@ -624,7 +634,7 @@ export default function CompensationTable({
                             }}
                             className="inline-flex items-center rounded-xl border border-violet-500/30 bg-violet-500/10 px-3 py-2 text-sm font-semibold text-violet-300 transition hover:bg-violet-500/15"
                           >
-                            Manage
+                            {t('compensation.manage')}
                           </button>
                         )}
                       </td>

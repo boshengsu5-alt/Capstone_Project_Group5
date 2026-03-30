@@ -5,12 +5,13 @@ import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/layout/Sidebar';
 import Navbar from '@/components/layout/Navbar';
 import { ToastProvider } from '@/components/ui/Toast';
-import { LanguageProvider } from '@/components/providers/LanguageProvider';
 import { AuthProvider, useAuth } from '@/components/providers/AuthContext';
 import { clearStoredAuthState, setSessionCookie, signOut } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
+import { useLanguage } from '@/components/providers/LanguageProvider';
 
 function DashboardContent({ children }: { children: React.ReactNode }) {
+  const { t } = useLanguage();
   const router = useRouter();
   const { canAccessDashboard, isLoading, profile } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -53,10 +54,10 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
+      <div className="dashboard-shell min-h-screen flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-          <p className="text-gray-500 text-sm font-medium">Verifying access...</p>
+          <div className="h-9 w-9 animate-spin rounded-full border-4 border-amber-400 border-t-transparent" />
+          <p className="text-sm font-medium text-[color:var(--dashboard-text-muted)]">{t('common.loading')}</p>
         </div>
       </div>
     );
@@ -67,20 +68,18 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <LanguageProvider>
-      <ToastProvider>
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-          <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
+    <ToastProvider>
+      <div className="dashboard-shell min-h-screen text-white">
+        <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
 
-          <div className="lg:pl-64 flex flex-col min-h-screen">
-            <Navbar setSidebarOpen={setSidebarOpen} />
-            <main className="flex-1">
-              {children}
-            </main>
-          </div>
+        <div className="flex min-h-screen flex-col lg:pl-72">
+          <Navbar setSidebarOpen={setSidebarOpen} />
+          <main className="flex-1">
+            {children}
+          </main>
         </div>
-      </ToastProvider>
-    </LanguageProvider>
+      </div>
+    </ToastProvider>
   );
 }
 

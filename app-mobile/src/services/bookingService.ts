@@ -407,11 +407,16 @@ export async function submitDamageReport(
  * @returns Bookings with date range and status. 包含日期范围和状态的预订列表
  */
 export async function getBookingsForAsset(assetId: string) {
+  const { error: suspendedCheckError } = await db.rpc('check_suspended_maintenance_bookings');
+  if (suspendedCheckError) {
+    console.warn('Failed to run suspended maintenance booking check:', suspendedCheckError.message);
+  }
+
   const { data, error } = await db
     .from('bookings')
     .select('id, start_date, end_date, status')
     .eq('asset_id', assetId)
-    .in('status', ['pending', 'approved', 'active']);
+    .in('status', ['pending', 'approved', 'active', 'suspended']);
 
   if (error) throw error;
   return data ?? [];

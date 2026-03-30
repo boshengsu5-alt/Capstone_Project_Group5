@@ -156,7 +156,7 @@ export default function ApprovalModal({ isOpen, booking, onClose, onApprove, onR
                             <p className="text-xs text-gray-500 mb-0.5">{t('approvalModal.borrowPeriod')}</p>
                             <p className="text-sm font-semibold text-white">
                                 {formatDateTimeRange(booking.start_date, booking.end_date)}
-                                <span className="ml-2 text-xs text-gray-500 font-normal">（{borrowDays} {t('approvalModal.days')}）</span>
+                                <span className="ml-2 text-xs text-gray-500 font-normal">({borrowDays} {t('approvalModal.days')})</span>
                             </p>
                         </div>
                     </div>

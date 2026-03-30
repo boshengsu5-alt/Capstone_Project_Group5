@@ -3,6 +3,8 @@
 import React, { useEffect, useState } from 'react';
 import { X, Shield, GraduationCap, Briefcase, Star, AlertCircle, Loader2 } from 'lucide-react';
 import { useToast } from '@/components/ui/Toast';
+import { useLanguage } from '@/components/providers/LanguageProvider';
+import { getRoleLabel } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { updateUserProfile } from '@/lib/userService';
 import type { Profile, UserRole } from '@/types/database';
@@ -16,6 +18,7 @@ interface UserEditModalProps {
 
 export default function UserEditModal({ user, isOpen, onClose, onSuccess }: UserEditModalProps) {
   const { showToast } = useToast();
+  const { t } = useLanguage();
   const [role, setRole] = useState<UserRole>(user.role);
   const [creditScore, setCreditScore] = useState<number>(user.credit_score);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -33,7 +36,7 @@ export default function UserEditModal({ user, isOpen, onClose, onSuccess }: User
     e.preventDefault();
 
     if (!hasChanges) {
-      showToast('No changes to save.', 'info');
+      showToast(t('users.noChanges'), 'info');
       onClose();
       return;
     }
@@ -49,12 +52,12 @@ export default function UserEditModal({ user, isOpen, onClose, onSuccess }: User
         currentCreditScore: user.credit_score,
       });
 
-      showToast('User profile updated successfully!', 'success');
+      showToast(t('users.roleUpdateSuccess'), 'success');
       await onSuccess();
       onClose();
     } catch (err: unknown) {
       console.error('Update error:', err);
-      const message = err instanceof Error ? err.message : 'Failed to update user profile';
+      const message = err instanceof Error ? err.message : t('users.updateFailed');
       showToast(message, 'error');
     } finally {
       setIsSubmitting(false);
@@ -66,11 +69,12 @@ export default function UserEditModal({ user, isOpen, onClose, onSuccess }: User
       <div className="bg-white dark:bg-gray-900 rounded-2xl w-full max-w-md shadow-2xl border border-gray-200 dark:border-gray-800 animate-in fade-in zoom-in duration-200">
         <div className="flex items-center justify-between p-6 border-b border-gray-100 dark:border-gray-800">
           <div>
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white">Edit User Profile</h2>
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white">{t('users.roleModalTitle')}</h2>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{user.full_name}</p>
           </div>
           <button
             onClick={onClose}
+            aria-label={t('common.close')}
             className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
           >
             <X className="w-5 h-5 text-gray-500" />
@@ -82,7 +86,7 @@ export default function UserEditModal({ user, isOpen, onClose, onSuccess }: User
           <div className="space-y-2">
             <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2">
               <Shield className="w-4 h-4" />
-              User Role
+              {t('users.userRole')}
             </label>
             <div className="grid grid-cols-3 gap-3">
               {(['student', 'staff', 'admin'] as UserRole[]).map((r) => (
@@ -98,7 +102,7 @@ export default function UserEditModal({ user, isOpen, onClose, onSuccess }: User
                   )}
                 >
                   {r === 'admin' ? <Shield className="w-4 h-4" /> : r === 'staff' ? <Briefcase className="w-4 h-4" /> : <GraduationCap className="w-4 h-4" />}
-                  <span className="capitalize">{r}</span>
+                  <span>{getRoleLabel(r, t)}</span>
                 </button>
               ))}
             </div>
@@ -109,7 +113,7 @@ export default function UserEditModal({ user, isOpen, onClose, onSuccess }: User
             <div className="flex items-center justify-between">
               <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2">
                 <Star className="w-4 h-4" />
-                Credit Score
+                {t('users.creditScore')}
               </label>
               <div className={cn(
                 "px-2.5 py-1 rounded-lg text-sm font-bold",
@@ -135,7 +139,7 @@ export default function UserEditModal({ user, isOpen, onClose, onSuccess }: User
               <div className="flex items-center gap-2 p-3 rounded-lg bg-rose-50 dark:bg-rose-500/10 border border-rose-100 dark:border-rose-500/20 animate-in slide-in-from-top-1 duration-200">
                 <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" />
                 <p className="text-xs text-rose-600 dark:text-rose-400">
-                  Critical Score: User may be restricted from borrowing.
+                  {t('users.criticalScore')}
                 </p>
               </div>
             )}
@@ -147,7 +151,7 @@ export default function UserEditModal({ user, isOpen, onClose, onSuccess }: User
               onClick={onClose}
               className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
             >
-              Cancel
+              {t('common.cancel')}
             </button>
             <button
               type="submit"
@@ -156,7 +160,7 @@ export default function UserEditModal({ user, isOpen, onClose, onSuccess }: User
             >
               {isSubmitting ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
-              ) : 'Save Changes'}
+              ) : t('common.saveChanges')}
             </button>
           </div>
         </form>

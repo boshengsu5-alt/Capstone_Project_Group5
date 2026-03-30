@@ -2,6 +2,8 @@
 
 import React, { useState } from 'react';
 import { RotateCcw, X, CheckCircle2 } from 'lucide-react';
+import { useLanguage } from '@/components/providers/LanguageProvider';
+import { getConditionLabel } from '@/lib/i18n';
 import { Asset } from '@/types/database';
 
 interface RelistModalProps {
@@ -12,17 +14,18 @@ interface RelistModalProps {
 }
 
 const CONDITIONS = [
-  { value: 'new', label: 'New', desc: '全新，未使用', color: 'text-emerald-500' },
-  { value: 'good', label: 'Good', desc: '状态良好，正常使用痕迹', color: 'text-blue-500' },
-  { value: 'fair', label: 'Fair', desc: '轻微磨损，功能完好', color: 'text-amber-500' },
-  { value: 'poor', label: 'Poor', desc: '明显磨损，仍可使用', color: 'text-orange-500' },
-];
+  { value: 'new', color: 'text-emerald-500' },
+  { value: 'good', color: 'text-blue-500' },
+  { value: 'fair', color: 'text-amber-500' },
+  { value: 'poor', color: 'text-orange-500' },
+] as const;
 
 /**
  * Modal for re-listing a maintenance asset. Admin selects the post-repair condition
  * and confirms to set the asset back to 'available'. (维护完成后重新上架弹窗)
  */
 export default function RelistModal({ asset, onConfirm, onClose, isSubmitting }: RelistModalProps) {
+  const { t } = useLanguage();
   const [selectedCondition, setSelectedCondition] = useState('good');
 
   return (
@@ -49,15 +52,15 @@ export default function RelistModal({ asset, onConfirm, onClose, isSubmitting }:
         {/* Content */}
         <div className="px-8 pt-6 pb-8">
           <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-1 text-center">
-            Re-list Asset
+            {t('relistModal.title')}
           </h3>
           <p className="text-sm text-gray-500 dark:text-gray-400 mb-6 text-center">
-            将 <span className="font-bold text-gray-900 dark:text-white">"{asset.name}"</span> 重新上架为可借用状态
+            {t('relistModal.description', { name: asset.name })}
           </p>
 
           {/* Condition selector — pick post-repair condition before re-listing (选择维修后的设备状况) */}
           <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
-            设备当前状况 (Post-repair Condition)
+            {t('relistModal.conditionLabel')}
           </label>
           <div className="grid grid-cols-2 gap-2 mb-6">
             {CONDITIONS.map((c) => (
@@ -71,9 +74,9 @@ export default function RelistModal({ asset, onConfirm, onClose, isSubmitting }:
                 }`}
               >
                 <span className={`text-sm font-bold ${selectedCondition === c.value ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-900 dark:text-white'}`}>
-                  {c.label}
+                  {getConditionLabel(c.value, t)}
                 </span>
-                <span className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{c.desc}</span>
+                <span className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{t(`relistModal.conditions.${c.value}`)}</span>
               </button>
             ))}
           </div>
@@ -84,7 +87,7 @@ export default function RelistModal({ asset, onConfirm, onClose, isSubmitting }:
               disabled={isSubmitting}
               className="flex-1 px-6 py-3.5 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold rounded-2xl transition-all active:scale-[0.98] disabled:opacity-50"
             >
-              Cancel
+              {t('relistModal.cancel')}
             </button>
             <button
               onClick={() => onConfirm(selectedCondition)}
@@ -94,10 +97,10 @@ export default function RelistModal({ asset, onConfirm, onClose, isSubmitting }:
               {isSubmitting ? (
                 <div className="flex items-center gap-2">
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  <span>Re-listing...</span>
+                  <span>{t('relistModal.submitting')}</span>
                 </div>
               ) : (
-                'Confirm Re-list'
+                t('relistModal.confirm')
               )}
             </button>
           </div>
@@ -106,6 +109,7 @@ export default function RelistModal({ asset, onConfirm, onClose, isSubmitting }:
         {/* Close */}
         <button 
           onClick={onClose}
+          aria-label={t('common.close')}
           className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
         >
           <X className="w-5 h-5" />

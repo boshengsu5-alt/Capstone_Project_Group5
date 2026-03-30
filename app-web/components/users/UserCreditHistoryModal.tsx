@@ -6,6 +6,8 @@ import { useToast } from '@/components/ui/Toast';
 import { cn } from '@/lib/utils';
 import { getCreditReasonLabel, getUserCreditLogs } from '@/lib/userService';
 import type { CreditScoreLog, Profile } from '@/types/database';
+import { useLanguage } from '@/components/providers/LanguageProvider';
+import { getIntlLocale } from '@/lib/i18n';
 
 interface UserCreditHistoryModalProps {
   user: Profile | null;
@@ -27,6 +29,7 @@ function getScoreTone(score: number) {
 }
 
 export default function UserCreditHistoryModal({ user, isOpen, onClose }: UserCreditHistoryModalProps) {
+  const { t, locale } = useLanguage();
   const { showToast } = useToast();
   const [logs, setLogs] = useState<CreditScoreLog[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -50,7 +53,7 @@ export default function UserCreditHistoryModal({ user, isOpen, onClose }: UserCr
       } catch (error) {
         console.error('Failed to load credit logs:', error);
         if (!ignore) {
-          showToast('Failed to load credit history.', 'error');
+          showToast(t('users.detailLoadFailed'), 'error');
         }
       } finally {
         if (!ignore) {
@@ -110,9 +113,9 @@ export default function UserCreditHistoryModal({ user, isOpen, onClose }: UserCr
             <div>
               <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-white/80 ring-1 ring-white/10">
                 <History className="h-3.5 w-3.5" />
-                Credit history
+                {t('users.creditHistory')}
               </div>
-              <h2 className="mt-3 text-2xl font-semibold tracking-tight text-white">{user.full_name || 'Unnamed User'}</h2>
+              <h2 className="mt-3 text-2xl font-semibold tracking-tight text-white">{user.full_name || t('users.unnamed')}</h2>
               <p className="mt-1 text-sm text-slate-300">{user.email}</p>
             </div>
 
@@ -127,18 +130,18 @@ export default function UserCreditHistoryModal({ user, isOpen, onClose }: UserCr
 
           <div className="mt-5 grid gap-4 md:grid-cols-[auto_1fr] md:items-center">
             <div className="rounded-3xl border border-white/10 bg-black/15 px-5 py-4 text-center shadow-lg">
-              <p className="text-xs uppercase tracking-[0.22em] text-slate-400">Current score</p>
+              <p className="text-xs uppercase tracking-[0.22em] text-slate-400">{t('users.currentScore')}</p>
               <div className={cn('mt-2 text-5xl font-bold tracking-tight', getScoreTone(user.credit_score))}>
                 {user.credit_score}
               </div>
-              <p className="mt-1 text-xs text-slate-400">Out of 200</p>
+              <p className="mt-1 text-xs text-slate-400">{t('users.outOf200')}</p>
             </div>
 
             <div className="grid gap-3 sm:grid-cols-3">
               {([
-                ['all', 'All records'],
-                ['bonus', 'Bonuses only'],
-                ['penalty', 'Penalties only'],
+                ['all', t('users.allRecords')],
+                ['bonus', t('users.bonusesOnly')],
+                ['penalty', t('users.penaltiesOnly')],
               ] as [FilterMode, string][]).map(([value, label]) => (
                 <button
                   key={value}
@@ -150,10 +153,10 @@ export default function UserCreditHistoryModal({ user, isOpen, onClose }: UserCr
                       ? 'border-indigo-400/50 bg-indigo-500/20 text-white shadow-[0_10px_35px_rgba(99,102,241,0.24)]'
                       : 'border-white/10 bg-white/[0.04] text-slate-300 hover:bg-white/[0.07]'
                   )}
-                >
+                  >
                   <p className="font-medium">{label}</p>
                   <p className="mt-1 text-xs text-slate-400">
-                    {value === 'all' ? `${logs.length} total events` : value === 'bonus' ? 'Positive score changes' : 'Negative score changes'}
+                    {value === 'all' ? t('users.totalEvents', { count: logs.length }) : value === 'bonus' ? t('users.positiveChanges') : t('users.negativeChanges')}
                   </p>
                 </button>
               ))}
@@ -165,14 +168,14 @@ export default function UserCreditHistoryModal({ user, isOpen, onClose }: UserCr
           {isLoading ? (
             <div className="flex min-h-[320px] flex-col items-center justify-center text-center">
               <Loader2 className="h-8 w-8 animate-spin text-indigo-400" />
-              <p className="mt-4 text-sm text-slate-400">Loading credit history...</p>
+              <p className="mt-4 text-sm text-slate-400">{t('users.loadingCreditHistory')}</p>
             </div>
           ) : filteredLogs.length === 0 ? (
             <div className="flex min-h-[320px] flex-col items-center justify-center rounded-[24px] border border-dashed border-white/10 bg-white/[0.03] px-6 text-center">
               <ShieldAlert className="h-12 w-12 text-slate-500" />
-              <h3 className="mt-4 text-lg font-semibold text-white">No matching credit records</h3>
+              <h3 className="mt-4 text-lg font-semibold text-white">{t('users.noMatchingCreditRecords')}</h3>
               <p className="mt-2 max-w-md text-sm text-slate-400">
-                This user does not have credit events under the current filter yet.
+                {t('users.noMatchingCreditRecordsBody')}
               </p>
             </div>
           ) : (
@@ -204,13 +207,13 @@ export default function UserCreditHistoryModal({ user, isOpen, onClose }: UserCr
                                 isBonus ? 'bg-emerald-500/10 text-emerald-300 ring-emerald-400/20' : 'bg-rose-500/10 text-rose-300 ring-rose-400/20'
                               )}
                             >
-                              {isBonus ? 'Bonus' : 'Penalty'}
+                              {isBonus ? t('users.bonus') : t('users.penalty')}
                             </span>
                           </div>
-                          <p className="mt-2 text-sm text-slate-400">{formatDateTime(log.created_at)}</p>
+                          <p className="mt-2 text-sm text-slate-400">{new Date(log.created_at).toLocaleString(getIntlLocale(locale))}</p>
                           {log.booking_id && (
                             <p className="mt-2 text-xs text-slate-500">
-                              Related booking: <span className="font-mono text-slate-300">{log.booking_id.slice(0, 8)}...</span>
+                              {t('users.relatedBooking')}: <span className="font-mono text-slate-300">{log.booking_id.slice(0, 8)}...</span>
                             </p>
                           )}
                         </div>
@@ -221,7 +224,7 @@ export default function UserCreditHistoryModal({ user, isOpen, onClose }: UserCr
                           {isBonus ? '+' : ''}
                           {log.delta}
                         </p>
-                        <p className="mt-1 text-xs text-slate-400">Balance after: {log.balance_after}</p>
+                        <p className="mt-1 text-xs text-slate-400">{t('users.balanceAfter', { value: log.balance_after })}</p>
                       </div>
                     </div>
                   </div>

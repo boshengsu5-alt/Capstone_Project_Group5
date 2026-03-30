@@ -3,10 +3,12 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { checkDashboardAccess, setSessionCookie, signIn, signOut } from '@/lib/auth';
-import { LayoutDashboard, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { LayoutDashboard, Eye, EyeOff, Loader2, Languages } from 'lucide-react';
+import { useLanguage } from '@/components/providers/LanguageProvider';
 
 export default function LoginPage() {
   const router = useRouter();
+  const { t, locale, setLocale } = useLanguage();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -21,27 +23,27 @@ export default function LoginPage() {
     try {
       const { data, error } = await signIn(email, password);
       if (error) {
-        setError(error.message || 'Login failed. Please check your credentials.');
+        setError(error.message || t('login.errors.invalidCredentials'));
         return;
       }
 
       const userId = data.user?.id;
       if (!userId) {
-        setError('Login succeeded but user data is missing.');
+        setError(t('login.errors.missingUser'));
         return;
       }
 
       const hasAccess = await checkDashboardAccess(userId);
       if (!hasAccess) {
         await signOut();
-        setError('Access denied. This portal is for admin and staff only. 仅管理员或工作人员可登录此面板。');
+        setError(t('login.errors.accessDenied'));
         return;
       }
 
       setSessionCookie();
       router.push('/dashboard');
     } catch {
-      setError('An unexpected error occurred. Please try again.');
+      setError(t('login.errors.unexpected'));
     } finally {
       setIsLoading(false);
     }
@@ -56,13 +58,24 @@ export default function LoginPage() {
       />
 
       <div className="relative w-full max-w-md">
+        <div className="absolute right-0 -top-16">
+          <button
+            type="button"
+            onClick={() => setLocale(locale === 'en' ? 'zh' : 'en')}
+            className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-gray-300 transition hover:bg-white/10"
+          >
+            <Languages className="h-3.5 w-3.5" />
+            {t('common.switchLang')}
+          </button>
+        </div>
+
         {/* Logo */}
         <div className="flex flex-col items-center mb-10">
           <div className="bg-indigo-600 p-3 rounded-2xl shadow-[0_0_40px_rgba(99,102,241,0.4)] mb-4">
             <LayoutDashboard className="h-7 w-7 text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-white tracking-tight">UniGear Admin</h1>
-          <p className="text-gray-500 text-sm mt-2">Sign in to access the management panel</p>
+          <h1 className="text-3xl font-bold text-white tracking-tight">{t('login.title')}</h1>
+          <p className="text-gray-500 text-sm mt-2">{t('login.subtitle')}</p>
         </div>
 
         {/* Card */}
@@ -78,7 +91,7 @@ export default function LoginPage() {
             {/* Email */}
             <div className="space-y-1.5">
               <label htmlFor="email" className="block text-sm font-medium text-gray-300">
-                Email
+                {t('login.email')}
               </label>
               <input
                 id="email"
@@ -87,7 +100,7 @@ export default function LoginPage() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@unigear.edu"
+                placeholder={t('login.emailPlaceholder')}
                 className="w-full bg-gray-800/60 border border-white/10 rounded-xl px-4 py-2.5 text-white placeholder-gray-600 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/60 focus:border-indigo-500/60 transition-all"
               />
             </div>
@@ -95,7 +108,7 @@ export default function LoginPage() {
             {/* Password */}
             <div className="space-y-1.5">
               <label htmlFor="password" className="block text-sm font-medium text-gray-300">
-                Password
+                {t('login.password')}
               </label>
               <div className="relative">
                 <input
@@ -105,12 +118,13 @@ export default function LoginPage() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
+                  placeholder={t('login.passwordPlaceholder')}
                   className="w-full bg-gray-800/60 border border-white/10 rounded-xl px-4 py-2.5 text-white placeholder-gray-600 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/60 focus:border-indigo-500/60 transition-all pr-12"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? t('login.hidePassword') : t('login.showPassword')}
                   className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -127,17 +141,17 @@ export default function LoginPage() {
               {isLoading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Signing in...
+                  {t('login.signingIn')}
                 </>
               ) : (
-                'Sign in to Dashboard'
+                t('login.submit')
               )}
             </button>
           </form>
         </div>
 
         <p className="text-center text-gray-600 text-xs mt-6">
-          For staff and admin accounts only. Student access is via the mobile app.
+          {t('login.footer')}
         </p>
       </div>
     </div>

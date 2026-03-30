@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { Trash2, X, AlertTriangle, AlertCircle } from 'lucide-react';
+import { useLanguage } from '@/components/providers/LanguageProvider';
 import { Asset } from '@/types/database';
 
 interface DeleteAssetModalProps {
@@ -12,6 +13,8 @@ interface DeleteAssetModalProps {
 }
 
 export default function DeleteAssetModal({ asset, onConfirm, onClose, isDeleting }: DeleteAssetModalProps) {
+  const { t } = useLanguage();
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
@@ -36,16 +39,16 @@ export default function DeleteAssetModal({ asset, onConfirm, onClose, isDeleting
         {/* Content */}
         <div className="px-8 pt-8 pb-10 text-center">
           <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
-            Archive Asset?
+            {t('deleteAssetModal.title')}
           </h3>
           <p className="text-sm text-gray-500 dark:text-gray-400 mb-6 px-4">
-            You are about to archive <span className="font-bold text-gray-900 dark:text-white">"{asset.name}"</span>. 
+            {t('deleteAssetModal.description', { name: asset.name })}
           </p>
 
           <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-2xl p-4 mb-8 flex items-start gap-3 text-left">
             <AlertCircle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
             <div className="text-xs text-amber-800 dark:text-amber-300 leading-relaxed font-medium">
-              该资产有历史借用记录，将执行归档处理。归档后，该资产将不再出现在主列表中，但其审计日志和交易历史将被保留。
+              {t('deleteAssetModal.warning')}
             </div>
           </div>
 
@@ -55,7 +58,7 @@ export default function DeleteAssetModal({ asset, onConfirm, onClose, isDeleting
               disabled={isDeleting}
               className="flex-1 px-6 py-3.5 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold rounded-2xl transition-all active:scale-[0.98] disabled:opacity-50"
             >
-              Cancel
+              {t('deleteAssetModal.cancel')}
             </button>
             <button
               onClick={onConfirm}
@@ -65,10 +68,10 @@ export default function DeleteAssetModal({ asset, onConfirm, onClose, isDeleting
               {isDeleting ? (
                 <div className="flex items-center gap-2">
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  <span>Archiving...</span>
+                  <span>{t('deleteAssetModal.submitting')}</span>
                 </div>
               ) : (
-                'Confirm Archive'
+                t('deleteAssetModal.confirm')
               )}
             </button>
           </div>
@@ -77,6 +80,7 @@ export default function DeleteAssetModal({ asset, onConfirm, onClose, isDeleting
         {/* Close Button */}
         <button 
           onClick={onClose}
+          aria-label={t('common.close')}
           className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
         >
           <X className="w-5 h-5" />

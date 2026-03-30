@@ -127,6 +127,13 @@ export function getCompensationNotificationDetails(
     paymentReference: hasText(metadata.payment_reference) ? metadata.payment_reference : undefined,
     paymentAmount: getFiniteNumber(metadata.payment_amount),
   };
+  const hideAmounts = details.stage === 'under_review' || details.status === 'under_review';
+
+  if (hideAmounts) {
+    details.assessedAmount = undefined;
+    details.agreedAmount = undefined;
+    details.outstandingAmount = undefined;
+  }
 
   const hasUsefulData = Object.values(details).some((value) => value != null);
   return hasUsefulData ? details : null;

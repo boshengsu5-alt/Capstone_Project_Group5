@@ -66,6 +66,13 @@ interface CalendarViewProps {
     disabled?: boolean;
 }
 
+interface AssetBookingSlot {
+    id: string;
+    start_date: string;
+    end_date: string;
+    status: string;
+}
+
 interface MarkedDates {
     [date: string]: {
         disabled?: boolean;
@@ -80,6 +87,79 @@ interface MarkedDates {
     };
 }
 
+function buildUtcDate(dateString: string, timeString: string): Date {
+    return new Date(`${dateString}T${timeString}:00Z`);
+}
+
+function hasIntervalConflict(start: Date, end: Date, bookings: AssetBookingSlot[]): boolean {
+    const nextStart = start.getTime();
+    const nextEnd = end.getTime();
+
+    if (Number.isNaN(nextStart) || Number.isNaN(nextEnd) || nextEnd <= nextStart) {
+        return true;
+    }
+
+    return bookings.some((booking) => {
+        const bookingStart = new Date(booking.start_date).getTime();
+        const bookingEnd = new Date(booking.end_date).getTime();
+        return bookingStart < nextEnd && bookingEnd > nextStart;
+    });
+}
+
+function hasThirtyMinuteAvailability(
+    dateString: string,
+    startSlot: string,
+    bookings: AssetBookingSlot[],
+): boolean {
+    const start = buildUtcDate(dateString, startSlot);
+    const end = new Date(start.getTime() + 30 * 60 * 1000);
+    return !hasIntervalConflict(start, end, bookings);
+}
+
+function getAvailableEndSlots(
+    selectionStart: string,
+    selectionEnd: string,
+    startSlot: string,
+    bookings: AssetBookingSlot[],
+): string[] {
+    return TIME_SLOTS.filter((endSlot) => {
+        if (selectionStart === selectionEnd && endSlot <= startSlot) return false;
+
+        const start = buildUtcDate(selectionStart, startSlot);
+        const end = buildUtcDate(selectionEnd, endSlot);
+        return !hasIntervalConflict(start, end, bookings);
+    });
+}
+
+function getAvailableStartSlotsForDay(
+    selectionStart: string,
+    bookings: AssetBookingSlot[],
+): string[] {
+    const minTime = selectionStart === format(new Date(), 'yyyy-MM-dd')
+        ? getMinTimeForToday()
+        : null;
+
+    return TIME_SLOTS.filter((startSlot) => {
+        if (minTime && startSlot < minTime) return false;
+        return hasThirtyMinuteAvailability(selectionStart, startSlot, bookings);
+    });
+}
+
+function getAvailableStartSlotsForRange(
+    selectionStart: string,
+    selectionEnd: string,
+    bookings: AssetBookingSlot[],
+): string[] {
+    const minTime = selectionStart === format(new Date(), 'yyyy-MM-dd')
+        ? getMinTimeForToday()
+        : null;
+
+    return TIME_SLOTS.filter((startSlot) => {
+        if (minTime && startSlot < minTime) return false;
+        return getAvailableEndSlots(selectionStart, selectionEnd, startSlot, bookings).length > 0;
+    });
+}
+
 /**
  * Calendar component showing asset availability with date range + time selection.
  * 日历组件，展示资产可用性并支持日期范围及精确到半小时的时间选择
@@ -88,6 +168,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ assetId, onDateChange, disa
     const [loading, setLoading] = useState(true);
     const [fetchError, setFetchError] = useState(false);
     const [bookedDates, setBookedDates] = useState<MarkedDates>({});
+    const [existingBookings, setExistingBookings] = useState<AssetBookingSlot[]>([]);
     const [selectionStart, setSelectionStart] = useState<string | null>(null);
     const [selectionEnd, setSelectionEnd] = useState<string | null>(null);
     const { t, i18n } = useTranslation();
@@ -150,10 +231,11 @@ const CalendarView: React.FC<CalendarViewProps> = ({ assetId, onDateChange, disa
         try {
             setLoading(true);
             setFetchError(false);
-            const bookings = await getBookingsForAsset(assetId);
+            const bookings = await getBookingsForAsset(assetId) as AssetBookingSlot[];
+            setExistingBookings(bookings);
 
             const marked: MarkedDates = {};
-            bookings.forEach((booking: { start_date: string; end_date: string }) => {
+            bookings.forEach((booking) => {
                 let current = parseISO(booking.start_date);
                 const end = parseISO(booking.end_date);
                 let isFirst = true;
@@ -161,10 +243,11 @@ const CalendarView: React.FC<CalendarViewProps> = ({ assetId, onDateChange, disa
                 while (isBefore(current, end) || isEqual(current, end)) {
                     const dateString = format(current, 'yyyy-MM-dd');
                     const isLast = isEqual(addDays(current, 1), addDays(end, 1));
+                    const isFullyBooked = getAvailableStartSlotsForDay(dateString, bookings).length === 0;
                     // period 标记类型要求首尾两天必须标 startingDay/endingDay，否则颜色不渲染
                     marked[dateString] = {
-                        disabled: true,
-                        disableTouchEvent: true,
+                        disabled: isFullyBooked,
+                        disableTouchEvent: isFullyBooked,
                         color: theme.colors.danger,
                         textColor: theme.colors.background,
                         startingDay: isFirst,
@@ -211,6 +294,11 @@ const CalendarView: React.FC<CalendarViewProps> = ({ assetId, onDateChange, disa
                     // 范围内有冲突，重新设为开始日期并弹出取借时间
                     startNewSelection(dateString);
                 } else {
+                    const hasAvailableSlots = getAvailableStartSlotsForRange(selectionStart, dateString, existingBookings).length > 0;
+                    if (!hasAvailableSlots) {
+                        startNewSelection(dateString);
+                        return;
+                    }
                     // 第二次点击：设置结束日期，弹出归还时间选择
                     setSelectionEnd(dateString);
                     setTimePickerTarget('end');
@@ -218,6 +306,34 @@ const CalendarView: React.FC<CalendarViewProps> = ({ assetId, onDateChange, disa
             }
         }
     };
+
+    useEffect(() => {
+        if (!selectionStart || !selectionEnd) return;
+
+        const availableStarts = getAvailableStartSlotsForRange(selectionStart, selectionEnd, existingBookings);
+        if (availableStarts.length === 0) {
+            setSelectionEnd(null);
+            setTimePickerTarget('start');
+            return;
+        }
+
+        const nextStart = availableStarts.includes(startTime) ? startTime : availableStarts[0];
+        if (nextStart !== startTime) {
+            setStartTime(nextStart);
+            return;
+        }
+
+        const availableEnds = getAvailableEndSlots(selectionStart, selectionEnd, nextStart, existingBookings);
+        if (availableEnds.length === 0) {
+            setEndTime(DEFAULT_END_TIME);
+            return;
+        }
+
+        const nextEnd = availableEnds.includes(endTime) ? endTime : availableEnds[0];
+        if (nextEnd !== endTime) {
+            setEndTime(nextEnd);
+        }
+    }, [selectionStart, selectionEnd, startTime, endTime, existingBookings]);
 
     const getMarkedDates = () => {
         const marked: MarkedDates = { ...bookedDates };
@@ -276,13 +392,15 @@ const CalendarView: React.FC<CalendarViewProps> = ({ assetId, onDateChange, disa
 
     const showTimePicker = selectionStart !== null && selectionEnd !== null;
     const hasSelection = selectionStart !== null;
-    const isSingleDaySelection = selectionStart !== null && selectionEnd !== null && selectionStart === selectionEnd;
-    const timeSlotOptions =
-        timePickerTarget === 'start' && selectionStart === format(new Date(), 'yyyy-MM-dd')
-            ? TIME_SLOTS.filter(slot => slot >= getMinTimeForToday())
-            : timePickerTarget === 'end' && isSingleDaySelection
-                ? TIME_SLOTS.filter(slot => slot >= startTime)
-                : TIME_SLOTS;
+    const availableStartSlots = selectionStart && selectionEnd
+        ? getAvailableStartSlotsForRange(selectionStart, selectionEnd, existingBookings)
+        : selectionStart
+            ? getAvailableStartSlotsForDay(selectionStart, existingBookings)
+            : [];
+    const availableEndSlots = selectionStart && selectionEnd
+        ? getAvailableEndSlots(selectionStart, selectionEnd, startTime, existingBookings)
+        : [];
+    const timeSlotOptions = TIME_SLOTS;
 
     return (
         <View style={styles.container}>
@@ -387,30 +505,51 @@ const CalendarView: React.FC<CalendarViewProps> = ({ assetId, onDateChange, disa
                         keyExtractor={(item) => item}
                         showsVerticalScrollIndicator={false}
                         renderItem={({ item }) => {
+                            const isAvailable = timePickerTarget === 'start'
+                                ? availableStartSlots.includes(item)
+                                : availableEndSlots.includes(item);
                             const isSelected = timePickerTarget === 'start'
                                 ? item === startTime
                                 : item === endTime;
                             return (
                                 <TouchableOpacity
-                                    style={[styles.slotItem, isSelected && styles.slotItemSelected]}
+                                    style={[
+                                        styles.slotItem,
+                                        !isAvailable && styles.slotItemDisabled,
+                                        isSelected && isAvailable && styles.slotItemSelected,
+                                    ]}
                                     onPress={() => {
+                                        if (!isAvailable) return;
                                         if (timePickerTarget === 'start') {
                                             setStartTime(item);
-                                            if (isSingleDaySelection && endTime < item) {
-                                                setEndTime(item);
+                                            const nextAvailableEnds = selectionStart && selectionEnd
+                                                ? getAvailableEndSlots(selectionStart, selectionEnd, item, existingBookings)
+                                                : [];
+                                            if (nextAvailableEnds.length > 0 && !nextAvailableEnds.includes(endTime)) {
+                                                setEndTime(nextAvailableEnds[0]);
                                             }
                                         } else {
                                             setEndTime(item);
                                         }
                                         setTimePickerTarget(null);
                                     }}
+                                    disabled={!isAvailable}
                                     activeOpacity={0.7}
                                 >
-                                    <Text style={[styles.slotText, isSelected && styles.slotTextSelected]}>
+                                    <Text
+                                        style={[
+                                            styles.slotText,
+                                            !isAvailable && styles.slotTextDisabled,
+                                            isSelected && isAvailable && styles.slotTextSelected,
+                                        ]}
+                                    >
                                         {item}
                                     </Text>
-                                    {isSelected && (
+                                    {isSelected && isAvailable && (
                                         <Ionicons name="checkmark" size={18} color={theme.colors.background} />
+                                    )}
+                                    {!isAvailable && (
+                                        <Ionicons name="close-outline" size={18} color={theme.colors.danger} />
                                     )}
                                 </TouchableOpacity>
                             );
@@ -589,12 +728,21 @@ const styles = StyleSheet.create({
         marginBottom: 6,
         backgroundColor: theme.colors.inputBackground,
     },
+    slotItemDisabled: {
+        backgroundColor: '#FEE2E2',
+        borderWidth: 1,
+        borderColor: '#FECACA',
+    },
     slotItemSelected: {
         backgroundColor: theme.colors.primary,
     },
     slotText: {
         fontSize: 16,
         color: theme.colors.text,
+    },
+    slotTextDisabled: {
+        color: theme.colors.danger,
+        fontWeight: '600',
     },
     slotTextSelected: {
         color: theme.colors.background,
