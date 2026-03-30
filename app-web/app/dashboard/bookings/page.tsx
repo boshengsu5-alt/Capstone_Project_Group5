@@ -12,21 +12,11 @@ import { useToast } from '@/components/ui/Toast';
 import { ClipboardList, RefreshCw, Download } from 'lucide-react';
 import { exportToExcel } from '@/lib/exportUtils';
 import type { BookingStatus } from '@/types/database';
-
-const STATUS_OPTIONS: { value: 'all' | BookingStatus; label: string }[] = [
-    { value: 'all', label: 'All Status' },
-    { value: 'pending', label: 'Pending' },
-    { value: 'approved', label: 'Approved' },
-    { value: 'active', label: 'Active' },
-    { value: 'lost_reported', label: 'Lost Reported' },
-    { value: 'lost', label: 'Lost' },
-    { value: 'returned', label: 'Returned' },
-    { value: 'overdue', label: 'Overdue' },
-    { value: 'rejected', label: 'Rejected' },
-    { value: 'cancelled', label: 'Cancelled' },
-];
+import { useLanguage } from '@/components/providers/LanguageProvider';
+import { getDamageSeverityLabel, getStatusLabel } from '@/lib/i18n';
 
 export default function BookingsPage() {
+    const { t, locale } = useLanguage();
     const { showToast } = useToast();
     const searchParams = useSearchParams();
     const [bookings, setBookings] = useState<BookingWithDetails[]>([]);
@@ -47,6 +37,18 @@ export default function BookingsPage() {
     // Damage severity modal state
     const [isDamageModalOpen, setIsDamageModalOpen] = useState(false);
     const [damageTargetBooking, setDamageTargetBooking] = useState<BookingWithDetails | null>(null);
+    const statusOptions: { value: 'all' | BookingStatus; label: string }[] = [
+        { value: 'all', label: t('bookings.allStatus') },
+        { value: 'pending', label: getStatusLabel('pending', t) },
+        { value: 'approved', label: getStatusLabel('approved', t) },
+        { value: 'active', label: getStatusLabel('active', t) },
+        { value: 'lost_reported', label: getStatusLabel('lost_reported', t) },
+        { value: 'lost', label: getStatusLabel('lost', t) },
+        { value: 'returned', label: getStatusLabel('returned', t) },
+        { value: 'overdue', label: getStatusLabel('overdue', t) },
+        { value: 'rejected', label: getStatusLabel('rejected', t) },
+        { value: 'cancelled', label: getStatusLabel('cancelled', t) },
+    ];
 
     const loadBookings = async () => {
         setIsLoading(true);
@@ -55,7 +57,7 @@ export default function BookingsPage() {
             setBookings(data || []);
         } catch (error) {
             console.error('Failed to load bookings:', error);
-            showToast('Failed to load bookings. Please check your connection.', 'error');
+            showToast(t('bookings.loadFailed'), 'error');
             setBookings([]);
         } finally {
             setIsLoading(false);
@@ -87,27 +89,22 @@ export default function BookingsPage() {
 
     const handleExport = () => {
         if (filteredBookings.length === 0) {
-            showToast('No data to export', 'info');
+            showToast(t('bookings.noDataToExport'), 'info');
             return;
         }
-        const statusMap: Record<string, string> = {
-            pending: '待审批', approved: '已批准', active: '借出中',
-            lost_reported: '已报失待确认', lost: '已确认丢失',
-            returned: '已归还', overdue: '逾期', rejected: '已拒绝', cancelled: '已取消',
-        };
         const exportData = filteredBookings.map(b => ({
-            'Asset': b.assets?.name || 'N/A',
-            'Borrower': b.profiles?.full_name || 'N/A',
-            'ID': b.profiles?.student_id || 'N/A',
-            'Start': new Date(b.start_date).toLocaleDateString(),
-            'End': new Date(b.end_date).toLocaleDateString(),
-            'Status': statusMap[b.status] || b.status,
-            'Created': new Date(b.created_at).toLocaleString(),
+            [t('tables.asset')]: b.assets?.name || t('common.none'),
+            [t('tables.borrower')]: b.profiles?.full_name || t('common.none'),
+            [t('users.studentId')]: b.profiles?.student_id || t('common.none'),
+            Start: new Date(b.start_date).toLocaleDateString(locale === 'zh' ? 'zh-CN' : 'en-US'),
+            End: new Date(b.end_date).toLocaleDateString(locale === 'zh' ? 'zh-CN' : 'en-US'),
+            [t('tables.status')]: getStatusLabel(b.status, t),
+            Created: new Date(b.created_at).toLocaleString(locale === 'zh' ? 'zh-CN' : 'en-US'),
         }));
         try {
-            exportToExcel(exportData, `Bookings_Report_${new Date().toISOString().split('T')[0]}`, 'Bookings');
-            showToast('Report exported successfully', 'success');
-        } catch { showToast('Export failed', 'error'); }
+            exportToExcel(exportData, `Bookings_Report_${new Date().toISOString().split('T')[0]}`, t('bookings.exportSheet'));
+            showToast(t('bookings.exportSuccess'), 'success');
+        } catch { showToast(t('bookings.exportFailed'), 'error'); }
     };
 
     const handleReviewClick = (booking: BookingWithDetails) => {
@@ -127,13 +124,13 @@ export default function BookingsPage() {
         try {
             const success = await bookingService.reportDamage(damageTargetBooking.id, severity, description);
             if (success) {
-                showToast(`Damage reported (${severity}). Pending review on Damage Reports page.`, 'success');
+                showToast(t('bookings.damageReported', { severity: getDamageSeverityLabel(severity, t) }), 'success');
                 await loadBookings();
             } else {
-                showToast('Failed to report damage. Please try again.', 'error');
+                showToast(t('bookings.reportDamageFailed'), 'error');
             }
         } catch {
-            showToast('Network error, operation failed.', 'error');
+            showToast(t('bookings.networkError'), 'error');
         }
     };
 
@@ -142,13 +139,13 @@ export default function BookingsPage() {
             const { data: { user } } = await (await import('@/lib/supabase')).supabase.auth.getUser();
             const success = await bookingService.approveBooking(id, user?.id);
             if (success) {
-                showToast('Booking approved successfully', 'success');
+                showToast(t('bookings.approveSuccess'), 'success');
                 await loadBookings();
             } else {
-                showToast('Approve operation failed', 'error');
+                showToast(t('bookings.approveFailed'), 'error');
             }
         } catch {
-            showToast('Network error, connection failed', 'error');
+            showToast(t('bookings.networkError'), 'error');
         }
     };
 
@@ -157,13 +154,13 @@ export default function BookingsPage() {
             const { data: { user } } = await (await import('@/lib/supabase')).supabase.auth.getUser();
             const success = await bookingService.rejectBooking(id, reason, user?.id);
             if (success) {
-                showToast('Booking rejected, notification sent', 'info');
+                showToast(t('bookings.rejectSuccess'), 'info');
                 await loadBookings();
             } else {
-                showToast('Reject operation failed', 'error');
+                showToast(t('bookings.rejectFailed'), 'error');
             }
         } catch {
-            showToast('Network error, operation failed', 'error');
+            showToast(t('bookings.networkError'), 'error');
         }
     };
 
@@ -176,10 +173,10 @@ export default function BookingsPage() {
                     <div>
                         <div className="flex items-center gap-2.5 mb-1">
                             <ClipboardList className="w-5 h-5 text-purple-400" />
-                            <h1 className="text-2xl font-bold text-white tracking-tight">Booking Requests</h1>
+                            <h1 className="text-2xl font-bold text-white tracking-tight">{t('bookings.title')}</h1>
                         </div>
                         <p className="text-sm text-gray-500">
-                            Review and manage equipment borrowing applications from students.
+                            {t('bookings.subtitle')}
                         </p>
                     </div>
 
@@ -189,7 +186,7 @@ export default function BookingsPage() {
                             onChange={(e) => setStatusFilter(e.target.value as 'all' | BookingStatus)}
                             className="rounded-xl border border-white/10 bg-gray-900/60 px-3 py-2 text-sm text-gray-200 focus:ring-2 focus:ring-purple-500 focus:outline-none shadow-sm backdrop-blur-sm"
                         >
-                            {STATUS_OPTIONS.map(opt => (
+                            {statusOptions.map(opt => (
                                 <option key={opt.value} value={opt.value} className="bg-gray-900 text-gray-200">{opt.label}</option>
                             ))}
                         </select>
@@ -197,7 +194,7 @@ export default function BookingsPage() {
                             onClick={handleExport}
                             className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-300 bg-gray-900/60 border border-white/10 rounded-xl hover:bg-white/5 transition-colors shadow-sm backdrop-blur-sm"
                         >
-                            <Download className="w-4 h-4" /> Export
+                            <Download className="w-4 h-4" /> {t('bookings.export')}
                         </button>
                         <button
                             onClick={() => loadBookings()}
@@ -205,7 +202,7 @@ export default function BookingsPage() {
                             className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-300 bg-gray-900/60 border border-white/10 rounded-xl hover:bg-white/5 transition-colors shadow-sm disabled:opacity-50 backdrop-blur-sm"
                         >
                             <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-                            Refresh
+                            {t('common.refresh')}
                         </button>
                     </div>
                 </div>
@@ -214,7 +211,7 @@ export default function BookingsPage() {
                 {isLoading ? (
                     <div className="w-full h-64 flex flex-col items-center justify-center bg-gray-900/40 rounded-2xl border border-white/5 backdrop-blur-sm">
                         <div className="w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mb-4" />
-                        <p className="text-gray-400 font-medium">Loading requests...</p>
+                        <p className="text-gray-400 font-medium">{t('bookings.loading')}</p>
                     </div>
                 ) : (
                     <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 relative z-10">

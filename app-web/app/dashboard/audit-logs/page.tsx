@@ -9,8 +9,10 @@ import { ScrollText, RefreshCw } from 'lucide-react';
 
 import { useAuth } from '@/components/providers/AuthContext';
 import { useRouter } from 'next/navigation';
+import { useLanguage } from '@/components/providers/LanguageProvider';
 
 export default function AuditLogsPage() {
+  const { t } = useLanguage();
   const { showToast } = useToast();
   const { canViewAuditLogs, isLoading: authLoading } = useAuth();
   const router = useRouter();
@@ -32,7 +34,7 @@ export default function AuditLogsPage() {
             setLogs(data);
         } catch (error) {
             console.error('Failed to load audit logs:', error);
-            showToast('Failed to load audit logs.', 'error');
+            showToast(t('audit.loadFailed'), 'error');
         } finally {
             setIsLoading(false);
         }
@@ -55,10 +57,10 @@ export default function AuditLogsPage() {
                     <div>
                         <div className="flex items-center gap-2.5 mb-1">
                             <ScrollText className="w-5 h-5 text-gray-400" />
-                            <h1 className="text-2xl font-bold text-white tracking-tight">Audit Logs</h1>
+                            <h1 className="text-2xl font-bold text-white tracking-tight">{t('audit.title')}</h1>
                         </div>
                         <p className="text-sm text-gray-500">
-                            System-wide record of administrative actions and asset changes.
+                            {t('audit.subtitle')}
                         </p>
                     </div>
                     <button
@@ -67,7 +69,7 @@ export default function AuditLogsPage() {
                         className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-300 bg-gray-900/60 border border-white/10 rounded-xl hover:bg-white/5 transition-colors shadow-sm disabled:opacity-50 backdrop-blur-sm"
                     >
                         <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-                        Refresh
+                        {t('common.refresh')}
                     </button>
                 </div>
 
@@ -75,7 +77,7 @@ export default function AuditLogsPage() {
                 {isLoading ? (
                     <div className="w-full h-64 flex flex-col items-center justify-center bg-gray-900/40 rounded-2xl border border-white/5 backdrop-blur-sm">
                         <div className="w-8 h-8 border-4 border-gray-500 border-t-transparent rounded-full animate-spin mb-4" />
-                        <p className="text-gray-400 font-medium">Loading activity history...</p>
+                        <p className="text-gray-400 font-medium">{t('audit.loading')}</p>
                     </div>
                 ) : (
                     <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">

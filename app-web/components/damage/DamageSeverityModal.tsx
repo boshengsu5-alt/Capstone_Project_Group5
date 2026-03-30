@@ -1,8 +1,10 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ShieldAlert, X } from 'lucide-react';
+import { useLanguage } from '@/components/providers/LanguageProvider';
+import { getDamageSeverityLabel } from '@/lib/i18n';
 import type { BookingWithDetails } from '@/lib/bookingService';
 
 interface DamageSeverityModalProps {
@@ -19,14 +21,16 @@ const DAMAGE_COEFFICIENT: Record<string, number> = { minor: 0.2, moderate: 0.5, 
  * Compute asset age label and depreciation rate from purchase date.
  * 根据购置日期计算设备年龄描述和折旧比例。
  */
-function getDepreciationInfo(purchaseDate: string | null): { ratio: number; ageLabel: string; rateLabel: string } {
-    if (!purchaseDate) return { ratio: 0.5, ageLabel: '未知', rateLabel: '50%' };
+function getDepreciationInfo(purchaseDate: string | null, locale: 'en' | 'zh'): { ratio: number; ageLabel: string; rateLabel: string } {
+    if (!purchaseDate) return { ratio: 0.5, ageLabel: locale === 'zh' ? '未知' : 'Unknown', rateLabel: '50%' };
     const ms = Date.now() - new Date(purchaseDate).getTime();
     const years = ms / (1000 * 60 * 60 * 24 * 365.25);
     const totalMonths = Math.floor(ms / (1000 * 60 * 60 * 24 * 30.44));
     const y = Math.floor(totalMonths / 12);
     const m = totalMonths % 12;
-    const ageLabel = y === 0 ? `${m}个月` : m === 0 ? `${y}年` : `${y}年${m}个月`;
+    const ageLabel = locale === 'zh'
+        ? (y === 0 ? `${m}个月` : m === 0 ? `${y}年` : `${y}年${m}个月`)
+        : (y === 0 ? `${m}mo` : m === 0 ? `${y}y` : `${y}y ${m}mo`);
     if (years <= 1) return { ratio: 1.0, ageLabel, rateLabel: '100%' };
     if (years <= 3) return { ratio: 0.8, ageLabel, rateLabel: '80%' };
     if (years <= 5) return { ratio: 0.5, ageLabel, rateLabel: '50%' };
@@ -37,8 +41,6 @@ function getDepreciationInfo(purchaseDate: string | null): { ratio: number; ageL
 const SEVERITY_OPTIONS = [
     {
         value: 'minor' as const,
-        label: 'Minor Wear',
-        labelCn: '轻微磨损',
         points: -5,
         color: 'text-yellow-400',
         border: 'border-yellow-500/30',
@@ -47,8 +49,6 @@ const SEVERITY_OPTIONS = [
     },
     {
         value: 'moderate' as const,
-        label: 'Moderate Damage',
-        labelCn: '中度损坏',
         points: -15,
         color: 'text-orange-400',
         border: 'border-orange-500/30',
@@ -57,8 +57,6 @@ const SEVERITY_OPTIONS = [
     },
     {
         value: 'severe' as const,
-        label: 'Severe Damage',
-        labelCn: '严重损坏',
         points: -30,
         color: 'text-red-400',
         border: 'border-red-500/30',
@@ -67,8 +65,6 @@ const SEVERITY_OPTIONS = [
     },
     {
         value: 'lost' as const,
-        label: 'Equipment Lost',
-        labelCn: '设备丢失',
         points: -50,
         color: 'text-rose-300',
         border: 'border-rose-800/50',
@@ -82,17 +78,13 @@ const SEVERITY_OPTIONS = [
  * 管理员选择损坏程度并立即扣减信用分的弹窗。
  */
 export default function DamageSeverityModal({ isOpen, booking, onSelect, onClose }: DamageSeverityModalProps) {
+    const { t, locale } = useLanguage();
     const [description, setDescription] = useState('');
     const [showError, setShowError] = useState(false);
-    const [mounted, setMounted] = useState(false);
 
-    useEffect(() => {
-        setMounted(true);
-    }, []);
+    if (!isOpen || !booking || typeof document === 'undefined') return null;
 
-    if (!isOpen || !booking || !mounted) return null;
-
-    const depr = getDepreciationInfo(booking.assets?.purchase_date ?? null);
+    const depr = getDepreciationInfo(booking.assets?.purchase_date ?? null, locale);
     const price = booking.assets?.purchase_price ?? null;
     // 此弹窗只在管理员归还验证时使用，reporter 始终为管理员（≠ borrower）
     // lost 场景属于「管理员发现调包」→ 全款赔偿，不计折旧
@@ -136,12 +128,13 @@ export default function DamageSeverityModal({ isOpen, booking, onSelect, onClose
                             <ShieldAlert className="h-5 w-5 text-rose-400" />
                         </div>
                         <div>
-                            <h2 className="text-lg font-bold text-white">Select Damage Severity</h2>
-                            <p className="text-xs text-gray-500 mt-0.5">选择损坏程度，信用分将在审核后扣减。</p>
+                            <h2 className="text-lg font-bold text-white">{t('damageSeverityModal.title')}</h2>
+                            <p className="text-xs text-gray-500 mt-0.5">{t('damageSeverityModal.subtitle')}</p>
                         </div>
                     </div>
                     <button
                         onClick={handleClose}
+                        aria-label={t('common.close')}
                         className="rounded-lg p-1.5 text-gray-500 hover:bg-white/5 hover:text-gray-300 transition-colors"
                     >
                         <X className="h-4 w-4" />
@@ -150,21 +143,21 @@ export default function DamageSeverityModal({ isOpen, booking, onSelect, onClose
 
                 {/* 借用信息 */}
                 <div className="mx-6 mb-4 rounded-xl border border-white/5 bg-white/5 px-4 py-3">
-                    <p className="text-xs text-gray-500 mb-1">Reporting damage for</p>
-                    <p className="text-sm font-semibold text-white">{booking.assets?.name ?? 'Unknown Asset'}</p>
+                    <p className="text-xs text-gray-500 mb-1">{t('damageSeverityModal.reportingFor')}</p>
+                    <p className="text-sm font-semibold text-white">{booking.assets?.name ?? t('common.unknownAsset')}</p>
                     <p className="text-xs text-gray-400 mt-0.5">
-                        Borrower: {booking.profiles?.full_name ?? 'Unknown'}
+                        {t('damageSeverityModal.borrower')}: {booking.profiles?.full_name ?? t('common.unknownUser')}
                         {booking.profiles?.student_id && (
                             <span className="ml-1.5 font-mono text-gray-500">({booking.profiles.student_id})</span>
                         )}
                     </p>
                     {/* 设备年龄与折旧率，方便管理员评估赔偿 */}
                     <p className="text-xs text-gray-500 mt-1.5">
-                        使用年限：<span className="text-gray-400">{depr.ageLabel}</span>
+                        {t('damageSeverityModal.age')}：<span className="text-gray-400">{depr.ageLabel}</span>
                         <span className="mx-1.5 text-gray-700">·</span>
-                        折旧率：<span className="text-gray-400">{depr.rateLabel}</span>
+                        {t('damageSeverityModal.depreciation')}：<span className="text-gray-400">{depr.rateLabel}</span>
                         {price != null && (
-                            <span className="ml-1.5 text-gray-600">· 购置价 ¥{price}</span>
+                            <span className="ml-1.5 text-gray-600">· {t('damageSeverityModal.purchasePrice')} ¥{price}</span>
                         )}
                     </p>
                 </div>
@@ -175,12 +168,12 @@ export default function DamageSeverityModal({ isOpen, booking, onSelect, onClose
                         type="text"
                         value={description}
                         onChange={(e) => { setDescription(e.target.value); if (e.target.value.trim()) setShowError(false); }}
-                        placeholder="Required: describe the damage... 必填：描述损坏情况"
+                        placeholder={t('damageSeverityModal.descriptionPlaceholder')}
                         className={`w-full rounded-xl border px-4 py-2.5 text-sm text-gray-200 placeholder:text-gray-600 focus:outline-none focus:ring-1 transition-colors bg-white/5
                             ${showError ? 'border-red-500/60 focus:ring-red-500/30' : 'border-white/10 focus:border-white/20 focus:ring-white/10'}`}
                     />
                     {showError && (
-                        <p className="mt-1.5 text-xs text-red-400">Please describe the damage before selecting severity. 请先填写损坏描述。</p>
+                        <p className="mt-1.5 text-xs text-red-400">{t('damageSeverityModal.descriptionError')}</p>
                     )}
                 </div>
 
@@ -194,7 +187,7 @@ export default function DamageSeverityModal({ isOpen, booking, onSelect, onClose
                         >
                             <div className="text-left">
                                 <span className={`text-sm font-semibold ${opt.color}`}>
-                                    {opt.label} <span className="font-normal text-gray-400">({opt.labelCn})</span>
+                                    {getDamageSeverityLabel(opt.value, t)}
                                 </span>
                             </div>
                             <div className="flex items-center gap-2 flex-shrink-0">
@@ -204,7 +197,7 @@ export default function DamageSeverityModal({ isOpen, booking, onSelect, onClose
                                     </span>
                                 )}
                                 <span className={`rounded-lg px-2.5 py-1 text-xs font-bold ${opt.badgeBg}`}>
-                                    {opt.points} pts
+                                    {opt.points} {t('common.pointsShort')}
                                 </span>
                             </div>
                         </button>
@@ -217,7 +210,7 @@ export default function DamageSeverityModal({ isOpen, booking, onSelect, onClose
                         onClick={handleClose}
                         className="w-full rounded-xl border border-white/10 py-2.5 text-sm text-gray-400 hover:bg-white/5 hover:text-gray-200 transition-colors"
                     >
-                        Cancel
+                        {t('damageSeverityModal.cancel')}
                     </button>
                 </div>
             </div>

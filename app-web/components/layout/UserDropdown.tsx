@@ -8,6 +8,7 @@ import { signOut } from '@/lib/auth';
 import { useLanguage } from '@/components/providers/LanguageProvider';
 import { useAuth } from '@/components/providers/AuthContext';
 import { supabase } from '@/lib/supabase';
+import { getRoleLabel } from '@/lib/i18n';
 
 interface UserDropdownProps {
   email?: string | null;
@@ -20,8 +21,6 @@ export default function UserDropdown({ email }: UserDropdownProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-
-  // Close on outside click
   const [user, setUser] = useState<AuthUser | null>(null);
 
   const fetchUser = async (): Promise<AuthUser | null> => {
@@ -41,7 +40,7 @@ export default function UserDropdown({ email }: UserDropdownProps) {
     };
 
     window.addEventListener('avatar-updated', handleUpdate);
-    
+
     function handleClickOutside(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) {
         setOpen(false);
@@ -70,97 +69,87 @@ export default function UserDropdown({ email }: UserDropdownProps) {
       label: t('settings.accountSettings'),
       icon: Settings,
       action: () => { setOpen(false); router.push('/dashboard/settings'); },
-      className: 'text-gray-100 hover:bg-purple-500/20',
-      iconClassName: 'text-purple-400',
+      className: 'text-gray-100 hover:bg-white/[0.05]',
+      iconClassName: 'text-amber-300',
     },
     ...(canViewAuditLogs ? [{
       label: t('settings.auditLogs'),
       icon: ScrollText,
       action: () => { setOpen(false); router.push('/dashboard/audit-logs'); },
-      className: 'text-gray-100 hover:bg-purple-500/20',
-      iconClassName: 'text-purple-400',
+      className: 'text-gray-100 hover:bg-white/[0.05]',
+      iconClassName: 'text-sky-300',
     }] : []),
     {
       label: t('common.switchLang'),
       icon: Languages,
       action: toggleLanguage,
-      className: 'text-gray-100 hover:bg-purple-500/20',
+      className: 'text-gray-100 hover:bg-white/[0.05]',
       iconClassName: 'text-amber-400',
     },
   ];
-  const roleLabel = profile?.role === 'staff' ? 'Staff User' : 'Admin User';
+
+  const roleLabel = profile?.role ? getRoleLabel(profile.role, t) : t('roles.adminUser');
+  const displayName = profile?.full_name?.trim() || roleLabel;
 
   return (
     <div className="relative" ref={ref}>
-      {/* Trigger Button */}
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className="flex items-center gap-x-3 group select-none"
+        className="group flex items-center gap-x-3 rounded-[22px] border border-white/10 bg-white/[0.03] px-3 py-2.5 transition hover:bg-white/[0.05] select-none"
         aria-haspopup="true"
         aria-expanded={open}
         id="user-menu-button"
       >
-        {/* Avatar with purple gradient border */}
-        <div className="relative p-[2px] rounded-full bg-gradient-to-br from-purple-600 via-violet-500 to-amber-400 transition-transform duration-200 group-hover:scale-110">
-          <div className="h-8 w-8 rounded-full bg-gray-900 overflow-hidden flex items-center justify-center border border-gray-950">
+        <div className="relative rounded-full bg-gradient-to-br from-amber-300 via-violet-400 to-violet-500 p-[2px] transition-transform duration-200 group-hover:scale-105">
+          <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full border border-black bg-[#090c11]">
             {(profile?.avatar_url || user?.user_metadata?.avatar_url) ? (
-              <img 
-                src={profile?.avatar_url || user?.user_metadata?.avatar_url} 
-                alt="Avatar" 
+              <img
+                src={profile?.avatar_url || user?.user_metadata?.avatar_url}
+                alt={getRoleLabel(profile?.role ?? 'admin', t)}
                 className="h-full w-full object-cover"
               />
             ) : (
-              <User className="h-4 w-4 text-purple-300" />
+              <User className="h-4 w-4 text-amber-200" />
             )}
           </div>
         </div>
 
-        {/* Two-line text */}
-        <span className="hidden lg:flex lg:flex-col lg:items-start leading-tight">
-          <span className="text-sm font-semibold text-white tracking-wide">
-            {roleLabel}
+        <span className="hidden leading-tight lg:flex lg:flex-col lg:items-start">
+          <span className="text-sm font-semibold tracking-wide text-white">
+            {displayName}
           </span>
-          <span className="text-xs text-purple-300 truncate max-w-[140px]">
+          <span className="max-w-[180px] truncate text-xs text-[color:var(--dashboard-text-soft)]">
             {email ?? 'admin@unigear.edu'}
           </span>
         </span>
 
         <ChevronDown
-          className={`hidden lg:block h-4 w-4 text-purple-400 transition-transform duration-200 ${
+          className={`hidden h-4 w-4 text-[color:var(--dashboard-text-muted)] transition-transform duration-200 lg:block ${
             open ? 'rotate-180' : ''
           }`}
         />
       </button>
 
-      {/* Dropdown Panel */}
       {open && (
-        <div
-          className="absolute right-0 mt-2 w-52 z-50 origin-top-right
-                     bg-gray-900/80 backdrop-blur-xl
-                     border border-purple-500/30
-                     rounded-xl shadow-2xl shadow-purple-900/40
-                     ring-1 ring-black/10
-                     animate-in fade-in slide-in-from-top-2 duration-150"
-        >
-          {/* User info header */}
-          <div className="px-4 py-3 border-b border-purple-500/20">
-            <p className="text-xs font-semibold text-purple-300 uppercase tracking-widest">
+        <div className="dashboard-panel-strong absolute right-0 z-50 mt-3 w-64 origin-top-right rounded-[24px] animate-in fade-in slide-in-from-top-2 duration-150">
+          <div className="border-b border-white/6 px-4 py-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-amber-300/80">
               {t('auth.loggedIn')}
             </p>
-            <p className="mt-0.5 text-sm text-gray-200 truncate">
+            <p className="mt-2 text-sm font-semibold text-white">{displayName}</p>
+            <p className="mt-1 truncate text-sm text-[color:var(--dashboard-text-muted)]">
               {email ?? 'admin@unigear.edu'}
             </p>
           </div>
 
-          {/* Menu items */}
-          <div className="py-1.5">
+          <div className="py-2">
             {menuItems.map((item) => (
               <button
                 key={item.label}
                 type="button"
                 onClick={item.action}
-                className={`w-full flex items-center gap-x-3 px-4 py-2.5 text-sm font-medium transition-colors ${item.className}`}
+                className={`flex w-full items-center gap-x-3 px-4 py-3 text-sm font-medium transition-colors ${item.className}`}
               >
                 <item.icon className={`h-4 w-4 shrink-0 ${item.iconClassName}`} />
                 {item.label}
@@ -168,13 +157,12 @@ export default function UserDropdown({ email }: UserDropdownProps) {
             ))}
           </div>
 
-          {/* Divider + Sign Out */}
-          <div className="border-t border-purple-500/20 py-1.5">
+          <div className="border-t border-white/6 py-2">
             <button
               type="button"
               onClick={handleSignOut}
               disabled={loading}
-              className="w-full flex items-center gap-x-3 px-4 py-2.5 text-sm font-medium text-rose-400 hover:bg-rose-500/15 transition-colors disabled:opacity-50"
+              className="flex w-full items-center gap-x-3 px-4 py-3 text-sm font-medium text-rose-300 transition-colors hover:bg-rose-500/10 disabled:opacity-50"
             >
               <LogOut className="h-4 w-4 shrink-0" />
               {loading ? t('auth.signingOut') : t('auth.signOut')}

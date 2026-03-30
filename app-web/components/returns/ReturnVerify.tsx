@@ -4,6 +4,7 @@ import React from 'react';
 import { CheckCircle, AlertTriangle, ImageIcon, Calendar, Clock, ExternalLink } from 'lucide-react';
 import type { BookingWithDetails } from '@/lib/bookingService';
 import { formatDateTime, formatDateTimeRange } from '@/lib/dateTime';
+import { useLanguage } from '@/components/providers/LanguageProvider';
 
 interface ReturnVerifyProps {
     booking: BookingWithDetails;
@@ -27,6 +28,7 @@ function differenceInDays(dateA: string, dateB: string): number {
  * 归还验证照片对比组件，含借用期和逾期信息
  */
 export default function ReturnVerify({ booking, onVerify, onAcknowledgeWithDamage }: ReturnVerifyProps) {
+    const { t } = useLanguage();
     const pickupPhoto = booking.pickup_photo_url || null;
     const returnPhoto = booking.return_photo_url || null;
 
@@ -64,11 +66,11 @@ export default function ReturnVerify({ booking, onVerify, onAcknowledgeWithDamag
                 <div className="flex items-center justify-between">
                     <div>
                         <h3 className="font-semibold text-white">
-                            {booking.assets?.name ?? 'Unknown Asset'}
+                            {booking.assets?.name ?? t('common.unknownAsset')}
                         </h3>
                         <p className="text-sm text-gray-400 mt-0.5">
-                            Returned by{' '}
-                            <span className="font-medium text-gray-200">{booking.profiles?.full_name ?? 'Unknown'}</span>
+                            {t('returnVerify.returnedBy')}{' '}
+                            <span className="font-medium text-gray-200">{booking.profiles?.full_name ?? t('common.unknownUser')}</span>
                             {booking.profiles?.student_id && (
                                 <span className="ml-2 text-xs font-mono bg-white/5 border border-white/10 px-1.5 py-0.5 rounded text-gray-400">
                                     {booking.profiles.student_id}
@@ -86,19 +88,19 @@ export default function ReturnVerify({ booking, onVerify, onAcknowledgeWithDamag
                     <div className="mt-3 pt-3 border-t border-white/5 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
                         <div className="flex items-center gap-1.5 text-gray-400">
                             <Calendar className="w-3.5 h-3.5 text-blue-400" />
-                            <span>Booking Period:</span>
+                            <span>{t('returnVerify.bookingPeriod')}</span>
                             <span className="text-gray-200 font-medium">
                                 {formatDateTimeRange(startDate, endDate)}
                             </span>
                             {borrowDays !== null && (
-                                <span className="text-xs text-gray-500">({borrowDays} days)</span>
+                                <span className="text-xs text-gray-500">({borrowDays} {t('approvalModal.days')})</span>
                             )}
                         </div>
 
                         {actualReturnDate && (
                             <div className="flex items-center gap-1.5 text-gray-400">
                                 <Clock className="w-3.5 h-3.5 text-amber-400" />
-                                <span>Actual Return:</span>
+                                <span>{t('returnVerify.actualReturn')}</span>
                                 <span className="text-gray-200 font-medium">{formatDateTime(actualReturnDate)}</span>
                             </div>
                         )}
@@ -107,14 +109,14 @@ export default function ReturnVerify({ booking, onVerify, onAcknowledgeWithDamag
                         {actualReturnDate && endDate && (
                             isOverdue ? (
                                 <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-500/10 text-red-400 border border-red-500/20">
-                                    Overdue {overdueDays} day{overdueDays !== 1 ? 's' : ''}
+                                    {t('returnVerify.overdueBadge', { days: overdueDays })}
                                     <span className="text-red-300 opacity-80">
-                                        · 扣分已由系统自动处理
+                                        · {t('returnVerify.autoDeducted')}
                                     </span>
                                 </span>
                             ) : (
                                 <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                                    On Time
+                                    {t('returnVerify.onTime')}
                                 </span>
                             )
                         )}
@@ -128,7 +130,7 @@ export default function ReturnVerify({ booking, onVerify, onAcknowledgeWithDamag
                 <div>
                     <h4 className="text-sm font-semibold text-gray-300 mb-3 flex items-center gap-2">
                         <span className="w-2 h-2 rounded-full bg-blue-400 shadow-[0_0_6px_rgba(96,165,250,0.5)]" />
-                        Pickup / Original Photo
+                        {t('returnVerify.pickupOriginal')}
                     </h4>
                     {pickupPhoto ? (
                         <img
@@ -137,7 +139,7 @@ export default function ReturnVerify({ booking, onVerify, onAcknowledgeWithDamag
                             className="w-full aspect-[4/3] object-cover rounded-xl border border-white/10 shadow-sm"
                         />
                     ) : (
-                        <PhotoPlaceholder label="No pickup photo recorded" />
+                        <PhotoPlaceholder label={t('returnVerify.noPickupPhoto')} />
                     )}
                 </div>
 
@@ -145,7 +147,7 @@ export default function ReturnVerify({ booking, onVerify, onAcknowledgeWithDamag
                 <div>
                     <h4 className="text-sm font-semibold text-gray-300 mb-3 flex items-center gap-2">
                         <span className="w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.5)]" />
-                        Return Photo
+                        {t('returnVerify.returnPhoto')}
                     </h4>
                     {returnPhoto ? (
                         <img
@@ -154,7 +156,7 @@ export default function ReturnVerify({ booking, onVerify, onAcknowledgeWithDamag
                             className="w-full aspect-[4/3] object-cover rounded-xl border border-white/10 shadow-sm"
                         />
                     ) : (
-                        <PhotoPlaceholder label="No return photo uploaded" />
+                        <PhotoPlaceholder label={t('returnVerify.noReturnPhoto')} />
                     )}
                 </div>
             </div>
@@ -165,8 +167,8 @@ export default function ReturnVerify({ booking, onVerify, onAcknowledgeWithDamag
                     <div className="flex items-start gap-2.5 px-4 py-3 rounded-xl bg-rose-500/10 border border-rose-500/20">
                         <AlertTriangle className="w-4 h-4 text-rose-300 mt-0.5 flex-shrink-0" />
                         <p className="text-sm text-rose-200 leading-snug">
-                            <span className="font-semibold">A lost-item report already exists for this booking.</span>
-                            <span className="text-rose-200/80"> This record has left the normal return flow. Please review it on the Damage Reports page and either confirm the final loss or restore the normal flow if the device has been found.</span>
+                            <span className="font-semibold">{t('returnVerify.existingLostTitle')}</span>
+                            <span className="text-rose-200/80"> {t('returnVerify.existingLostBody')}</span>
                         </p>
                     </div>
                     <div className="flex flex-col sm:flex-row gap-3 sm:justify-end">
@@ -175,7 +177,7 @@ export default function ReturnVerify({ booking, onVerify, onAcknowledgeWithDamag
                             className="flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-semibold text-rose-200 bg-rose-500/10 border border-rose-500/20 rounded-xl hover:bg-rose-500/20 transition-all"
                         >
                             <ExternalLink className="w-4 h-4" />
-                            View Lost Report →
+                            {t('returnVerify.viewLostReport')} →
                         </a>
                     </div>
                 </div>
@@ -185,8 +187,8 @@ export default function ReturnVerify({ booking, onVerify, onAcknowledgeWithDamag
                     <div className="flex items-start gap-2.5 px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
                         <AlertTriangle className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />
                         <p className="text-sm text-amber-300 leading-snug">
-                            <span className="font-semibold">A damage report already exists for this return.</span>
-                            <span className="text-amber-400/80"> Please acknowledge the return and review the report on the Damage Reports page.</span>
+                            <span className="font-semibold">{t('returnVerify.existingDamageTitle')}</span>
+                            <span className="text-amber-400/80"> {t('returnVerify.existingDamageBody')}</span>
                         </p>
                     </div>
                     <div className="flex flex-col sm:flex-row gap-3 sm:justify-end">
@@ -195,7 +197,7 @@ export default function ReturnVerify({ booking, onVerify, onAcknowledgeWithDamag
                             className="flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-semibold text-amber-300 bg-amber-500/10 border border-amber-500/20 rounded-xl hover:bg-amber-500/20 transition-all"
                         >
                             <ExternalLink className="w-4 h-4" />
-                            View Damage Report →
+                            {t('returnVerify.viewDamageReport')} →
                         </a>
                         <button
                             onClick={() => onAcknowledgeWithDamage?.(booking.id)}
@@ -205,7 +207,7 @@ export default function ReturnVerify({ booking, onVerify, onAcknowledgeWithDamag
                                        shadow-[0_0_14px_rgba(16,185,129,0.3)] hover:shadow-[0_0_20px_rgba(16,185,129,0.45)]"
                         >
                             <CheckCircle className="w-4 h-4" />
-                            Acknowledge Return (Damage Reported)
+                            {t('returnVerify.acknowledgeReturn')}
                         </button>
                     </div>
                 </div>
@@ -217,7 +219,7 @@ export default function ReturnVerify({ booking, onVerify, onAcknowledgeWithDamag
                         className="flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-semibold text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-xl hover:bg-rose-500/20 transition-all shadow-[0_0_10px_rgba(244,63,94,0.1)] hover:shadow-[0_0_16px_rgba(244,63,94,0.2)]"
                     >
                         <AlertTriangle className="w-4 h-4" />
-                        Report Damage
+                        {t('returnVerify.reportDamage')}
                     </button>
                     <button
                         onClick={() => onVerify(booking.id, false)}
@@ -227,7 +229,7 @@ export default function ReturnVerify({ booking, onVerify, onAcknowledgeWithDamag
                                    shadow-[0_0_14px_rgba(16,185,129,0.3)] hover:shadow-[0_0_20px_rgba(16,185,129,0.45)]"
                     >
                         <CheckCircle className="w-4 h-4" />
-                        Confirm Return (No Damage)
+                        {t('returnVerify.confirmReturnNoDamage')}
                     </button>
                 </div>
             )}

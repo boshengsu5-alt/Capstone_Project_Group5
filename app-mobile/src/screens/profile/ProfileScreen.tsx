@@ -191,12 +191,19 @@ export default function ProfileScreen({ navigation }: Props) {
         }
       : {
           accent: theme.colors.success,
-          accentSoft: '#ECFDF5',
-          pillBg: '#D1FAE5',
-        };
+        accentSoft: '#ECFDF5',
+        pillBg: '#D1FAE5',
+      };
   const compensationHeadline = hasActiveCompensation
-    ? formatMoney(compensationSummary.totalOutstanding)
+    ? hasOutstanding
+      ? formatMoney(compensationSummary.totalOutstanding)
+      : t('compensation.pendingAmount')
     : t('profile.compensationClear');
+  const totalOutstandingText = hasOutstanding
+    ? formatMoney(compensationSummary.totalOutstanding)
+    : hasActiveCompensation
+      ? t('compensation.pendingAmount')
+      : formatMoney(compensationSummary.totalOutstanding);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -330,7 +337,7 @@ export default function ProfileScreen({ navigation }: Props) {
                 <View style={styles.compensationStat}>
                   <Text style={styles.compensationStatLabel}>{t('compensation.totalOutstanding')}</Text>
                   <Text style={[styles.compensationStatValue, { color: hasOutstanding ? compensationTone.accent : theme.colors.text }]}>
-                    {formatMoney(compensationSummary.totalOutstanding)}
+                    {totalOutstandingText}
                   </Text>
                 </View>
                 <View style={styles.compensationDivider} />

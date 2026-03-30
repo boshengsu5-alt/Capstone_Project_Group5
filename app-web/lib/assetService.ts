@@ -51,6 +51,7 @@ interface CreateAssetFormData {
   category_id?: string;
   serial_number?: string;
   purchase_price?: string | number;
+  purchase_date?: string;
   location?: string;
   description?: string;
   images?: string[];
@@ -88,6 +89,7 @@ export async function createAsset(formData: CreateAssetFormData): Promise<Asset>
     status: 'available' as const,
     location: formData.location || '',
     purchase_price: formData.purchase_price ? Number(formData.purchase_price) : 0,
+    purchase_date: formData.purchase_date || null,
     warranty_status: 'none' as const,
     images: formData.images ?? [],
   };

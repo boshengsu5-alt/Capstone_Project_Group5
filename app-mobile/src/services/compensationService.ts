@@ -8,7 +8,7 @@ import type {
   DamageReport,
   Profile,
 } from '../../../database/types/supabase';
-import { getOutstandingAmount } from '../utils/compensation';
+import { getDisplayOutstandingAmount } from '../utils/compensation';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase as any;
@@ -44,7 +44,11 @@ function getEffectiveAgreedAmount(
   assessedAmount: number | null | undefined,
   paidAmount: number
 ): number | null {
-  if (['under_review', 'awaiting_signature'].includes(status) && paidAmount <= 0) {
+  if (status === 'under_review') {
+    return null;
+  }
+
+  if (status === 'awaiting_signature' && paidAmount <= 0) {
     return roundMoney(assessedAmount);
   }
 
@@ -87,7 +91,12 @@ export async function getMyCompensationSummary(): Promise<CompensationSummary> {
   const cases = await getMyCompensationCases();
 
   return cases.reduce<CompensationSummary>((summary, item) => {
-    const outstanding = getOutstandingAmount(item.agreed_amount, item.assessed_amount, item.paid_amount);
+    const outstanding = getDisplayOutstandingAmount(
+      item.status,
+      item.agreed_amount,
+      item.assessed_amount,
+      item.paid_amount
+    );
     const isActive = item.status !== 'paid' && item.status !== 'waived';
 
     return {

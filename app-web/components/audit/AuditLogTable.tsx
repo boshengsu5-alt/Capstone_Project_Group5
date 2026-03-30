@@ -6,6 +6,7 @@ import {
     ScrollText, User, Package, ClipboardList, ShieldAlert,
     Info, AlertTriangle, CheckCircle2, XCircle, ChevronDown, ChevronRight,
 } from 'lucide-react';
+import { useLanguage } from '@/components/providers/LanguageProvider';
 
 interface AuditLogTableProps {
     logs: AuditLogWithMeta[];
@@ -16,6 +17,7 @@ interface AuditLogTableProps {
 // ============================================================
 
 function OperationBadge({ type }: { type: string }) {
+    const { t } = useLanguage();
     const cfg: Record<string, { icon: React.ReactNode; color: string }> = {
         CREATE:  { icon: <CheckCircle2 className="w-3.5 h-3.5" />, color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' },
         UPDATE:  { icon: <Info className="w-3.5 h-3.5" />,         color: 'text-blue-400   bg-blue-500/10   border-blue-500/20'   },
@@ -27,7 +29,7 @@ function OperationBadge({ type }: { type: string }) {
     const { icon, color } = cfg[type] ?? { icon: <ScrollText className="w-3.5 h-3.5" />, color: 'text-gray-400 bg-gray-500/10 border-gray-500/20' };
     return (
         <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wide border ${color}`}>
-            {icon}{type}
+            {icon}{t(`audit.operations.${type}`)}
         </span>
     );
 }
@@ -50,14 +52,15 @@ function ResourceIcon({ type }: { type: string }) {
  * 暗色主题可展开审计日志表格，附带资产缩略图
  */
 export default function AuditLogTable({ logs }: AuditLogTableProps) {
+    const { t } = useLanguage();
     const [expandedId, setExpandedId] = useState<string | null>(null);
 
     if (logs.length === 0) {
         return (
             <div className="text-center py-16 bg-gray-900/40 rounded-2xl border border-white/5 backdrop-blur-sm">
                 <ScrollText className="w-10 h-10 text-gray-600 mx-auto mb-3" />
-                <p className="text-gray-300 text-lg font-medium">No audit logs found</p>
-                <p className="text-gray-500 text-sm mt-1">Administrative actions will appear here once they occur.</p>
+                <p className="text-gray-300 text-lg font-medium">{t('audit.emptyTitle')}</p>
+                <p className="text-gray-500 text-sm mt-1">{t('audit.emptySubtitle')}</p>
             </div>
         );
     }
@@ -69,11 +72,11 @@ export default function AuditLogTable({ logs }: AuditLogTableProps) {
                     <thead className="bg-white/5">
                         <tr>
                             <th className="w-8 py-4 pl-4" />
-                            <th className="py-4 pr-3 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Time</th>
-                            <th className="px-3 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Operator</th>
-                            <th className="px-3 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Action</th>
-                            <th className="px-3 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Resource</th>
-                            <th className="px-3 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Description</th>
+                            <th className="py-4 pr-3 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">{t('audit.time')}</th>
+                            <th className="px-3 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">{t('audit.operator')}</th>
+                            <th className="px-3 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">{t('audit.action')}</th>
+                            <th className="px-3 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">{t('audit.resource')}</th>
+                            <th className="px-3 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">{t('audit.description')}</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-white/5">
@@ -107,7 +110,7 @@ export default function AuditLogTable({ logs }: AuditLogTableProps) {
                                                 <div className="w-6 h-6 rounded-full bg-gray-800 border border-white/10 flex items-center justify-center flex-shrink-0">
                                                     <User className="w-3 h-3 text-gray-400" />
                                                 </div>
-                                                <span className="text-sm text-gray-200 font-medium">{log.operator_name || 'System'}</span>
+                                                <span className="text-sm text-gray-200 font-medium">{log.operator_name || t('audit.system')}</span>
                                             </div>
                                         </td>
 
@@ -132,10 +135,10 @@ export default function AuditLogTable({ logs }: AuditLogTableProps) {
                                                 )}
                                                 <div>
                                                     <div className="text-sm font-medium text-white whitespace-nowrap">
-                                                        {log.resource_name || 'N/A'}
+                                                        {log.resource_name || t('common.none')}
                                                     </div>
                                                     <div className="text-xs text-gray-500 capitalize mt-0.5">
-                                                        {log.resource_type?.replace(/_/g, ' ')}
+                                                        {log.resource_type ? t(`audit.resources.${log.resource_type}`) : t('audit.resources.general')}
                                                     </div>
                                                 </div>
                                             </div>
@@ -158,7 +161,7 @@ export default function AuditLogTable({ logs }: AuditLogTableProps) {
                                                     {/* Full description */}
                                                     <div>
                                                         <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
-                                                            Full Description
+                                                            {t('audit.fullDescription')}
                                                         </h4>
                                                         <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap">
                                                             {log.change_description}
@@ -169,7 +172,7 @@ export default function AuditLogTable({ logs }: AuditLogTableProps) {
                                                     {log.resource_id && (
                                                         <div>
                                                             <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
-                                                                Resource ID
+                                                                {t('audit.resourceId')}
                                                             </h4>
                                                             <span className="text-xs font-mono text-gray-400 bg-white/5 border border-white/10 px-2.5 py-1 rounded-lg">
                                                                 {log.resource_id}
@@ -181,7 +184,7 @@ export default function AuditLogTable({ logs }: AuditLogTableProps) {
                                                     {metaEntries.length > 0 && (
                                                         <div>
                                                             <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-                                                                Details
+                                                                {t('audit.details')}
                                                             </h4>
                                                             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
                                                                 {metaEntries.map(([key, value]) => (

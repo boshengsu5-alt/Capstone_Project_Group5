@@ -17,7 +17,11 @@ import type { CompensationSummary, MyCompensationCase } from '../../services/com
 import { getMyCompensationCases, getMyCompensationSummary } from '../../services/compensationService';
 import { theme } from '../../theme';
 import SafeImage from '../../components/SafeImage';
-import { getOutstandingAmount } from '../../utils/compensation';
+import {
+  getDisplayCompensationAmount,
+  getDisplayOutstandingAmount,
+  shouldHideCompensationAmounts,
+} from '../../utils/compensation';
 import { formatDateTime } from '../../utils/dateTime';
 
 type CompensationRouteParams = {
@@ -118,10 +122,15 @@ function CaseCard({
 }) {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
+  const hideAmounts = shouldHideCompensationAmounts(item.status);
+  const displayTargetAmount = useMemo(
+    () => getDisplayCompensationAmount(item.status, item.agreed_amount, item.assessed_amount),
+    [item.agreed_amount, item.assessed_amount, item.status]
+  );
 
   const outstanding = useMemo(
-    () => getOutstandingAmount(item.agreed_amount, item.assessed_amount, item.paid_amount),
-    [item.agreed_amount, item.assessed_amount, item.paid_amount]
+    () => getDisplayOutstandingAmount(item.status, item.agreed_amount, item.assessed_amount, item.paid_amount),
+    [item.agreed_amount, item.assessed_amount, item.paid_amount, item.status]
   );
   const settled = item.status === 'paid' || item.status === 'waived';
   const badge = statusMeta(item.status);
@@ -211,6 +220,8 @@ function CaseCard({
             >
               {settled
                 ? t('bookings.compensationSettled')
+                : hideAmounts
+                ? t('bookings.compensationInProgress')
                 : outstanding > 0
                 ? t('bookings.compensationOutstanding', { amount: outstanding.toLocaleString() })
                 : t('bookings.compensationInProgress')}
@@ -218,7 +229,7 @@ function CaseCard({
           </View>
           <View style={[styles.caseSummaryChip, { backgroundColor: '#F8FAFC' }]}>
             <Text style={styles.caseSummaryChipText}>
-              {t('compensation.money.agreed')} {formatMoney(item.agreed_amount ?? item.assessed_amount, t('compensation.pendingAmount'))}
+              {t('compensation.money.agreed')} {formatMoney(displayTargetAmount, t('compensation.pendingAmount'))}
             </Text>
           </View>
         </View>
@@ -235,11 +246,11 @@ function CaseCard({
           <View style={styles.moneyGrid}>
             <View style={[styles.moneyCard, { backgroundColor: '#FFF7ED' }]}>
               <Text style={styles.moneyLabel}>{t('compensation.money.assessed')}</Text>
-              <Text style={styles.moneyValue}>{formatMoney(item.assessed_amount, t('compensation.pendingAmount'))}</Text>
+              <Text style={styles.moneyValue}>{formatMoney(hideAmounts ? null : item.assessed_amount, t('compensation.pendingAmount'))}</Text>
             </View>
             <View style={[styles.moneyCard, { backgroundColor: '#F5F3FF' }]}>
               <Text style={styles.moneyLabel}>{t('compensation.money.agreed')}</Text>
-              <Text style={styles.moneyValue}>{formatMoney(item.agreed_amount, t('compensation.pendingAmount'))}</Text>
+              <Text style={styles.moneyValue}>{formatMoney(hideAmounts ? null : item.agreed_amount, t('compensation.pendingAmount'))}</Text>
             </View>
             <View style={[styles.moneyCard, { backgroundColor: '#ECFDF5' }]}>
               <Text style={styles.moneyLabel}>{t('compensation.money.paid')}</Text>
@@ -248,7 +259,7 @@ function CaseCard({
             <View style={[styles.moneyCard, { backgroundColor: '#FEF2F2' }]}>
               <Text style={styles.moneyLabel}>{t('compensation.money.outstanding')}</Text>
               <Text style={[styles.moneyValue, { color: outstanding > 0 ? theme.colors.danger : theme.colors.success }]}>
-                {formatMoney(outstanding, t('compensation.pendingAmount'))}
+                {formatMoney(hideAmounts ? null : outstanding, t('compensation.pendingAmount'))}
               </Text>
             </View>
           </View>
@@ -348,7 +359,7 @@ function CaseCard({
                   </View>
                   <Text style={styles.recordTime}>{formatDateTime(record.created_at)}</Text>
                   {record.description ? <Text style={styles.recordBody}>{record.description}</Text> : null}
-                  {typeof record.amount === 'number' ? (
+                  {!hideAmounts && typeof record.amount === 'number' ? (
                     <Text style={styles.recordAmount}>{formatMoney(record.amount, t('compensation.pendingAmount'))}</Text>
                   ) : null}
                   {record.payment_method ? (
@@ -424,6 +435,11 @@ export default function CompensationCenterScreen() {
     if (!focusedCase) return cases;
     return [focusedCase, ...cases.filter((item) => item.id !== focusedCaseId)];
   }, [cases, focusedCaseId]);
+  const totalOutstandingText = summary.totalOutstanding > 0
+    ? formatMoney(summary.totalOutstanding, t('compensation.pendingAmount'))
+    : summary.activeCases > 0
+      ? t('compensation.pendingAmount')
+      : formatMoney(summary.totalOutstanding, t('compensation.pendingAmount'));
 
   if (loading) {
     return (
@@ -458,7 +474,7 @@ export default function CompensationCenterScreen() {
           <View style={[styles.summaryCard, { backgroundColor: '#FEF2F2' }]}>
             <Text style={styles.summaryLabel}>{t('compensation.totalOutstanding')}</Text>
             <Text style={[styles.summaryValue, { color: theme.colors.danger }]}>
-              {formatMoney(summary.totalOutstanding, t('compensation.pendingAmount'))}
+              {totalOutstandingText}
             </Text>
           </View>
           <View style={[styles.summaryCard, { backgroundColor: '#EEF2FF' }]}>

@@ -1,14 +1,16 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useForm, type FieldError, type Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Package, Tag, Hash, DollarSign, MapPin, AlignLeft, ShieldCheck, Asterisk, Upload, X, Loader2, Activity, Thermometer, Layers, AlertCircle } from 'lucide-react';
+import { Package, Tag, Hash, DollarSign, CalendarDays, MapPin, AlignLeft, ShieldCheck, Asterisk, Upload, X, Loader2, Activity, Thermometer, Layers, AlertCircle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/components/ui/Toast';
 import { createAsset, updateAsset } from '@/lib/assetService';
 import { getCategories } from '@/lib/categoryService';
 import { Asset, Category } from '@/types/database';
-import { assetSchema, AssetFormData } from '@/lib/validations/asset';
+import { createAssetSchema, AssetFormData } from '@/lib/validations/asset';
 import { cn } from '@/lib/utils';
+import { useLanguage } from '@/components/providers/LanguageProvider';
+import { getConditionLabel, getStatusLabel, localizeCategoryName } from '@/lib/i18n';
 
 interface AssetFormProps {
   onCancel: () => void;
@@ -18,11 +20,13 @@ interface AssetFormProps {
 
 export default function AssetForm({ onCancel, onSuccess, asset }: AssetFormProps) {
   const isEditMode = !!asset;
+  const { t, locale } = useLanguage();
   const { showToast } = useToast();
   const [isUploading, setIsUploading] = useState(false);
   const [images, setImages] = useState<string[]>(asset?.images ?? []);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [categories, setCategories] = useState<Array<Pick<Category, 'id' | 'name' | 'name_zh'>>>([]);
+  const schema = useMemo(() => createAssetSchema(t), [t]);
 
   type CreateAssetPayload = Parameters<typeof createAsset>[0];
   type UpdateAssetPayload = Parameters<typeof updateAsset>[1];
@@ -32,12 +36,13 @@ export default function AssetForm({ onCancel, onSuccess, asset }: AssetFormProps
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<AssetFormData>({
-    resolver: zodResolver(assetSchema) as Resolver<AssetFormData>,
+    resolver: zodResolver(schema) as Resolver<AssetFormData>,
     defaultValues: {
       name: asset?.name || '',
       category_id: asset?.category_id || '',
       serial_number: asset?.serial_number || '',
       purchase_price: asset?.purchase_price || 0,
+      purchase_date: asset?.purchase_date ? asset.purchase_date.slice(0, 10) : '',
       location: asset?.location || '',
       description: asset?.description || '',
       condition: asset?.condition || 'good',
@@ -96,7 +101,7 @@ export default function AssetForm({ onCancel, onSuccess, asset }: AssetFormProps
       setImages((prev) => [...prev, ...urls]);
     } catch (err) {
       console.error('Upload error:', err);
-      const msg = 'Failed to upload images. Please check your network connection.';
+      const msg = t('assetForm.uploadFailed');
       showToast(msg, 'error');
     } finally {
       setIsUploading(false);
@@ -113,6 +118,7 @@ export default function AssetForm({ onCancel, onSuccess, asset }: AssetFormProps
     category_id: data.category_id,
     serial_number: data.serial_number || undefined,
     purchase_price: data.purchase_price,
+    purchase_date: data.purchase_date || undefined,
     location: data.location || undefined,
     description: data.description || undefined,
     images: images || [],
@@ -123,6 +129,7 @@ export default function AssetForm({ onCancel, onSuccess, asset }: AssetFormProps
     category_id: data.category_id,
     serial_number: data.serial_number || null,
     purchase_price: data.purchase_price ?? 0,
+    purchase_date: data.purchase_date || null,
     location: data.location || '',
     description: data.description || '',
     condition: data.condition,
@@ -134,7 +141,7 @@ export default function AssetForm({ onCancel, onSuccess, asset }: AssetFormProps
     try {
       if (isEditMode && asset) {
         await updateAsset(asset.id, buildUpdatePayload(data));
-        showToast('Asset updated successfully!', 'success');
+        showToast(t('assetForm.updateSuccess'), 'success');
       } else {
         const quantity = data.quantity || 1;
         
@@ -144,16 +151,16 @@ export default function AssetForm({ onCancel, onSuccess, asset }: AssetFormProps
             promises.push(createAsset(buildCreatePayload(data, `${data.name} #${i}`)));
           }
           await Promise.all(promises);
-          showToast(`Successfully registered ${quantity} assets!`, 'success');
+          showToast(t('assetForm.createSuccessMultiple', { count: quantity }), 'success');
         } else {
           await createAsset(buildCreatePayload(data));
-          showToast('Asset registered successfully!', 'success');
+          showToast(t('assetForm.createSuccessSingle'), 'success');
         }
       }
       onSuccess();
     } catch (err) {
       console.error('Asset form error:', err);
-      const msg = err instanceof Error ? err.message : 'An error occurred while saving the asset.';
+      const msg = err instanceof Error ? err.message : t('assetForm.saveFailed');
       showToast(msg, 'error');
     }
   };
@@ -179,10 +186,12 @@ export default function AssetForm({ onCancel, onSuccess, asset }: AssetFormProps
           <ShieldCheck className="w-32 h-32 text-indigo-600 dark:text-indigo-400" />
         </div>
         <h3 className="text-xl sm:text-2xl font-bold leading-7 text-gray-900 dark:text-white tracking-tight">
-          {isEditMode ? 'Edit Asset Record' : 'Register New Asset'}
+          {isEditMode ? t('assetForm.editTitle') : t('assetForm.createTitle')}
         </h3>
         <p className="mt-3 text-sm sm:text-base leading-6 text-gray-600 dark:text-gray-400 max-w-2xl">
-          Enter the comprehensive details of the hardware to add it. Field marked with <span className="text-rose-500 font-bold">*</span> is mandatory.
+          {t('assetForm.subtitle').split('*')[0]}
+          <span className="text-rose-500 font-bold">*</span>
+          {t('assetForm.subtitle').split('*')[1] ?? ''}
         </p>
       </div>
 
@@ -193,7 +202,7 @@ export default function AssetForm({ onCancel, onSuccess, asset }: AssetFormProps
             {/* Asset Name */}
             <div className="sm:col-span-4">
               <label htmlFor="name" className="flex items-center text-sm font-semibold leading-6 text-gray-900 dark:text-gray-100">
-                Asset Name <Asterisk className="w-3 h-3 text-rose-500 ml-1" />
+                {t('assetForm.name')} <Asterisk className="w-3 h-3 text-rose-500 ml-1" />
               </label>
               <div className="mt-2 relative rounded-xl shadow-sm">
                 <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
@@ -207,7 +216,7 @@ export default function AssetForm({ onCancel, onSuccess, asset }: AssetFormProps
                     "block w-full rounded-xl border-0 py-3.5 pl-12 pr-4 text-gray-900 dark:text-white ring-1 ring-inset placeholder:text-gray-400 focus:ring-2 focus:ring-inset sm:text-sm sm:leading-6 bg-white/50 dark:bg-black/50 backdrop-blur-sm transition-all shadow-sm",
                     errors.name ? "ring-rose-500 focus:ring-rose-500" : "ring-gray-300 dark:ring-gray-700 focus:ring-indigo-600"
                   )}
-                  placeholder="e.g. Dell XPS 15 9530"
+                  placeholder={t('assetForm.placeholderName')}
                 />
               </div>
               <ErrorMessage error={errors.name} />
@@ -216,7 +225,7 @@ export default function AssetForm({ onCancel, onSuccess, asset }: AssetFormProps
             {/* Quantity - Only for non-edit mode */}
             <div className={cn("sm:col-span-2", isEditMode && "hidden")}>
               <label htmlFor="quantity" className="flex items-center text-sm font-semibold leading-6 text-gray-900 dark:text-gray-100">
-                Quantity <Asterisk className="w-3 h-3 text-rose-500 ml-1" />
+                {t('assetForm.quantity')} <Asterisk className="w-3 h-3 text-rose-500 ml-1" />
               </label>
               <div className="mt-2 relative rounded-xl shadow-sm">
                 <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
@@ -230,7 +239,7 @@ export default function AssetForm({ onCancel, onSuccess, asset }: AssetFormProps
                     "block w-full rounded-xl border-0 py-3.5 pl-12 pr-4 text-gray-900 dark:text-white ring-1 ring-inset placeholder:text-gray-400 focus:ring-2 focus:ring-inset sm:text-sm sm:leading-6 bg-white/50 dark:bg-black/50 backdrop-blur-sm transition-all shadow-sm",
                     errors.quantity ? "ring-rose-500 focus:ring-rose-500" : "ring-gray-300 dark:ring-gray-700 focus:ring-indigo-600"
                   )}
-                  placeholder="1"
+                  placeholder={t('assetForm.placeholderQuantity')}
                 />
               </div>
               <ErrorMessage error={errors.quantity} />
@@ -239,7 +248,7 @@ export default function AssetForm({ onCancel, onSuccess, asset }: AssetFormProps
             {/* Image Upload Area */}
             <div className="sm:col-span-6">
               <label className="block text-sm font-semibold leading-6 text-gray-900 dark:text-gray-100 mb-2.5">
-                Asset Images
+                {t('assetForm.images')}
               </label>
               
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
@@ -259,7 +268,7 @@ export default function AssetForm({ onCancel, onSuccess, asset }: AssetFormProps
                 {isUploading && (
                   <div className="aspect-square rounded-xl border border-dashed border-indigo-400 flex flex-col items-center justify-center bg-indigo-50/10 dark:bg-indigo-900/10">
                     <Loader2 className="w-6 h-6 text-indigo-500 animate-spin" />
-                    <span className="text-xs text-indigo-500 mt-2 font-medium">Uploading...</span>
+                    <span className="text-xs text-indigo-500 mt-2 font-medium">{t('assetForm.uploading')}</span>
                   </div>
                 )}
 
@@ -269,7 +278,7 @@ export default function AssetForm({ onCancel, onSuccess, asset }: AssetFormProps
                   className="aspect-square rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-700 hover:border-indigo-500 dark:hover:border-indigo-400 hover:bg-indigo-50/50 dark:hover:bg-indigo-900/20 transition-all flex flex-col items-center justify-center group"
                 >
                   <Upload className="w-6 h-6 text-gray-400 group-hover:text-indigo-500 transition-colors" />
-                  <span className="text-xs text-gray-500 group-hover:text-indigo-500 mt-2 font-medium">Add Photo</span>
+                  <span className="text-xs text-gray-500 group-hover:text-indigo-500 mt-2 font-medium">{t('assetForm.addPhoto')}</span>
                 </button>
               </div>
 
@@ -282,14 +291,14 @@ export default function AssetForm({ onCancel, onSuccess, asset }: AssetFormProps
                 className="hidden"
               />
               <p className="text-xs text-gray-500 dark:text-gray-400">
-                Upload up to 4 clear photos of the asset. JPG, PNG are supported.
+                {t('assetForm.uploadHint')}
               </p>
             </div>
 
             {/* Category */}
             <div className="sm:col-span-3">
               <label htmlFor="category_id" className="block text-sm font-semibold leading-6 text-gray-900 dark:text-gray-100">
-                Category
+                {t('assetForm.category')}
               </label>
               <div className="mt-2 relative rounded-xl shadow-sm">
                 <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
@@ -304,15 +313,15 @@ export default function AssetForm({ onCancel, onSuccess, asset }: AssetFormProps
                     errors.category_id ? "ring-rose-500 focus:ring-rose-500" : "ring-gray-300 dark:ring-gray-700 focus:ring-indigo-600"
                   )}
                 >
-                  <option value="">Select a category...</option>
+                  <option value="">{t('assetForm.selectCategory')}</option>
                   {isFetchingCategories ? (
-                    <option disabled>Loading categories...</option>
+                    <option disabled>{t('assetForm.loadingCategories')}</option>
                   ) : categories.length === 0 ? (
-                    <option disabled value="">No categories available</option>
+                    <option disabled value="">{t('assetForm.noCategories')}</option>
                   ) : (
                     categories.map((cat) => (
                       <option key={cat.id} value={cat.id}>
-                        {cat.name} {cat.name_zh ? `(${cat.name_zh})` : ''}
+                        {localizeCategoryName(cat, locale)}
                       </option>
                     ))
                   )}
@@ -324,7 +333,7 @@ export default function AssetForm({ onCancel, onSuccess, asset }: AssetFormProps
             {/* Serial Number */}
             <div className="sm:col-span-3">
               <label htmlFor="serial_number" className="block text-sm font-semibold leading-6 text-gray-900 dark:text-gray-100">
-                Serial Number
+                {t('assetForm.serialNumber')}
               </label>
               <div className="mt-2 relative rounded-xl shadow-sm">
                 <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
@@ -335,16 +344,16 @@ export default function AssetForm({ onCancel, onSuccess, asset }: AssetFormProps
                   id="serial_number"
                   {...register('serial_number')}
                   className="block w-full rounded-xl border-0 py-3.5 pl-12 pr-4 text-gray-900 dark:text-white ring-1 ring-inset ring-gray-300 dark:ring-gray-700 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 bg-white/50 dark:bg-black/50 backdrop-blur-sm transition-all shadow-sm uppercase font-mono"
-                  placeholder="SN-XXXX-YYYY"
+                  placeholder={t('assetForm.placeholderSerial')}
                 />
               </div>
               <ErrorMessage error={errors.serial_number} />
             </div>
 
             {/* Purchase Price */}
-            <div className="sm:col-span-3">
+            <div className="sm:col-span-2">
               <label htmlFor="purchase_price" className="block text-sm font-semibold leading-6 text-gray-900 dark:text-gray-100">
-                Purchase Price
+                {t('assetForm.purchasePrice')}
               </label>
               <div className="mt-2 relative rounded-xl shadow-sm">
                 <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
@@ -356,16 +365,36 @@ export default function AssetForm({ onCancel, onSuccess, asset }: AssetFormProps
                   step="0.01"
                   {...register('purchase_price')}
                   className="block w-full rounded-xl border-0 py-3.5 pl-12 pr-4 text-gray-900 dark:text-white ring-1 ring-inset ring-gray-300 dark:ring-gray-700 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 bg-white/50 dark:bg-black/50 backdrop-blur-sm transition-all shadow-sm"
-                  placeholder="0.00"
+                  placeholder={t('assetForm.placeholderPrice')}
                 />
               </div>
               <ErrorMessage error={errors.purchase_price} />
             </div>
 
+            {/* Purchase Date */}
+            <div className="sm:col-span-2">
+              <label htmlFor="purchase_date" className="block text-sm font-semibold leading-6 text-gray-900 dark:text-gray-100">
+                {t('assetForm.purchaseDate')}
+              </label>
+              <div className="mt-2 relative rounded-xl shadow-sm">
+                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
+                  <CalendarDays className="h-5 w-5 text-gray-400 dark:text-gray-500" />
+                </div>
+                <input
+                  type="date"
+                  id="purchase_date"
+                  {...register('purchase_date')}
+                  className="block w-full rounded-xl border-0 py-3.5 pl-12 pr-4 text-gray-900 dark:text-white ring-1 ring-inset ring-gray-300 dark:ring-gray-700 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 bg-white/50 dark:bg-black/50 backdrop-blur-sm transition-all shadow-sm"
+                  aria-label={t('assetForm.placeholderPurchaseDate')}
+                />
+              </div>
+              <ErrorMessage error={errors.purchase_date} />
+            </div>
+
             {/* Location */}
-            <div className="sm:col-span-3">
+            <div className="sm:col-span-2">
               <label htmlFor="location" className="block text-sm font-semibold leading-6 text-gray-900 dark:text-gray-100">
-                Storage Location
+                {t('assetForm.storageLocation')}
               </label>
               <div className="mt-2 relative rounded-xl shadow-sm">
                 <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
@@ -376,7 +405,7 @@ export default function AssetForm({ onCancel, onSuccess, asset }: AssetFormProps
                   id="location"
                   {...register('location')}
                   className="block w-full rounded-xl border-0 py-3.5 pl-12 pr-4 text-gray-900 dark:text-white ring-1 ring-inset ring-gray-300 dark:ring-gray-700 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 bg-white/50 dark:bg-black/50 backdrop-blur-sm transition-all shadow-sm"
-                  placeholder="e.g. IT Department"
+                  placeholder={t('assetForm.placeholderLocation')}
                 />
               </div>
               <ErrorMessage error={errors.location} />
@@ -386,7 +415,7 @@ export default function AssetForm({ onCancel, onSuccess, asset }: AssetFormProps
             {isEditMode && (
               <div className="sm:col-span-3">
                 <label htmlFor="condition" className="block text-sm font-semibold leading-6 text-gray-900 dark:text-gray-100">
-                  Condition
+                  {t('assetForm.condition')}
                 </label>
                 <div className="mt-2 relative rounded-xl shadow-sm">
                   <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
@@ -397,11 +426,11 @@ export default function AssetForm({ onCancel, onSuccess, asset }: AssetFormProps
                     {...register('condition')}
                     className="block w-full rounded-xl border-0 py-3.5 pl-12 pr-4 text-gray-900 dark:text-white ring-1 ring-inset ring-gray-300 dark:ring-gray-700 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 bg-white/50 dark:bg-black/50 backdrop-blur-sm transition-all shadow-sm appearance-none"
                   >
-                    <option value="new">New (全新)</option>
-                    <option value="good">Good (良好)</option>
-                    <option value="fair">Fair (一般)</option>
-                    <option value="poor">Poor (较差)</option>
-                    <option value="damaged">Damaged (损坏)</option>
+                    <option value="new">{getConditionLabel('new', t)}</option>
+                    <option value="good">{getConditionLabel('good', t)}</option>
+                    <option value="fair">{getConditionLabel('fair', t)}</option>
+                    <option value="poor">{getConditionLabel('poor', t)}</option>
+                    <option value="damaged">{getConditionLabel('damaged', t)}</option>
                   </select>
                 </div>
                 <ErrorMessage error={errors.condition} />
@@ -412,7 +441,7 @@ export default function AssetForm({ onCancel, onSuccess, asset }: AssetFormProps
             {isEditMode && (
               <div className="sm:col-span-3">
                 <label htmlFor="status" className="block text-sm font-semibold leading-6 text-gray-900 dark:text-gray-100">
-                  Status
+                  {t('assetForm.status')}
                 </label>
                 <div className="mt-2 relative rounded-xl shadow-sm">
                   <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
@@ -423,9 +452,9 @@ export default function AssetForm({ onCancel, onSuccess, asset }: AssetFormProps
                     {...register('status')}
                     className="block w-full rounded-xl border-0 py-3.5 pl-12 pr-4 text-gray-900 dark:text-white ring-1 ring-inset ring-gray-300 dark:ring-gray-700 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 bg-white/50 dark:bg-black/50 backdrop-blur-sm transition-all shadow-sm appearance-none"
                   >
-                    <option value="available">Available (可借用)</option>
-                    <option value="maintenance">Maintenance (维护中)</option>
-                    <option value="retired">Retired (已退役)</option>
+                    <option value="available">{getStatusLabel('available', t)}</option>
+                    <option value="maintenance">{getStatusLabel('maintenance', t)}</option>
+                    <option value="retired">{getStatusLabel('retired', t)}</option>
                   </select>
                 </div>
                 <ErrorMessage error={errors.status} />
@@ -435,7 +464,7 @@ export default function AssetForm({ onCancel, onSuccess, asset }: AssetFormProps
             {/* Description */}
             <div className="sm:col-span-6">
               <label htmlFor="description" className="block text-sm font-semibold leading-6 text-gray-900 dark:text-gray-100">
-                Description & Notes
+                {t('assetForm.description')}
               </label>
               <div className="mt-2 relative rounded-xl shadow-sm">
                 <div className="pointer-events-none absolute top-4 left-0 flex items-start pl-4">
@@ -446,7 +475,7 @@ export default function AssetForm({ onCancel, onSuccess, asset }: AssetFormProps
                   rows={4}
                   {...register('description')}
                   className="block w-full rounded-xl border-0 py-3.5 pl-12 pr-4 text-gray-900 dark:text-white ring-1 ring-inset ring-gray-300 dark:ring-gray-700 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 bg-white/50 dark:bg-black/50 backdrop-blur-sm transition-all shadow-sm resize-none"
-                  placeholder="Additional specs, condition details, or notes..."
+                  placeholder={t('assetForm.placeholderDescription')}
                 />
               </div>
               <ErrorMessage error={errors.description} />
@@ -462,7 +491,7 @@ export default function AssetForm({ onCancel, onSuccess, asset }: AssetFormProps
             disabled={isSubmitting || isUploading}
             className="text-sm font-semibold leading-6 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white disabled:opacity-50 px-5 py-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-all focus:outline-none focus:ring-2 focus:ring-gray-200 dark:focus:ring-gray-700"
           >
-            Cancel
+            {t('assetForm.cancel')}
           </button>
           <button
             type="submit"
@@ -472,9 +501,9 @@ export default function AssetForm({ onCancel, onSuccess, asset }: AssetFormProps
             {isSubmitting ? (
               <>
                 <Loader2 className="animate-spin -ml-1 mr-3 h-4 w-4 text-white" />
-                Submitting...
+                {t('assetForm.submitting')}
               </>
-            ) : isEditMode ? 'Update Asset Info' : 'Save Asset Record'}
+            ) : isEditMode ? t('assetForm.updateSubmit') : t('assetForm.createSubmit')}
           </button>
         </div>
       </form>

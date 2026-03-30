@@ -5,6 +5,8 @@ import { AlertTriangle, ArrowUpRight, BookCopy, Building2, CalendarDays, Graduat
 import { cn } from '@/lib/utils';
 import { getCreditReasonLabel, type UserDetailStats } from '@/lib/userService';
 import type { Profile } from '@/types/database';
+import { useLanguage } from '@/components/providers/LanguageProvider';
+import { getIntlLocale, getRoleLabel } from '@/lib/i18n';
 
 interface UserExpandedRowProps {
   user: Profile;
@@ -115,6 +117,7 @@ export default function UserExpandedRow({
   onRetry,
   onOpenCreditHistory,
 }: UserExpandedRowProps) {
+  const { t, locale } = useLanguage();
   const tone = getCreditTone(user.credit_score);
   const scorePercent = Math.max(0, Math.min(100, (user.credit_score / 200) * 100));
   const initials = user.full_name?.trim()?.charAt(0)?.toUpperCase() || '?';
@@ -129,16 +132,16 @@ export default function UserExpandedRow({
         <div className="flex items-start gap-3">
           <AlertTriangle className="mt-0.5 h-5 w-5 text-rose-300" />
           <div>
-            <h3 className="text-base font-semibold text-white">Failed to load user details</h3>
+            <h3 className="text-base font-semibold text-white">{t('users.detailErrorTitle')}</h3>
             <p className="mt-1 text-sm text-rose-100/80">
-              {error ?? 'Something went wrong while loading this student profile.'}
+              {error ?? t('users.detailErrorFallback')}
             </p>
             <button
               type="button"
               onClick={onRetry}
               className="mt-4 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/15"
             >
-              Retry
+              {t('common.retry')}
             </button>
           </div>
         </div>
@@ -159,7 +162,7 @@ export default function UserExpandedRow({
               {user.avatar_url ? (
                 <img
                   src={user.avatar_url}
-                  alt={user.full_name || 'User avatar'}
+                  alt={user.full_name || t('users.unnamed')}
                   className="h-16 w-16 rounded-2xl border border-white/20 object-cover shadow-lg"
                 />
               ) : (
@@ -170,13 +173,13 @@ export default function UserExpandedRow({
               <div>
                 <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-white/90 ring-1 ring-white/15">
                   <Sparkles className="h-3.5 w-3.5" />
-                  Expanded profile
+                  {t('users.expandedProfile')}
                 </div>
-                <h3 className="mt-3 text-2xl font-semibold tracking-tight">{user.full_name || 'Unnamed User'}</h3>
+                <h3 className="mt-3 text-2xl font-semibold tracking-tight">{user.full_name || t('users.unnamed')}</h3>
                 <p className="mt-1 text-sm text-white/80">{user.email}</p>
                 <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-medium capitalize ring-1 ring-white/15">
                   <GraduationCap className="h-3.5 w-3.5" />
-                  {user.role}
+                  {getRoleLabel(user.role, t)}
                 </div>
               </div>
             </div>
@@ -187,14 +190,14 @@ export default function UserExpandedRow({
               className="inline-flex items-center justify-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-slate-900 shadow-lg shadow-black/10 transition hover:-translate-y-0.5 hover:bg-slate-100"
             >
               <Star className="h-4 w-4 text-amber-500" />
-              View Credit History
+              {t('users.viewCreditHistory')}
               <ArrowUpRight className="h-4 w-4" />
             </button>
           </div>
 
           <div className="mt-8 grid gap-5 md:grid-cols-[1fr_auto] md:items-end">
             <div>
-              <p className="text-xs uppercase tracking-[0.22em] text-white/70">Current credit score</p>
+              <p className="text-xs uppercase tracking-[0.22em] text-white/70">{t('users.currentCreditScore')}</p>
               <div className="mt-2 flex items-end gap-3">
                 <p className={cn('text-5xl font-bold tracking-tight', tone.text)}>{user.credit_score}</p>
                 <span className="pb-1 text-sm text-white/75">/ 200</span>
@@ -211,38 +214,38 @@ export default function UserExpandedRow({
             </div>
 
             <div className="rounded-2xl border border-white/15 bg-black/15 px-4 py-3 backdrop-blur-sm">
-              <p className="text-xs uppercase tracking-[0.18em] text-white/60">Latest credit event</p>
+              <p className="text-xs uppercase tracking-[0.18em] text-white/60">{t('users.latestCreditEvent')}</p>
               {latestCredit ? (
                 <>
                   <p className="mt-2 text-sm font-medium text-white">{getCreditReasonLabel(latestCredit.reason)}</p>
-                  <p className="mt-1 text-xs text-white/70">{formatDate(latestCredit.created_at)}</p>
+                  <p className="mt-1 text-xs text-white/70">{new Date(latestCredit.created_at).toLocaleString(getIntlLocale(locale))}</p>
                   <p className={cn('mt-2 text-sm font-semibold', latestCredit.delta >= 0 ? 'text-emerald-300' : 'text-rose-300')}>
                     {latestCredit.delta >= 0 ? '+' : ''}
-                    {latestCredit.delta} points
+                    {latestCredit.delta} {t('common.pointsShort')}
                   </p>
                 </>
               ) : (
-                <p className="mt-2 text-sm text-white/75">No credit changes recorded yet.</p>
+                <p className="mt-2 text-sm text-white/75">{t('users.noCreditChanges')}</p>
               )}
             </div>
           </div>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <DetailItem icon={GraduationCap} label="Student ID" value={user.student_id || 'Not provided'} />
-          <DetailItem icon={Building2} label="Department" value={user.department || 'Not provided'} />
-          <DetailItem icon={Phone} label="Phone" value={user.phone || 'Not provided'} />
-          <DetailItem icon={CalendarDays} label="Joined" value={new Date(user.created_at).toLocaleDateString()} />
-          <DetailItem icon={Mail} label="Email" value={user.email} />
-          <DetailItem icon={Star} label="Credit level" value={tone.badge} />
+          <DetailItem icon={GraduationCap} label={t('users.studentId')} value={user.student_id || t('users.notProvided')} />
+          <DetailItem icon={Building2} label={t('users.department')} value={user.department || t('users.notProvided')} />
+          <DetailItem icon={Phone} label={t('compensation.phone')} value={user.phone || t('users.notProvided')} />
+          <DetailItem icon={CalendarDays} label={t('users.joined')} value={new Date(user.created_at).toLocaleDateString(getIntlLocale(locale))} />
+          <DetailItem icon={Mail} label={t('compensation.email')} value={user.email} />
+          <DetailItem icon={Star} label={t('users.creditLevel')} value={tone.badge} />
         </div>
       </div>
 
       <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Total bookings" value={stats.totalBookings} hint="All-time borrowing records" />
-        <StatCard label="Open bookings" value={stats.openBookings} hint="Currently active or pending return" />
-        <StatCard label="Overdue cases" value={stats.overdueBookings} hint="Needs extra follow-up" />
-        <StatCard label="Damage reports" value={stats.damageReports} hint="Incidents tied to this user" />
+        <StatCard label={t('users.totalBookings')} value={stats.totalBookings} hint={t('users.totalBookingsHint')} />
+        <StatCard label={t('users.openBookings')} value={stats.openBookings} hint={t('users.openBookingsHint')} />
+        <StatCard label={t('users.overdueCases')} value={stats.overdueBookings} hint={t('users.overdueCasesHint')} />
+        <StatCard label={t('users.damageReports')} value={stats.damageReports} hint={t('users.damageReportsHint')} />
       </div>
 
       {(lowCredit || hasOverdue) && (
@@ -251,9 +254,9 @@ export default function UserExpandedRow({
             <div className="flex items-start gap-3 rounded-2xl border border-amber-400/20 bg-amber-500/10 px-4 py-3">
               <ShieldAlert className="mt-0.5 h-4 w-4 text-amber-300" />
               <div>
-                <p className="text-sm font-semibold text-amber-200">Credit attention needed</p>
+                <p className="text-sm font-semibold text-amber-200">{t('users.creditAttentionTitle')}</p>
                 <p className="mt-1 text-sm text-amber-50/80">
-                  This student is below the healthy credit threshold. Review recent deductions before approving new requests.
+                  {t('users.creditAttentionBody')}
                 </p>
               </div>
             </div>
@@ -262,9 +265,9 @@ export default function UserExpandedRow({
             <div className="flex items-start gap-3 rounded-2xl border border-rose-400/20 bg-rose-500/10 px-4 py-3">
               <BookCopy className="mt-0.5 h-4 w-4 text-rose-300" />
               <div>
-                <p className="text-sm font-semibold text-rose-200">Outstanding overdue history</p>
+                <p className="text-sm font-semibold text-rose-200">{t('users.overdueHistoryTitle')}</p>
                 <p className="mt-1 text-sm text-rose-50/80">
-                  There are {stats.overdueBookings} overdue booking record{stats.overdueBookings > 1 ? 's' : ''} on this account.
+                  {t('users.overdueHistoryBody', { count: stats.overdueBookings })}
                 </p>
               </div>
             </div>

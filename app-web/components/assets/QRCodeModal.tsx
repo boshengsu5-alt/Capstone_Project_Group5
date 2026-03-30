@@ -3,6 +3,8 @@
 import React, { useRef } from 'react';
 import { QRCodeCanvas } from 'qrcode.react';
 import { X, Download, ShieldCheck, Printer } from 'lucide-react';
+import { useLanguage } from '@/components/providers/LanguageProvider';
+import { getIntlLocale } from '@/lib/i18n';
 
 interface QRCodeModalProps {
   asset: {
@@ -14,6 +16,7 @@ interface QRCodeModalProps {
 }
 
 export default function QRCodeModal({ asset, onClose }: QRCodeModalProps) {
+  const { t, locale } = useLanguage();
   const qrRef = useRef<HTMLCanvasElement>(null);
 
   const handlePrint = () => {
@@ -50,8 +53,8 @@ export default function QRCodeModal({ asset, onClose }: QRCodeModalProps) {
     let line = '';
     let y = 60;
     for (let n = 0; n < words.length; n++) {
-      let testLine = line + words[n] + ' ';
-      let metrics = ctx.measureText(testLine);
+      const testLine = line + words[n] + ' ';
+      const metrics = ctx.measureText(testLine);
       if (metrics.width > qrSize && n > 0) {
         ctx.fillText(line.trim(), labelWidth / 2, y);
         line = words[n] + ' ';
@@ -67,11 +70,11 @@ export default function QRCodeModal({ asset, onClose }: QRCodeModalProps) {
 
     ctx.fillStyle = '#64748b';
     ctx.font = '16px monospace';
-    ctx.fillText(asset.serial_number || asset.qr_code || 'N/A', labelWidth / 2, 470);
+    ctx.fillText(asset.serial_number || asset.qr_code || t('common.none'), labelWidth / 2, 470);
 
     ctx.fillStyle = '#a855f7';
     ctx.font = 'italic bold 12px sans-serif';
-    ctx.fillText('UniGear IT Asset', labelWidth / 2, 490);
+    ctx.fillText(t('qrModal.assetTagBrand'), labelWidth / 2, 490);
 
     const link = document.createElement('a');
     link.download = `Label_${asset.qr_code || asset.name}.png`;
@@ -132,10 +135,11 @@ export default function QRCodeModal({ asset, onClose }: QRCodeModalProps) {
             <div className="p-2 bg-purple-500/10 rounded-lg">
               <ShieldCheck className="w-5 h-5 text-purple-400" />
             </div>
-            <h3 className="text-lg font-semibold text-white">Asset Smart Tag</h3>
+            <h3 className="text-lg font-semibold text-white">{t('qrModal.title')}</h3>
           </div>
           <button 
             onClick={onClose}
+            aria-label={t('common.close')}
             className="p-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-full transition-colors"
           >
             <X className="w-5 h-5" />
@@ -163,14 +167,14 @@ export default function QRCodeModal({ asset, onClose }: QRCodeModalProps) {
               />
             ) : (
               <div className="w-[240px] h-[240px] flex items-center justify-center text-gray-400 italic">
-                No QR Data
+                {t('qrModal.noData')}
               </div>
             )}
             <div className="absolute inset-0 rounded-2xl border border-purple-500/10 pointer-events-none" />
           </div>
 
           <p className="mt-6 text-xs text-gray-500 italic">
-            Ready for labels? Click print to output directly to your printer.
+            {t('qrModal.hint')}
           </p>
         </div>
 
@@ -182,7 +186,7 @@ export default function QRCodeModal({ asset, onClose }: QRCodeModalProps) {
             className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-2xl shadow-lg shadow-indigo-600/20 transition-all active:scale-[0.98] disabled:opacity-50"
           >
             <Printer className="w-5 h-5" />
-            Print Label (50x30mm)
+            {t('qrModal.print')}
           </button>
           <button
             onClick={handleDownload}
@@ -190,7 +194,7 @@ export default function QRCodeModal({ asset, onClose }: QRCodeModalProps) {
             className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white font-semibold rounded-2xl border border-white/10 transition-all active:scale-[0.98] disabled:opacity-50"
           >
             <Download className="w-4 h-4" />
-            Download PNG
+            {t('qrModal.download')}
           </button>
         </div>
       </div>
@@ -213,7 +217,7 @@ export default function QRCodeModal({ asset, onClose }: QRCodeModalProps) {
         <div className="flex-1 flex flex-col justify-between h-full py-1 pr-1 border-l border-black/5 pl-2 overflow-hidden">
           <div className="flex flex-col gap-0.5">
             <div className="text-[6pt] font-black italic uppercase text-indigo-700 tracking-wider">
-              UniGear IT
+              {t('common.appName')}
             </div>
             <div className="text-[10pt] font-extrabold text-black leading-tight line-clamp-2 break-words">
               {asset.name}
@@ -222,10 +226,10 @@ export default function QRCodeModal({ asset, onClose }: QRCodeModalProps) {
           
           <div className="flex flex-col gap-0.5 mt-auto">
             <div className="text-[6pt] font-mono font-bold text-gray-500 uppercase tracking-tighter truncate bg-gray-50 px-1 border border-black/5 rounded-sm">
-              SN: {asset.serial_number || asset.qr_code || 'N/A'}
+              {t('qrModal.serialPrefix')} {asset.serial_number || asset.qr_code || t('common.none')}
             </div>
             <div className="text-[4.5pt] font-medium text-gray-400 text-right italic">
-              {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+              {new Date().toLocaleDateString(getIntlLocale(locale), { year: 'numeric', month: 'short', day: 'numeric' })}
             </div>
           </div>
         </div>

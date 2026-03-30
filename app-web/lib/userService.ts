@@ -1,6 +1,7 @@
 'use client';
 
 import { supabase } from '@/lib/supabase';
+import { getStoredLocale, translations } from '@/lib/i18n';
 import type { BookingStatus, CreditScoreLog, UserRole } from '@/types/database';
 
 // Hand-written Database types and Supabase client generics do not fully align for
@@ -23,19 +24,6 @@ interface BookingSummary {
 
 const OPEN_BOOKING_STATUSES: BookingStatus[] = ['approved', 'active', 'overdue', 'suspended'];
 
-const CREDIT_REASON_LABELS: Record<string, string> = {
-  overdue_booking: 'Overdue return penalty',
-  overdue_day1: 'Overdue checkpoint: day 1',
-  overdue_day7: 'Overdue checkpoint: day 7',
-  overdue_day30_lost: 'Marked as lost after 30 overdue days',
-  return_bonus: 'Successful return bonus',
-  damage_minor: 'Damage penalty: minor',
-  damage_moderate: 'Damage penalty: moderate',
-  damage_severe: 'Damage penalty: severe',
-  admin_manual: 'Manual credit adjustment',
-  e2e_test_cleanup: 'System credit adjustment',
-};
-
 function humanizeReason(reason: string): string {
   return reason
     .split('_')
@@ -45,7 +33,8 @@ function humanizeReason(reason: string): string {
 }
 
 export function getCreditReasonLabel(reason: string): string {
-  return CREDIT_REASON_LABELS[reason] ?? humanizeReason(reason);
+  const locale = getStoredLocale();
+  return translations[locale].creditReasons[reason as keyof typeof translations.en.creditReasons] ?? humanizeReason(reason);
 }
 
 export async function getUserDetailStats(userId: string): Promise<UserDetailStats> {
@@ -139,7 +128,11 @@ export async function updateUserProfile({
     }
 
     if (!data) {
-      throw new Error('User role update was blocked. Please verify admin permissions.');
+      throw new Error(
+        getStoredLocale() === 'zh'
+          ? '用户角色更新被阻止，请确认管理员权限是否正确。'
+          : 'User role update was blocked. Please verify admin permissions.'
+      );
     }
   }
 
