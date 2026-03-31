@@ -154,7 +154,6 @@ export default function AssetDetailScreen({ route, navigation }: Props) {
                 <Text style={styles.categoryText}>{i18n.language === 'zh' ? (asset.categories?.name_zh || asset.categories?.name || t('assetDetail.uncategorized')) : (asset.categories?.name || t('assetDetail.uncategorized'))}</Text>
               </View>
             </View>
-            <Text style={styles.price}>¥{asset.purchase_price ?? t('assetDetail.negotiable')}{t('assetDetail.perDay')}</Text>
           </View>
 
           {/* Description */}

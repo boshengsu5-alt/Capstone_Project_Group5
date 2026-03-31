@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Camera, X, Check } from 'lucide-react';
 import { useToast } from '@/components/ui/Toast';
 import { useLanguage } from '@/components/providers/LanguageProvider';
+import { getCurrentUser } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 
 interface AvatarUploadProps {
@@ -65,9 +66,9 @@ export default function AvatarUpload({ currentAvatarUrl, onUploadSuccess }: Avat
 
       if (authError) throw authError;
 
-      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      const currentUser = await getCurrentUser();
       if (currentUser?.id) {
-        await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('id', currentUser.id);
+        await (supabase as any).from('profiles').update({ avatar_url: publicUrl }).eq('id', currentUser.id);
       }
 
       setLocalAvatarUrl(publicUrl);

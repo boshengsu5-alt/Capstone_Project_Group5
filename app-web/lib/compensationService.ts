@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { getCurrentUser } from './auth';
 import type {
   CompensationCase,
   CompensationCaseUpdate,
@@ -145,7 +146,7 @@ async function insertCompensationRecord(payload: {
   payment_method?: string;
   reference_no?: string;
 }) {
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
 
   await db
     .from('compensation_records')

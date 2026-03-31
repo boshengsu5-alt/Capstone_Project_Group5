@@ -86,22 +86,16 @@ async function notifyAdmins(
   message: string,
   metadata: Record<string, unknown>
 ): Promise<void> {
-  const { data: admins } = await db
-    .from('profiles')
-    .select('id')
-    .in('role', ['admin', 'staff']);
+  const { error } = await db.rpc('notify_admin_users', {
+    p_type: type,
+    p_title: title,
+    p_message: message,
+    p_metadata: metadata,
+  });
 
-  if (!admins?.length) return;
-
-  await db.from('notifications').insert(
-    admins.map((a: { id: string }) => ({
-      user_id: a.id,
-      type,
-      title,
-      message,
-      metadata,
-    }))
-  );
+  if (error) {
+    throw error;
+  }
 }
 
 // ============================================================
@@ -388,12 +382,21 @@ export async function submitDamageReport(
 
   if (error) throw error;
 
-  // 通知管理员有新损坏报告
+  // 取资产名，用于通知富文本（failure-safe）
+  const assetNameForNotif = await db
+    .from('assets')
+    .select('name')
+    .eq('id', assetId)
+    .single()
+    .then((r: { data: { name: string } | null }) => r.data?.name ?? '')
+    .catch(() => '');
+
+  // 通知管理员有新损坏报告（含 stage + asset_name 供前端动态翻译）
   notifyAdmins(
     'damage_reported',
     '⚠️ New Damage Report Filed',
     `A damage report has been submitted. Severity: ${severity}. Please review in the Damage Reports section.`,
-    { booking_id: bookingId, asset_id: assetId, severity }
+    { booking_id: bookingId, asset_id: assetId, severity, stage: 'reported', asset_name: assetNameForNotif }
   ).catch(() => {});
 
   return data;

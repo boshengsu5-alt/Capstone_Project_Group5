@@ -1,8 +1,15 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { checkDashboardAccess, setSessionCookie, signIn, signOut } from '@/lib/auth';
+import {
+  ADMIN_WHITELIST_ERROR_CODE,
+  checkDashboardAccess,
+  setSessionCookie,
+  signIn,
+  signOut,
+} from '@/lib/auth';
 import { LayoutDashboard, Eye, EyeOff, Loader2, Languages } from 'lucide-react';
 import { useLanguage } from '@/components/providers/LanguageProvider';
 
@@ -23,7 +30,11 @@ export default function LoginPage() {
     try {
       const { data, error } = await signIn(email, password);
       if (error) {
-        setError(error.message || t('login.errors.invalidCredentials'));
+        setError(
+          error.message === ADMIN_WHITELIST_ERROR_CODE
+            ? t('login.errors.adminWhitelistRequired')
+            : error.message || t('login.errors.invalidCredentials')
+        );
         return;
       }
 
@@ -147,6 +158,17 @@ export default function LoginPage() {
                 t('login.submit')
               )}
             </button>
+
+            <p className="text-xs leading-5 text-gray-500">
+              {t('login.whitelistHint')}
+            </p>
+
+            <div className="rounded-xl border border-white/8 bg-white/[0.03] px-4 py-3 text-xs text-gray-400">
+              <span>{t('login.noAccount')}</span>{' '}
+              <Link href="/register" className="font-semibold text-indigo-300 transition hover:text-indigo-200">
+                {t('login.registerAction')}
+              </Link>
+            </div>
           </form>
         </div>
 

@@ -1,12 +1,12 @@
 {
   "home": {
-    "searchPlaceholder": "Search hot items...",
+    "searchPlaceholder": "Search campus items...",
     "recommendation": "Recommended for You",
     "status": "Status: {{status}}",
     "statusAvailable": "Available",
-    "ad1": "New Arrivals, Big Discounts",
-    "ad2": "Limited Time Offer, Don't Miss Out",
-    "ad3": "Premium Selection, Selected for You"
+    "ad1": "Campus borrowing made simple",
+    "ad2": "Find devices and materials fast",
+    "ad3": "Reserve when needed, return on time"
   },
   "splash": {
     "slogan": "The leading smart rental warehouse in universities",
@@ -283,7 +283,7 @@
     "cancel": "Cancel",
     "retry": "Retry",
     "languageEnglishShort": "EN",
-    "languageChineseShort": "中文"
+    "languageChineseShort": "中"
   },
   "auth": {
     "login": {
@@ -306,7 +306,17 @@
       "goLogin": "Go to Login",
       "failed": "Registration Failed",
       "title": "Create Account",
-      "subtitle": "Join UniGear and start borrowing smarter",
+      "subtitle": "Verify your student identity before creating a borrowing account",
+      "stepLabel": "Step {{current}}/3",
+      "identityStepTitle": "Verify Student Identity",
+      "identityStepSubtitle": "Enter your student ID and name first so we can match the roster.",
+      "credentialsStepTitle": "Set Sign-in Details",
+      "credentialsStepSubtitle": "After verification, bind your email and set a password.",
+      "successStepTitle": "Registration Successful",
+      "successStepMessage": "Your account has been created. Please sign in with your linked email to get started.",
+      "successWelcome": "Welcome, {{name}}!",
+      "studentIdLabel": "Student ID",
+      "studentIdPlaceholder": "Enter your student ID",
       "fullNameLabel": "Full Name",
       "fullNamePlaceholder": "Enter your real name",
       "emailLabel": "Email",
@@ -315,13 +325,25 @@
       "passwordPlaceholder": "At least 6 characters",
       "confirmPasswordLabel": "Confirm Password",
       "confirmPasswordPlaceholder": "Enter your password again",
+      "verifiedCardTitle": "Verified Information",
+      "departmentValue": "Department",
+      "enrollmentYearValue": "Enrollment Year",
+      "verifyAction": "Verify Identity",
+      "backAction": "Back",
       "submit": "Sign Up",
       "existingAccount": "Already have an account?",
       "loginAction": "Back to Login",
+      "identityRequired": "Please complete student identity verification first",
+      "errorMissingIdentity": "Please enter both student ID and full name",
       "errorMissingFields": "Please complete all required fields",
       "errorInvalidEmail": "Please enter a valid email address, for example name@school.edu",
       "errorPasswordMismatch": "The two passwords do not match",
-      "errorPasswordTooShort": "Password must be at least 6 characters"
+      "errorPasswordTooShort": "Password must be at least 6 characters",
+      "studentNotFound": "No student record was found for this student ID",
+      "nameMismatch": "The provided name does not match the student record",
+      "alreadyRegistered": "This student identity has already been registered",
+      "identityVerificationFailed": "Student identity verification failed. Please try again.",
+      "userNotCreated": "We could not create the account. Please try again."
     }
   },
   "bookingForm": {
@@ -677,6 +699,7 @@
     "replyPlaceholder": "Write your reply or question...",
     "me": "Me",
     "reviewerTag": " [Reviewer]",
+    "adminTag": " [Admin]",
     "collapse": "Collapse"
   },
   "notifications": {
@@ -712,9 +735,21 @@
       "overdueDays": "Overdue days",
       "creditImpact": "Credit change",
       "daysValue": "{{days}} day(s)",
-      "creditDeductionValue": "-{{points}} points"
+      "creditDeductionValue": "-{{points}} points",
+      "returnReminderSection": "Return Reminder Details",
+      "daysUntilDue": "Days until due",
+      "dueToday": "Due today",
+      "returnDeadline": "Return deadline"
     },
     "dynamic": {
+      "returnReminder": {
+        "todayTitle": "Due Today — Return Now",
+        "soonTitle": "Due in {{days}} days",
+        "assetLine": "Asset: {{asset}}",
+        "endDateLine": "Return by: {{date}}",
+        "todayMessage": "Your borrowing of \"{{asset}}\" is due today. Please return it promptly to avoid credit deductions.",
+        "soonMessage": "Your borrowing of \"{{asset}}\" is due in {{days}} days. Please remember to return it on time."
+      },
       "overdueAlert": {
         "title": "Overdue Return Penalty",
         "lostTitle": "Asset Declared as Lost",
@@ -727,7 +762,8 @@
       "damageReported": {
         "reported": {
           "title": "Damage Report Filed",
-          "message": "An admin has filed a damage report for your borrowed item \"{{asset}}\". The current assessment is {{severity}} and the report is under review."
+          "message": "An admin has filed a damage report for your borrowed item \"{{asset}}\". The current assessment is {{severity}} and the report is under review.",
+          "messageNoAsset": "A new damage report has been submitted. Severity: {{severity}}. Please review it in the Damage Reports section."
         },
         "investigating": {
           "title": "Damage Investigation Started",
@@ -786,6 +822,15 @@
           "title": "Payment Recorded",
           "message": "A new compensation payment has been registered. Open the compensation detail page to review the balance and record log."
         }
+      },
+      "reviewReply": {
+        "title": "New reply to your review",
+        "adminTitle": "Admin replied to your review",
+        "someone": "Someone",
+        "adminSuffix": " (Admin)",
+        "message": "{{name}}{{role}} replied to your review.",
+        "messageWithAsset": "{{name}}{{role}} replied to your review on \"{{asset}}\".",
+        "preview": "Reply: {{preview}}"
       }
     },
     "types": {

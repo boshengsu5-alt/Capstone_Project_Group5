@@ -1,13 +1,13 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { X, Shield, GraduationCap, Briefcase, Star, AlertCircle, Loader2 } from 'lucide-react';
+import { X, Shield, Star, AlertCircle, Loader2 } from 'lucide-react';
 import { useToast } from '@/components/ui/Toast';
 import { useLanguage } from '@/components/providers/LanguageProvider';
 import { getRoleLabel } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { updateUserProfile } from '@/lib/userService';
-import type { Profile, UserRole } from '@/types/database';
+import type { Profile } from '@/types/database';
 
 interface UserEditModalProps {
   user: Profile;
@@ -19,13 +19,11 @@ interface UserEditModalProps {
 export default function UserEditModal({ user, isOpen, onClose, onSuccess }: UserEditModalProps) {
   const { showToast } = useToast();
   const { t } = useLanguage();
-  const [role, setRole] = useState<UserRole>(user.role);
   const [creditScore, setCreditScore] = useState<number>(user.credit_score);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const hasChanges = role !== user.role || creditScore !== user.credit_score;
+  const hasChanges = creditScore !== user.credit_score;
 
   useEffect(() => {
-    setRole(user.role);
     setCreditScore(user.credit_score);
     setIsSubmitting(false);
   }, [user]);
@@ -46,9 +44,7 @@ export default function UserEditModal({ user, isOpen, onClose, onSuccess }: User
     try {
       await updateUserProfile({
         userId: user.id,
-        role,
         creditScore,
-        currentRole: user.role,
         currentCreditScore: user.credit_score,
       });
 
@@ -88,24 +84,10 @@ export default function UserEditModal({ user, isOpen, onClose, onSuccess }: User
               <Shield className="w-4 h-4" />
               {t('users.userRole')}
             </label>
-            <div className="grid grid-cols-3 gap-3">
-              {(['student', 'staff', 'admin'] as UserRole[]).map((r) => (
-                <button
-                  key={r}
-                  type="button"
-                  onClick={() => setRole(r)}
-                  className={cn(
-                    "flex items-center justify-center gap-2 px-4 py-3 rounded-xl border text-sm font-medium transition-all",
-                    role === r
-                      ? "bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-600/20"
-                      : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-indigo-600/50"
-                  )}
-                >
-                  {r === 'admin' ? <Shield className="w-4 h-4" /> : r === 'staff' ? <Briefcase className="w-4 h-4" /> : <GraduationCap className="w-4 h-4" />}
-                  <span>{getRoleLabel(r, t)}</span>
-                </button>
-              ))}
+            <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200">
+              {getRoleLabel(user.role, t)}
             </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400">{t('users.roleManagedByWhitelist')}</p>
           </div>
 
           {/* Credit Score */}

@@ -37,6 +37,13 @@ type OverdueNotificationMetadata = {
   checkpoint?: string;
 };
 
+type ReviewReplyNotificationMetadata = {
+  asset_name?: string;
+  reply_author_name?: string;
+  reply_author_role?: string;
+  reply_preview?: string;
+};
+
 export type OverdueNotificationDetails = {
   assetName?: string;
   overdueDays?: number;
@@ -184,20 +191,66 @@ function getOverdueNotificationText(
   };
 }
 
+type ReturnReminderMetadata = {
+  asset_name?: string;
+  days_until_due?: number;
+  end_date?: string;
+};
+
+function getReturnReminderNotificationText(
+  t: TranslateFn,
+  notification: Pick<Notification, 'title' | 'message' | 'metadata'>
+) {
+  const metadata = (notification.metadata ?? {}) as ReturnReminderMetadata;
+  const assetName = hasText(metadata.asset_name) ? metadata.asset_name : undefined;
+  const daysUntilDue = getFiniteNumber(metadata.days_until_due);
+
+  // 无结构化 metadata 时直接使用数据库存的富文本（旧通知兼容）
+  if (!assetName) {
+    if (hasText(notification.title) && hasText(notification.message)) {
+      return { title: notification.title, message: notification.message };
+    }
+    return null;
+  }
+
+  const isToday = daysUntilDue === 0;
+  const title = isToday
+    ? t('notifications.dynamic.returnReminder.todayTitle')
+    : t('notifications.dynamic.returnReminder.soonTitle', { days: daysUntilDue ?? 1 });
+
+  const message = isToday
+    ? t('notifications.dynamic.returnReminder.todayMessage', { asset: assetName })
+    : t('notifications.dynamic.returnReminder.soonMessage', { asset: assetName, days: daysUntilDue ?? 1 });
+
+  return { title, message };
+}
+
 function getDamageNotificationText(
   t: TranslateFn,
   notification: Pick<Notification, 'title' | 'message' | 'metadata'>
 ) {
   const metadata = (notification.metadata ?? {}) as DamageNotificationMetadata;
-  if (!hasText(metadata.asset_name) || !hasText(metadata.stage)) return null;
+  // stage 必须存在；asset_name 在新通知里始终有，旧通知可能为空
+  if (!hasText(metadata.stage)) return null;
 
   const severityLabel = getSeverityLabel(t, metadata.severity);
+  const assetName = hasText(metadata.asset_name) ? metadata.asset_name : undefined;
 
   if (metadata.stage === 'reported') {
+    // asset_name 可能不存在（如旧通知或管理员收到的通知）
+    if (assetName) {
+      return {
+        title: t('notifications.dynamic.damageReported.reported.title'),
+        message: t('notifications.dynamic.damageReported.reported.message', {
+          asset: assetName,
+          severity: severityLabel,
+        }),
+      };
+    }
+    // 无 asset_name 时回退到纯类型标题 + 严重度
     return {
       title: t('notifications.dynamic.damageReported.reported.title'),
-      message: t('notifications.dynamic.damageReported.reported.message', {
-        asset: metadata.asset_name,
+      message: t('notifications.dynamic.damageReported.reported.messageNoAsset', {
         severity: severityLabel,
       }),
     };
@@ -368,10 +421,52 @@ function getCompensationNotificationText(
   }
 }
 
+function getReviewReplyNotificationText(
+  t: TranslateFn,
+  notification: Pick<Notification, 'title' | 'message' | 'metadata'>
+) {
+  const metadata = (notification.metadata ?? {}) as ReviewReplyNotificationMetadata;
+  const authorName = hasText(metadata.reply_author_name)
+    ? metadata.reply_author_name
+    : t('notifications.dynamic.reviewReply.someone');
+  const assetName = hasText(metadata.asset_name) ? metadata.asset_name : undefined;
+  const preview = hasText(metadata.reply_preview) ? metadata.reply_preview : undefined;
+  const isAdmin = metadata.reply_author_role === 'admin';
+  const roleSuffix = isAdmin ? t('notifications.dynamic.reviewReply.adminSuffix') : '';
+
+  const baseLine = assetName
+    ? t('notifications.dynamic.reviewReply.messageWithAsset', {
+        name: authorName,
+        role: roleSuffix,
+        asset: assetName,
+      })
+    : t('notifications.dynamic.reviewReply.message', {
+        name: authorName,
+        role: roleSuffix,
+      });
+
+  const lines = [baseLine];
+  if (preview) {
+    lines.push(t('notifications.dynamic.reviewReply.preview', { preview }));
+  }
+
+  return {
+    title: isAdmin
+      ? t('notifications.dynamic.reviewReply.adminTitle')
+      : t('notifications.dynamic.reviewReply.title'),
+    message: lines.join('\n'),
+  };
+}
+
 export function getNotificationText(
   t: TranslateFn,
   notification: Pick<Notification, 'type' | 'title' | 'message' | 'metadata'>
 ) {
+  if (notification.type === 'return_reminder') {
+    const reminderText = getReturnReminderNotificationText(t, notification);
+    if (reminderText) return reminderText;
+  }
+
   if (notification.type === 'overdue_alert') {
     const overdueText = getOverdueNotificationText(t, notification);
     if (overdueText) return overdueText;
@@ -393,6 +488,15 @@ export function getNotificationText(
   if (notification.type === 'compensation_update') {
     const compensationText = getCompensationNotificationText(t, notification);
     if (compensationText) return compensationText;
+
+    if (hasText(notification.title) && hasText(notification.message)) {
+      return { title: notification.title, message: notification.message };
+    }
+  }
+
+  if (notification.type === 'review_reply') {
+    const reviewReplyText = getReviewReplyNotificationText(t, notification);
+    if (reviewReplyText) return reviewReplyText;
 
     if (hasText(notification.title) && hasText(notification.message)) {
       return { title: notification.title, message: notification.message };

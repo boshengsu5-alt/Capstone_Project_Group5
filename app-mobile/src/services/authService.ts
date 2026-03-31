@@ -1,6 +1,10 @@
 import { Session } from '@supabase/supabase-js';
 import { supabase } from './supabase';
-import type { CreditScoreLog, Profile } from '../../../database/types/supabase';
+import type {
+  CreditScoreLog,
+  Profile,
+  VerifyStudentIdentityResult,
+} from '../../../database/types/supabase';
 
 // 手写 Database 类型与客户端泛型在 update 场景下存在推断问题。
 // 这里沿用项目里其它 service 的做法，使用 db 别名规避类型噪音。
@@ -29,6 +33,101 @@ export async function signUp(email: string, password: string, fullName: string) 
     },
   });
   if (error) throw error;
+  return data;
+}
+
+export type VerifiedStudentIdentity = {
+  department: string;
+  enrollmentYear: number;
+};
+
+/**
+ * Verify whether the student ID and full name match a roster record.
+ * 验证学号和姓名是否匹配花名册记录。
+ */
+export async function verifyStudentIdentity(
+  studentId: string,
+  fullName: string
+): Promise<VerifiedStudentIdentity> {
+  const { data, error } = await db.rpc('verify_student_identity', {
+    p_student_id: studentId.trim(),
+    p_full_name: fullName.trim(),
+  });
+
+  if (error) throw error;
+
+  const result = data as VerifyStudentIdentityResult | null;
+  if (!result?.success) {
+    throw new Error(result?.error || 'identity_verification_failed');
+  }
+
+  return {
+    department: result.department || '',
+    enrollmentYear: Number(result.enrollment_year || 0),
+  };
+}
+
+/**
+ * Register a student account after roster verification.
+ * 学生身份验证通过后创建账号。
+ */
+export async function registerStudent(
+  studentId: string,
+  fullName: string,
+  email: string,
+  password: string,
+  department: string,
+  enrollmentYear: number
+) {
+  const trimmedStudentId = studentId.trim();
+  const trimmedFullName = fullName.trim();
+  const trimmedEmail = email.trim();
+  const trimmedDepartment = department.trim();
+
+  const { data, error } = await supabase.auth.signUp({
+    email: trimmedEmail,
+    password,
+    options: {
+      data: {
+        full_name: trimmedFullName,
+        student_id: trimmedStudentId,
+        department: trimmedDepartment,
+        enrollment_year: enrollmentYear,
+      },
+    },
+  });
+
+  if (error) throw error;
+
+  const userId = data.user?.id;
+  if (!userId) {
+    throw new Error('user_not_created');
+  }
+
+  const { error: profileError } = await db
+    .from('profiles')
+    .update({
+      full_name: trimmedFullName,
+      student_id: trimmedStudentId,
+      department: trimmedDepartment,
+    })
+    .eq('id', userId);
+
+  if (profileError && data.session) {
+    throw profileError;
+  }
+
+  // 如果当前环境注册后立即拥有 session，则再补一次显式标记；
+  // 若邮箱验证开启导致 session 为空，则由数据库 trigger 完成回填与绑定。
+  if (data.session) {
+    const { error: markError } = await db.rpc('mark_student_registered', {
+      p_student_id: trimmedStudentId,
+      p_user_id: userId,
+    });
+
+    if (markError) throw markError;
+  }
+
   return data;
 }
 

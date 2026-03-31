@@ -31,6 +31,14 @@ type BookingWithAsset = Booking & {
   compensation_cases: MyCompensationCaseSummary[] | null;
 };
 
+// ============================================================
+// 模块级缓存：切屏时立即呈现上次数据，无需等待网络
+// Module-level cache for instant display on tab switch
+// ============================================================
+let _cachedBookings: BookingWithAsset[] = [];
+let _cachedReviewsMap: Record<string, ReviewWithMeta | null> = {};
+let _cachedUserId: string | undefined;
+
 const getStatusLabel = (status: BookingStatus, t: any) => {
   switch (status) {
     case 'returned': return t('bookings.status.returned');
@@ -75,20 +83,27 @@ const getCompensationStatusMeta = (completed: boolean) => {
 export default function BookingHistoryScreen() {
   const { t } = useTranslation();
   const navigation = useNavigation<NavigationProp<ParamListBase>>();
-  const [bookings, setBookings] = useState<BookingWithAsset[]>([]);
-  const [loading, setLoading] = useState(true);
+  // 用缓存初始化，切回页面立即展示上次数据
+  const [bookings, setBookings] = useState<BookingWithAsset[]>(_cachedBookings);
+  // 只有首次（缓存为空）才显示全屏 spinner
+  const [loading, setLoading] = useState(_cachedBookings.length === 0);
   const [refreshing, setRefreshing] = useState(false);
 
   // 评价弹窗状态
   const [reviewModalVisible, setReviewModalVisible] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<{ id: string; name: string } | null>(null);
 
-  const [currentUserId, setCurrentUserId] = useState<string | undefined>();
+  const [currentUserId, setCurrentUserId] = useState<string | undefined>(_cachedUserId);
   // 各 bookingId 对应的评价（已归还的借用）
-  const [reviewsMap, setReviewsMap] = useState<Record<string, ReviewWithMeta | null>>({});
+  const [reviewsMap, setReviewsMap] = useState<Record<string, ReviewWithMeta | null>>(_cachedReviewsMap);
 
   const fetchBookings = useCallback(async (isRefreshing = false) => {
-    if (!isRefreshing) setLoading(true);
+    if (isRefreshing) {
+      setRefreshing(true);
+    } else if (_cachedBookings.length === 0) {
+      // 仅无缓存时才显示全屏 loading，切回 Tab 时静默后台刷新
+      setLoading(true);
+    }
     try {
       // 先自动取消过期的 pending 预约，再拉数据，确保列表状态是最新的
       await checkExpiredPendingBookings().catch(() => {});
@@ -97,8 +112,6 @@ export default function BookingHistoryScreen() {
         getMyBookings(),
         supabase.auth.getUser(),
       ]);
-      setCurrentUserId(user?.id);
-      setBookings(data as BookingWithAsset[]);
       // 并发拉取所有「已归还」借用的评价
       const returnedItems = (data as BookingWithAsset[]).filter(b => b.status === 'returned');
       const reviewEntries = await Promise.all(
@@ -111,7 +124,15 @@ export default function BookingHistoryScreen() {
           return [b.id, withMeta] as [string, ReviewWithMeta | null];
         })
       );
-      setReviewsMap(Object.fromEntries(reviewEntries));
+      const nextReviewsMap = Object.fromEntries(reviewEntries);
+      // 更新缓存
+      _cachedBookings = data as BookingWithAsset[];
+      _cachedReviewsMap = nextReviewsMap;
+      _cachedUserId = user?.id;
+      // 更新 UI
+      setCurrentUserId(user?.id);
+      setBookings(data as BookingWithAsset[]);
+      setReviewsMap(nextReviewsMap);
     } catch (error) {
       alertManager.alert(t('bookings.loadFailed'), t('bookings.loadFailedMessage'));
     } finally {

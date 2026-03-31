@@ -152,17 +152,18 @@ export async function getReviewsByAssetId(assetId: string) {
   // 同时 join profiles 获取 full_name 作为显示名
   const { data, error } = await db
     .from('reviews')
-    .select('*, profiles!reviewer_id(full_name, email)')
+    .select('*, profiles!reviewer_id(full_name, email, role)')
     .in('booking_id', bookingIds)
     .order('created_at', { ascending: false });
 
   if (error) throw error;
   // 优先用 full_name，无则截取邮箱前缀
   return ((data ?? []) as unknown as (import('../../../database/types/supabase').Review & {
-    profiles: { full_name: string | null; email: string } | null;
+    profiles: { full_name: string | null; email: string; role?: string | null } | null;
   })[]).map(r => ({
     ...r,
     reviewer_name: r.profiles?.full_name ?? r.profiles?.email?.split('@')[0] ?? '匿名用户',
+    reviewer_role: r.profiles?.role ?? null,
   }));
 }
 
@@ -173,7 +174,7 @@ export async function getReviewsByAssetId(assetId: string) {
  * @param reviewId - Review UUID. 评价 ID
  * @returns Replies ordered by creation time. 按时间排序的回复列表
  */
-export async function getReviewReplies(reviewId: string): Promise<(ReviewReply & { author_name: string })[]> {
+export async function getReviewReplies(reviewId: string): Promise<(ReviewReply & { author_name: string; author_role?: string | null })[]> {
   // Step 1: 先拿回复列表（不做 FK join，因为 author_id FK 指向 auth.users 而非 profiles）
   const { data: replies, error } = await db
     .from('review_replies')
@@ -188,17 +189,21 @@ export async function getReviewReplies(reviewId: string): Promise<(ReviewReply &
   const authorIds = [...new Set((replies as ReviewReply[]).map(r => r.author_id))];
   const { data: profiles } = await db
     .from('profiles')
-    .select('id, full_name, email')
+    .select('id, full_name, email, role')
     .in('id', authorIds);
 
   const profileMap = new Map(
-    ((profiles ?? []) as { id: string; full_name: string | null; email: string }[])
-      .map(p => [p.id, p.full_name ?? p.email?.split('@')[0] ?? '用户'])
+    ((profiles ?? []) as { id: string; full_name: string | null; email: string; role?: string | null }[])
+      .map(p => [p.id, {
+        name: p.full_name ?? p.email?.split('@')[0] ?? '用户',
+        role: p.role ?? null,
+      }])
   );
 
   return (replies as ReviewReply[]).map(r => ({
     ...r,
-    author_name: profileMap.get(r.author_id) ?? '用户',
+    author_name: profileMap.get(r.author_id)?.name ?? '用户',
+    author_role: profileMap.get(r.author_id)?.role ?? null,
   }));
 }
 
@@ -225,28 +230,45 @@ export async function postReviewReply(reviewId: string, content: string): Promis
   try {
     const { data: review } = await db
       .from('reviews')
-      .select('reviewer_id')
+      .select('reviewer_id, booking_id')
       .eq('id', reviewId)
       .single();
 
     if (review && review.reviewer_id !== user.id) {
-      // 获取回复者显示名
-      const { data: profile } = await db
-        .from('profiles')
-        .select('full_name, email')
-        .eq('id', user.id)
-        .single();
-      const replierName = (profile as { full_name: string | null; email: string } | null)
-        ?.full_name ?? (profile as { full_name: string | null; email: string } | null)
-        ?.email?.split('@')[0] ?? '有人';
+      const [{ data: profile }, { data: booking }] = await Promise.all([
+        db
+          .from('profiles')
+          .select('full_name, email, role')
+          .eq('id', user.id)
+          .single(),
+        db
+          .from('bookings')
+          .select('asset_id, assets(name)')
+          .eq('id', (review as { booking_id: string }).booking_id)
+          .single(),
+      ]);
+
+      const profileData = profile as { full_name: string | null; email: string; role?: string | null } | null;
+      const bookingData = booking as { asset_id?: string | null; assets?: { name?: string | null } | null } | null;
+      const replierName = profileData?.full_name ?? profileData?.email?.split('@')[0] ?? '有人';
+      const preview = content.trim().replace(/\s+/g, ' ').slice(0, 80);
 
       await db.from('notifications').insert({
         user_id: (review as { reviewer_id: string }).reviewer_id,
         type: 'review_reply',
-        title: '有人回复了你的评价',
-        message: `${replierName} 追问：${content.slice(0, 50)}${content.length > 50 ? '...' : ''}`,
+        title: '评价回复',
+        message: '您收到了一条新的评价回复。',
         is_read: false,
-        metadata: { review_id: reviewId, reply_author_id: user.id },
+        metadata: {
+          review_id: reviewId,
+          booking_id: (review as { booking_id: string }).booking_id,
+          asset_id: bookingData?.asset_id ?? null,
+          asset_name: bookingData?.assets?.name ?? null,
+          reply_author_id: user.id,
+          reply_author_name: replierName,
+          reply_author_role: profileData?.role ?? null,
+          reply_preview: preview,
+        },
       });
     }
   } catch {

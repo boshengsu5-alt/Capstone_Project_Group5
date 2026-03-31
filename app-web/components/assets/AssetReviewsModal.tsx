@@ -8,6 +8,7 @@ import {
 import { getAssetReviews, getReviewReplies, postReviewReply } from '@/lib/assetService';
 import { useToast } from '@/components/ui/Toast';
 import { useLanguage } from '@/components/providers/LanguageProvider';
+import { getCurrentUser } from '@/lib/auth';
 import type { ReviewWithName, ReplyWithAuthor } from '@/lib/assetService';
 import { cn } from '@/lib/utils';
 
@@ -37,7 +38,7 @@ interface ReviewCardProps {
 
 function ReviewCard({ review, currentUserId }: ReviewCardProps) {
   const { showToast } = useToast();
-  const { t } = useLanguage();
+  const { t, locale } = useLanguage();
   const [replies, setReplies] = useState<ReplyWithAuthor[]>([]);
   const [repliesLoaded, setRepliesLoaded] = useState(false);
   const [loadingReplies, setLoadingReplies] = useState(false);
@@ -100,6 +101,22 @@ function ReviewCard({ review, currentUserId }: ReviewCardProps) {
   ];
   const ratingLabel = ratingLabels[review.rating - 1] ?? t('assetReviews.ratings.average');
   const initial = review.reviewer_name.charAt(0).toUpperCase();
+  const reviewDate = new Date(review.created_at).toLocaleDateString(locale === 'zh' ? 'zh-CN' : 'en-US');
+
+  const renderIdentityBadges = (options: { isReviewer?: boolean; isAdmin?: boolean }) => (
+    <>
+      {options.isReviewer && (
+        <span className="rounded-full border border-yellow-500/20 bg-yellow-500/10 px-2 py-0.5 text-[10px] font-semibold text-yellow-300">
+          {t('assetReviews.reviewer')}
+        </span>
+      )}
+      {options.isAdmin && (
+        <span className="rounded-full border border-violet-500/20 bg-violet-500/10 px-2 py-0.5 text-[10px] font-semibold text-violet-300">
+          {t('assetReviews.adminBadge')}
+        </span>
+      )}
+    </>
+  );
 
   return (
     <div className="p-4 bg-gray-800/50 border border-gray-700/50 rounded-xl space-y-3">
@@ -110,7 +127,10 @@ function ReviewCard({ review, currentUserId }: ReviewCardProps) {
             {initial}
           </div>
           <div>
-            <p className="text-sm font-semibold text-white leading-none mb-1">{review.reviewer_name}</p>
+            <div className="mb-1 flex flex-wrap items-center gap-1.5">
+              <p className="text-sm font-semibold leading-none text-white">{review.reviewer_name}</p>
+              {renderIdentityBadges({ isAdmin: review.reviewer_role === 'admin' })}
+            </div>
             <div className="flex items-center gap-1">
               {[1, 2, 3, 4, 5].map((s) => (
                 <Star key={s} className={cn('w-3.5 h-3.5', s <= review.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-600')} />
@@ -120,7 +140,7 @@ function ReviewCard({ review, currentUserId }: ReviewCardProps) {
           </div>
         </div>
         <span className="text-xs text-gray-500 flex-shrink-0 mt-0.5">
-          {review.created_at.slice(0, 10)}
+          {reviewDate}
         </span>
       </div>
 
@@ -186,13 +206,18 @@ function ReviewCard({ review, currentUserId }: ReviewCardProps) {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2 mb-1">
-                  <span className="text-xs font-semibold text-indigo-300">
-                    {reply.author_id === currentUserId ? t('assetReviews.you') : reply.author_name}
-                    {reply.author_id === review.reviewer_id && (
-                      <span className="ml-1.5 text-[10px] text-yellow-400 font-normal">({t('assetReviews.reviewer')})</span>
-                    )}
+                  <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                    <span className="text-xs font-semibold text-indigo-300">
+                      {reply.author_id === currentUserId ? t('assetReviews.you') : reply.author_name}
+                    </span>
+                    {renderIdentityBadges({
+                      isReviewer: reply.author_id === review.reviewer_id,
+                      isAdmin: reply.author_role === 'admin',
+                    })}
+                  </div>
+                  <span className="text-[10px] text-gray-600 flex-shrink-0">
+                    {new Date(reply.created_at).toLocaleDateString(locale === 'zh' ? 'zh-CN' : 'en-US')}
                   </span>
-                  <span className="text-[10px] text-gray-600 flex-shrink-0">{reply.created_at.slice(0, 10)}</span>
                 </div>
                 <p className="text-xs text-gray-300 leading-relaxed">{reply.content}</p>
               </div>
@@ -231,9 +256,7 @@ export default function AssetReviewsModal({ assetId, assetName, onClose }: Asset
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   useEffect(() => {
-    import('@/lib/supabase').then(({ supabase }) => {
-      supabase.auth.getUser().then(({ data: { user } }) => setCurrentUserId(user?.id ?? null));
-    });
+    void getCurrentUser().then((user) => setCurrentUserId(user?.id ?? null));
 
     getAssetReviews(assetId)
       .then(setReviews)

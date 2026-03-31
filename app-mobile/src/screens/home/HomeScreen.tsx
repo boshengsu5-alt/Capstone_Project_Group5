@@ -41,6 +41,19 @@ const categoryIconMap: Record<string, string> = {
   'Sports & Fitness': 'football-outline',
 };
 
+const categoryShortLabelMap: Record<string, string> = {
+  'Audio & Sound': 'Audio',
+  'Books & Materials': 'Books',
+  'Cameras & Media': 'Cameras',
+  Drones: 'Drones',
+  Electronics: 'Devices',
+  Furniture: 'Furniture',
+  'Keys & Access': 'Access',
+  'Lab Equipment': 'Lab',
+  Other: 'Other',
+  'Sports & Fitness': 'Sports',
+};
+
 const { width } = Dimensions.get('window');
 
 const getAdData = (t: any) => [
@@ -128,8 +141,8 @@ export default function HomeScreen({ navigation, route }: Props) {
       <View style={styles.categoryHomeIcon}>
         <Ionicons name={(categoryIconMap[item.name] || 'cube-outline') as any} size={28} color={theme.colors.primary} />
       </View>
-      <Text style={styles.categoryHomeText} numberOfLines={1}>
-        {i18n.language?.startsWith('zh') ? item.name_zh : item.name}
+      <Text style={styles.categoryHomeText} numberOfLines={2}>
+        {i18n.language?.startsWith('zh') ? item.name_zh : (categoryShortLabelMap[item.name] || item.name)}
       </Text>
     </TouchableOpacity>
   );
@@ -286,15 +299,21 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   langButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    borderRadius: 16,
+    minWidth: 60,
+    height: 34,
+    paddingHorizontal: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.14)',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.22)',
   },
   langButtonText: {
     color: '#fff',
     fontSize: 12,
-    fontWeight: 'bold',
+    fontWeight: '700',
+    letterSpacing: 0.3,
   },
   searchBar: {
     flexDirection: 'row',
@@ -311,6 +330,7 @@ const styles = StyleSheet.create({
     flex: 1,
     height: '100%',
     color: theme.colors.text,
+    fontSize: 15,
   },
   carouselContainer: {
     height: 150,
@@ -331,11 +351,15 @@ const styles = StyleSheet.create({
     height: 150,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 24,
   },
   adText: {
     color: '#fff',
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: 18,
+    lineHeight: 26,
+    fontWeight: '800',
+    textAlign: 'center',
+    maxWidth: '88%',
   },
   categoriesContainer: {
     marginBottom: theme.spacing.lg,
@@ -346,7 +370,7 @@ const styles = StyleSheet.create({
   categoryHomeItem: {
     alignItems: 'center',
     marginRight: theme.spacing.md,
-    width: 65,
+    width: 78,
   },
   categoryHomeIcon: {
     width: 52,
@@ -358,10 +382,12 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   categoryHomeText: {
-    fontSize: 12,
+    fontSize: 11,
+    lineHeight: 14,
     color: theme.colors.text,
     textAlign: 'center',
     fontWeight: '500',
+    minHeight: 28,
   },
   sectionHeader: {
     paddingHorizontal: theme.spacing.md,

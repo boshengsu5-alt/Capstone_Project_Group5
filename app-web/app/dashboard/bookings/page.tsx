@@ -7,6 +7,7 @@ import BookingTable from '@/components/bookings/BookingTable';
 import ApprovalModal from '@/components/bookings/ApprovalModal';
 import DamageSeverityModal from '@/components/damage/DamageSeverityModal';
 import { bookingService, BookingWithDetails } from '@/lib/bookingService';
+import { getCurrentUser } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/components/ui/Toast';
 import { ClipboardList, RefreshCw, Download } from 'lucide-react';
@@ -96,10 +97,10 @@ export default function BookingsPage() {
             [t('tables.asset')]: b.assets?.name || t('common.none'),
             [t('tables.borrower')]: b.profiles?.full_name || t('common.none'),
             [t('users.studentId')]: b.profiles?.student_id || t('common.none'),
-            Start: new Date(b.start_date).toLocaleDateString(locale === 'zh' ? 'zh-CN' : 'en-US'),
-            End: new Date(b.end_date).toLocaleDateString(locale === 'zh' ? 'zh-CN' : 'en-US'),
+            [t('tables.startDate')]: new Date(b.start_date).toLocaleDateString(locale === 'zh' ? 'zh-CN' : 'en-US'),
+            [t('tables.endDate')]: new Date(b.end_date).toLocaleDateString(locale === 'zh' ? 'zh-CN' : 'en-US'),
             [t('tables.status')]: getStatusLabel(b.status, t),
-            Created: new Date(b.created_at).toLocaleString(locale === 'zh' ? 'zh-CN' : 'en-US'),
+            [t('tables.createdAt')]: new Date(b.created_at).toLocaleString(locale === 'zh' ? 'zh-CN' : 'en-US'),
         }));
         try {
             exportToExcel(exportData, `Bookings_Report_${new Date().toISOString().split('T')[0]}`, t('bookings.exportSheet'));
@@ -136,7 +137,7 @@ export default function BookingsPage() {
 
     const handleApprove = async (id: string) => {
         try {
-            const { data: { user } } = await (await import('@/lib/supabase')).supabase.auth.getUser();
+            const user = await getCurrentUser();
             const success = await bookingService.approveBooking(id, user?.id);
             if (success) {
                 showToast(t('bookings.approveSuccess'), 'success');
@@ -151,7 +152,7 @@ export default function BookingsPage() {
 
     const handleReject = async (id: string, reason: string) => {
         try {
-            const { data: { user } } = await (await import('@/lib/supabase')).supabase.auth.getUser();
+            const user = await getCurrentUser();
             const success = await bookingService.rejectBooking(id, reason, user?.id);
             if (success) {
                 showToast(t('bookings.rejectSuccess'), 'info');
@@ -165,26 +166,31 @@ export default function BookingsPage() {
     };
 
     return (
-        <div className="flex flex-col flex-1 h-full w-full bg-[#050505] text-gray-100 overflow-y-auto">
-            <main className="flex-1 p-6 lg:p-10 max-w-[1600px] mx-auto w-full space-y-8">
+        <div className="flex flex-1 flex-col overflow-y-auto bg-[#050505] text-gray-100">
+            <main className="mx-auto flex w-full max-w-[1680px] flex-1 flex-col gap-8 p-6 lg:p-10">
 
                 {/* Header */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
                     <div>
-                        <div className="flex items-center gap-2.5 mb-1">
-                            <ClipboardList className="w-5 h-5 text-purple-400" />
-                            <h1 className="text-2xl font-bold text-white tracking-tight">{t('bookings.title')}</h1>
+                        <div className="mb-2 flex items-center gap-3">
+                            <div className="rounded-2xl bg-violet-500/10 p-3">
+                                <ClipboardList className="h-5 w-5 text-violet-300" />
+                            </div>
+                            <div>
+                                <p className="text-xs uppercase tracking-[0.3em] text-violet-300">{t('bookings.eyebrow')}</p>
+                                <h1 className="mt-1 text-3xl font-bold tracking-tight text-white">{t('bookings.title')}</h1>
+                            </div>
                         </div>
-                        <p className="text-sm text-gray-500">
+                        <p className="max-w-3xl text-sm leading-6 text-gray-400">
                             {t('bookings.subtitle')}
                         </p>
                     </div>
 
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-3 self-start">
                         <select
                             value={statusFilter}
                             onChange={(e) => setStatusFilter(e.target.value as 'all' | BookingStatus)}
-                            className="rounded-xl border border-white/10 bg-gray-900/60 px-3 py-2 text-sm text-gray-200 focus:ring-2 focus:ring-purple-500 focus:outline-none shadow-sm backdrop-blur-sm"
+                            className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-gray-200 outline-none transition focus:border-violet-400 focus:bg-white/[0.06]"
                         >
                             {statusOptions.map(opt => (
                                 <option key={opt.value} value={opt.value} className="bg-gray-900 text-gray-200">{opt.label}</option>
@@ -192,14 +198,14 @@ export default function BookingsPage() {
                         </select>
                         <button
                             onClick={handleExport}
-                            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-300 bg-gray-900/60 border border-white/10 rounded-xl hover:bg-white/5 transition-colors shadow-sm backdrop-blur-sm"
+                            className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold text-gray-200 transition hover:bg-white/[0.07]"
                         >
                             <Download className="w-4 h-4" /> {t('bookings.export')}
                         </button>
                         <button
                             onClick={() => loadBookings()}
                             disabled={isLoading}
-                            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-300 bg-gray-900/60 border border-white/10 rounded-xl hover:bg-white/5 transition-colors shadow-sm disabled:opacity-50 backdrop-blur-sm"
+                            className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold text-gray-200 transition hover:bg-white/[0.07] disabled:opacity-50"
                         >
                             <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
                             {t('common.refresh')}
@@ -209,8 +215,8 @@ export default function BookingsPage() {
 
                 {/* Main Content */}
                 {isLoading ? (
-                    <div className="w-full h-64 flex flex-col items-center justify-center bg-gray-900/40 rounded-2xl border border-white/5 backdrop-blur-sm">
-                        <div className="w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mb-4" />
+                    <div className="flex h-64 w-full flex-col items-center justify-center rounded-3xl border border-white/5 bg-gray-900/40 backdrop-blur-sm">
+                        <div className="mb-4 h-8 w-8 animate-spin rounded-full border-4 border-violet-400 border-t-transparent" />
                         <p className="text-gray-400 font-medium">{t('bookings.loading')}</p>
                     </div>
                 ) : (

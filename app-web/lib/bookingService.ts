@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { getCurrentUser } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 import type { Database, DamageReport, DamageReportStatus } from '@/types/database';
 import { auditService } from './auditService';
@@ -508,7 +509,7 @@ export const bookingService = {
 
         const borrowerId = (booking as any).borrower_id;
         const assetId = (booking as any).asset_id;
-        const { data: { user } } = await supabase.auth.getUser();
+        const user = await getCurrentUser();
         if (!user?.id) {
             console.error('Error creating damage report: missing authenticated admin session');
             return false;

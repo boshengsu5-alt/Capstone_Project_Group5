@@ -1,12 +1,14 @@
 'use client';
 
 import type { ComponentType } from 'react';
-import { AlertTriangle, ArrowUpRight, BookCopy, Building2, CalendarDays, GraduationCap, Mail, Phone, ShieldAlert, Sparkles, Star, UserCog } from 'lucide-react';
+import { useState } from 'react';
+import { AlertTriangle, ArrowUpRight, BookCopy, Building2, CalendarDays, Check, GraduationCap, Mail, Pencil, Phone, ShieldAlert, Sparkles, Star, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { getCreditReasonLabel, type UserDetailStats } from '@/lib/userService';
+import { getCreditReasonLabel, updateUserProfile, type UserDetailStats } from '@/lib/userService';
 import type { Profile } from '@/types/database';
 import { useLanguage } from '@/components/providers/LanguageProvider';
 import { getIntlLocale, getRoleLabel } from '@/lib/i18n';
+import { useToast } from '@/components/ui/Toast';
 
 interface UserExpandedRowProps {
   user: Profile;
@@ -15,7 +17,7 @@ interface UserExpandedRowProps {
   error?: string;
   onRetry: () => void;
   onOpenCreditHistory: () => void;
-  onEditUser: () => void;
+  onUserUpdated: () => void;
 }
 
 function getCreditTone(score: number) {
@@ -117,12 +119,45 @@ export default function UserExpandedRow({
   error,
   onRetry,
   onOpenCreditHistory,
-  onEditUser,
+  onUserUpdated,
 }: UserExpandedRowProps) {
   const { t, locale } = useLanguage();
+  const { showToast } = useToast();
   const tone = getCreditTone(user.credit_score);
   const scorePercent = Math.max(0, Math.min(100, (user.credit_score / 200) * 100));
   const initials = user.full_name?.trim()?.charAt(0)?.toUpperCase() || '?';
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [editCreditScore, setEditCreditScore] = useState(user.credit_score);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleSave = async () => {
+    if (editCreditScore === user.credit_score) {
+      showToast(t('users.noChanges'), 'info');
+      setIsEditing(false);
+      return;
+    }
+    setIsSaving(true);
+    try {
+      await updateUserProfile({
+        userId: user.id,
+        creditScore: editCreditScore,
+        currentCreditScore: user.credit_score,
+      });
+      showToast(t('users.roleUpdateSuccess'), 'success');
+      setIsEditing(false);
+      onUserUpdated();
+    } catch {
+      showToast(t('users.updateFailed'), 'error');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditCreditScore(user.credit_score);
+    setIsEditing(false);
+  };
 
   if (isLoading) {
     return <LoadingSkeleton />;
@@ -186,7 +221,7 @@ export default function UserExpandedRow({
               </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex flex-col gap-2 sm:flex-row">
               <button
                 type="button"
                 onClick={onOpenCreditHistory}
@@ -196,15 +231,16 @@ export default function UserExpandedRow({
                 {t('users.viewCreditHistory')}
                 <ArrowUpRight className="h-4 w-4" />
               </button>
-              
-              <button
-                type="button"
-                onClick={onEditUser}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-indigo-500/20 px-4 py-3 text-sm font-semibold text-indigo-100 ring-1 ring-inset ring-indigo-500/30 shadow-lg shadow-black/10 transition hover:-translate-y-0.5 hover:bg-indigo-500/30"
-              >
-                <UserCog className="h-4 w-4 text-indigo-300" />
-                Edit Profile
-              </button>
+              {!isEditing && (
+                <button
+                  type="button"
+                  onClick={() => setIsEditing(true)}
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/20 bg-white/10 px-4 py-3 text-sm font-semibold text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-white/20"
+                >
+                  <Pencil className="h-4 w-4" />
+                  {t('users.editCreditAction')}
+                </button>
+              )}
             </div>
           </div>
 
@@ -285,6 +321,62 @@ export default function UserExpandedRow({
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* 内联编辑面板：角色只读，信用分可调整 */}
+      {isEditing && (
+        <div className="mt-4 rounded-[24px] border border-violet-400/20 bg-violet-500/[0.07] p-5">
+          <p className="mb-4 text-sm font-semibold text-violet-200">{t('users.roleModalTitle')}</p>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="mb-2 block text-xs uppercase tracking-[0.18em] text-slate-400">
+                {t('users.userRole')}
+              </label>
+              <div className="rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-3 text-sm text-white">
+                {getRoleLabel(user.role, t)}
+              </div>
+              <p className="mt-2 text-xs leading-5 text-slate-400">
+                {t('users.roleManagedByWhitelist')}
+              </p>
+            </div>
+            <div>
+              <label className="mb-2 block text-xs uppercase tracking-[0.18em] text-slate-400">
+                {t('users.creditScore')} (0 – 200)
+              </label>
+              <input
+                type="number"
+                min={0}
+                max={200}
+                value={editCreditScore}
+                onChange={(e) => setEditCreditScore(Number(e.target.value))}
+                className="w-full rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-3 text-sm text-white focus:border-violet-400/40 focus:outline-none"
+              />
+              {editCreditScore < 60 && (
+                <p className="mt-1.5 text-xs text-amber-300">{t('users.criticalScore')}</p>
+              )}
+            </div>
+          </div>
+          <div className="mt-4 flex gap-3">
+            <button
+              type="button"
+              onClick={() => void handleSave()}
+              disabled={isSaving}
+              className="inline-flex items-center gap-2 rounded-2xl bg-violet-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-500 disabled:opacity-50"
+            >
+              <Check className="h-4 w-4" />
+              {isSaving ? '...' : t('common.save')}
+            </button>
+            <button
+              type="button"
+              onClick={handleCancelEdit}
+              disabled={isSaving}
+              className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-2.5 text-sm font-medium text-gray-300 transition hover:bg-white/[0.08] disabled:opacity-50"
+            >
+              <X className="h-4 w-4" />
+              {t('common.cancel')}
+            </button>
+          </div>
         </div>
       )}
     </div>

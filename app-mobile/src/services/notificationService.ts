@@ -298,7 +298,7 @@ export async function checkAndSendReturnReminders(): Promise<void> {
       title,
       message,
       is_read: false,
-      metadata: { booking_id: booking.id, days_until_due: daysUntilDue },
+      metadata: { booking_id: booking.id, days_until_due: daysUntilDue, asset_name: assetName, end_date: booking.end_date },
     });
   }
 }

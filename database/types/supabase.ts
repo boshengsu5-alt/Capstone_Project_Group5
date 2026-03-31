@@ -97,6 +97,26 @@ export interface Profile {
     updated_at: string;
 }
 
+/** Student roster row. 学生花名册行 */
+export interface StudentRoster {
+    student_id: string;
+    full_name: string;
+    department: string;
+    enrollment_year: number;
+    is_registered: boolean;
+    registered_at: string | null;
+    user_id: string | null;
+}
+
+/** Admin whitelist row. 管理员白名单行 */
+export interface AdminWhitelist {
+    id: string;
+    email: string;
+    full_name: string;
+    role: UserRole;
+    created_at: string;
+}
+
 /** Category row. 分类行 */
 export interface Category {
     id: string;
@@ -272,11 +292,33 @@ export interface AuditLog {
     metadata: Record<string, unknown>;
 }
 
+/** RPC result for student identity verification. 学生身份验证 RPC 返回 */
+export interface VerifyStudentIdentityResult {
+    success: boolean;
+    error?: string;
+    department?: string;
+    enrollment_year?: number;
+}
+
+/** RPC result for admin whitelist registration verification. 管理员白名单注册验证返回 */
+export interface VerifyAdminRegistrationResult {
+    success: boolean;
+    error?: string;
+    full_name?: string;
+    role?: UserRole;
+}
+
 // ============================================================
 // Insert Types (omit auto-generated fields). 插入类型
 // ============================================================
 
 export type ProfileInsert = Omit<Profile, 'created_at' | 'updated_at'>;
+export type StudentRosterInsert = Omit<StudentRoster, 'is_registered' | 'registered_at' | 'user_id'> & {
+    is_registered?: boolean;
+    registered_at?: string | null;
+    user_id?: string | null;
+};
+export type AdminWhitelistInsert = Omit<AdminWhitelist, 'id' | 'created_at'>;
 export type CategoryInsert = Omit<Category, 'id' | 'created_at'>;
 export type AssetInsert = Omit<Asset, 'id' | 'created_at' | 'updated_at'>;
 export type BookingInsert = Omit<Booking, 'id' | 'created_at' | 'updated_at' | 'approver_id' | 'actual_return_date'>;
@@ -294,6 +336,8 @@ export type AuditLogInsert = Omit<AuditLog, 'id' | 'created_at'>;
 // ============================================================
 
 export type ProfileUpdate = Partial<Omit<Profile, 'id' | 'created_at' | 'updated_at'>>;
+export type StudentRosterUpdate = Partial<Omit<StudentRoster, 'student_id'>>;
+export type AdminWhitelistUpdate = Partial<Omit<AdminWhitelist, 'id' | 'created_at'>>;
 export type CategoryUpdate = Partial<Omit<Category, 'id' | 'created_at'>>;
 export type AssetUpdate = Partial<Omit<Asset, 'id' | 'created_at' | 'updated_at'>>;
 export type BookingUpdate = Partial<Omit<Booking, 'id' | 'created_at' | 'updated_at'>>;
@@ -313,6 +357,18 @@ export interface Database {
                 Row: Profile;
                 Insert: ProfileInsert;
                 Update: ProfileUpdate;
+                Relationships: [];
+            };
+            student_roster: {
+                Row: StudentRoster;
+                Insert: StudentRosterInsert;
+                Update: StudentRosterUpdate;
+                Relationships: [];
+            };
+            admin_whitelist: {
+                Row: AdminWhitelist;
+                Insert: AdminWhitelistInsert;
+                Update: AdminWhitelistUpdate;
                 Relationships: [];
             };
             categories: {
@@ -407,6 +463,26 @@ export interface Database {
             create_booking: {
                 Args: { p_asset_id: string; p_start_date: string; p_end_date: string; p_notes: string };
                 Returns: string;
+            };
+            verify_student_identity: {
+                Args: { p_student_id: string; p_full_name: string };
+                Returns: VerifyStudentIdentityResult;
+            };
+            verify_admin_identity: {
+                Args: { p_email: string };
+                Returns: boolean;
+            };
+            verify_admin_registration_identity: {
+                Args: { p_email: string; p_full_name: string };
+                Returns: VerifyAdminRegistrationResult;
+            };
+            notify_admin_users: {
+                Args: { p_type: NotificationType; p_title: string; p_message: string; p_metadata?: Record<string, unknown> };
+                Returns: number;
+            };
+            mark_student_registered: {
+                Args: { p_student_id: string; p_user_id: string };
+                Returns: void;
             };
         };
         Enums: {

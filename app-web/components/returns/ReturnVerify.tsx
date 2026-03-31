@@ -46,11 +46,15 @@ export default function ReturnVerify({ booking, onVerify, onAcknowledgeWithDamag
         isOverdue = overdueDays > 0;
     }
 
-    // 只要学生已经提交过损坏报告，就不再允许管理员重复创建第二条
-    const existingDamageReport = booking.damage_reports?.find(
+    // 待处理报告（open/investigating）：优先处理，不允许新建
+    const pendingDamageReport = booking.damage_reports?.find(
         (report) => report.status === 'open' || report.status === 'investigating'
     ) ?? null;
-    const existingLostReport = existingDamageReport?.severity === 'lost';
+    // 已处理报告（resolved）：损坏流程已完成，直接确认归还即可，不允许再次报告
+    const resolvedDamageReport = booking.damage_reports?.find(
+        (report) => report.status === 'resolved'
+    ) ?? null;
+    const existingLostReport = pendingDamageReport?.severity === 'lost';
 
     const PhotoPlaceholder = ({ label }: { label: string }) => (
         <div className="w-full aspect-[4/3] bg-white/5 rounded-xl flex flex-col items-center justify-center border-2 border-dashed border-white/10">
@@ -161,8 +165,9 @@ export default function ReturnVerify({ booking, onVerify, onAcknowledgeWithDamag
                 </div>
             </div>
 
-            {/* Action buttons — 根据是否已有学生提交的损坏报告显示不同按钮 */}
+            {/* Action buttons — 4 种情况按损坏报告状态分支 */}
             {existingLostReport ? (
+                /* Case 1: 丢失报告待处理 — 脱离普通归还流程 */
                 <div className="px-6 py-4 border-t border-white/5 bg-white/[0.02] space-y-3">
                     <div className="flex items-start gap-2.5 px-4 py-3 rounded-xl bg-rose-500/10 border border-rose-500/20">
                         <AlertTriangle className="w-4 h-4 text-rose-300 mt-0.5 flex-shrink-0" />
@@ -181,8 +186,8 @@ export default function ReturnVerify({ booking, onVerify, onAcknowledgeWithDamag
                         </a>
                     </div>
                 </div>
-            ) : existingDamageReport ? (
-                // 学生已提交损坏报告：提示管理员，提供确认归还 + 跳转查看报告
+            ) : pendingDamageReport ? (
+                /* Case 2: 损坏报告待审核（open/investigating）— 确认归还，资产保持 maintenance */
                 <div className="px-6 py-4 border-t border-white/5 bg-white/[0.02] space-y-3">
                     <div className="flex items-start gap-2.5 px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
                         <AlertTriangle className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />
@@ -211,8 +216,38 @@ export default function ReturnVerify({ booking, onVerify, onAcknowledgeWithDamag
                         </button>
                     </div>
                 </div>
+            ) : resolvedDamageReport ? (
+                /* Case 3: 损坏报告已审核完成（resolved）— 不允许再次报告，直接确认归还 */
+                <div className="px-6 py-4 border-t border-white/5 bg-white/[0.02] space-y-3">
+                    <div className="flex items-start gap-2.5 px-4 py-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                        <CheckCircle className="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0" />
+                        <p className="text-sm text-emerald-300 leading-snug">
+                            <span className="font-semibold">{t('returnVerify.resolvedDamageTitle')}</span>
+                            <span className="text-emerald-400/80"> {t('returnVerify.resolvedDamageBody')}</span>
+                        </p>
+                    </div>
+                    <div className="flex flex-col sm:flex-row gap-3 sm:justify-end">
+                        <a
+                            href="/dashboard/damage"
+                            className="flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-semibold text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 rounded-xl hover:bg-emerald-500/20 transition-all"
+                        >
+                            <ExternalLink className="w-4 h-4" />
+                            {t('returnVerify.viewResolvedReport')} →
+                        </a>
+                        <button
+                            onClick={() => onVerify(booking.id, false)}
+                            className="flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-semibold text-white rounded-xl transition-all
+                                       bg-gradient-to-r from-emerald-600 to-teal-600
+                                       hover:from-emerald-500 hover:to-teal-500
+                                       shadow-[0_0_14px_rgba(16,185,129,0.3)] hover:shadow-[0_0_20px_rgba(16,185,129,0.45)]"
+                        >
+                            <CheckCircle className="w-4 h-4" />
+                            {t('returnVerify.confirmReturnDamageResolved')}
+                        </button>
+                    </div>
+                </div>
             ) : (
-                // 无损坏报告：显示原有的两个按钮
+                /* Case 4: 无有效损坏报告 — 正常流程，显示「上报损坏」和「确认无损归还」 */
                 <div className="px-6 py-4 border-t border-white/5 bg-white/[0.02] flex flex-col sm:flex-row gap-3 sm:justify-end">
                     <button
                         onClick={() => onVerify(booking.id, true)}

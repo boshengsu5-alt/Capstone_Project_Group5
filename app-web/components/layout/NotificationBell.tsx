@@ -6,10 +6,12 @@ import {
   Bell, CheckCircle2, XCircle, Clock, AlertTriangle,
   RotateCcw, Star, Package, CheckCheck, Inbox, PauseCircle, BadgeDollarSign,
 } from 'lucide-react';
+import { getCurrentUser } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 import type { Notification, NotificationType } from '@/types/database';
 import { formatRelativeTime } from '@/lib/i18n';
 import { useLanguage } from '@/components/providers/LanguageProvider';
+import { getNotificationText } from '@/lib/notificationText';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase as any;
@@ -26,7 +28,7 @@ const TYPE_CONFIG: Record<NotificationType, { icon: React.ElementType; color: st
   overdue_alert:    { icon: Clock, color: 'text-rose-400', bg: 'bg-rose-500/10', route: '/dashboard/bookings' },
   damage_reported:  { icon: AlertTriangle, color: 'text-orange-400', bg: 'bg-orange-500/10', route: '/dashboard/damage' },
   compensation_update: { icon: BadgeDollarSign, color: 'text-amber-300', bg: 'bg-amber-500/10', route: '/dashboard/compensation' },
-  review_reply:     { icon: Star, color: 'text-yellow-400', bg: 'bg-yellow-500/10', route: '/dashboard/bookings' },
+  review_reply:     { icon: Star, color: 'text-yellow-400', bg: 'bg-yellow-500/10', route: '/dashboard/assets' },
   system:           { icon: Bell, color: 'text-gray-400', bg: 'bg-gray-700', route: '' },
 };
 
@@ -53,7 +55,7 @@ export default function NotificationBell() {
   useEffect(() => {
     let channel: ReturnType<typeof supabase.channel> | null = null;
 
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    void getCurrentUser().then((user) => {
       if (!user) return;
       setUserId(user.id);
       fetchNotifications(user.id);
@@ -154,6 +156,7 @@ export default function NotificationBell() {
               notifications.map((n) => {
                 const cfg = TYPE_CONFIG[n.type] ?? TYPE_CONFIG.system;
                 const Icon = cfg.icon;
+                const localized = getNotificationText(t, n);
                 return (
                   <button
                     key={n.id}
@@ -166,14 +169,14 @@ export default function NotificationBell() {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-2">
                         <p className={`truncate text-xs font-semibold ${n.is_read ? 'text-gray-400' : 'text-white'}`}>
-                          {n.title}
+                          {localized.title}
                         </p>
                         {!n.is_read && (
                           <span className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-amber-300" />
                         )}
                       </div>
                       <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-gray-500">
-                        {n.message}
+                        {localized.message}
                       </p>
                       <p className="mt-1 text-[10px] text-gray-600">{formatRelativeTime(n.created_at, locale)}</p>
                     </div>

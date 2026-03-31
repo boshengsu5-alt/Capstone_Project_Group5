@@ -11,8 +11,14 @@ import type { Review, ReviewReply } from '../../../database/types/supabase';
 import { useTranslation } from 'react-i18next';
 import { getDisplayErrorMessage } from '../utils/errorHandler';
 
-export type ReviewWithMeta = Review & { reviewer_name: string };
-type ReplyWithAuthor = ReviewReply & { author_name: string };
+export type ReviewWithMeta = Review & {
+  reviewer_name: string;
+  reviewer_role?: string | null;
+};
+type ReplyWithAuthor = ReviewReply & {
+  author_name: string;
+  author_role?: string | null;
+};
 
 const COLLAPSE_THRESHOLD = 3;
 
@@ -29,10 +35,13 @@ export default function ReviewCard({ review, currentUserId }: ReviewCardProps) {
   const [showReplyInput, setShowReplyInput] = useState(false);
   const [replyText, setReplyText] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   const labels = t('reviewCard.labels', { returnObjects: true }) as string[];
   const ratingLabel = labels[review.rating - 1] || labels[2];
+  const reviewDate = new Date(review.created_at).toLocaleDateString(
+    i18n.language?.startsWith('zh') ? 'zh-CN' : 'en-US'
+  );
 
   // 抽出纯粹的「获取回复」函数，不做任何 repliesLoaded 判断，避免闭包陷阱
   const fetchReplies = useCallback(async () => {
@@ -89,6 +98,7 @@ export default function ReviewCard({ review, currentUserId }: ReviewCardProps) {
 
   const visibleReplies = expanded ? replies : replies.slice(0, COLLAPSE_THRESHOLD);
   const hasMore = replies.length > COLLAPSE_THRESHOLD;
+  const canCollapse = expanded && replies.length > 0;
 
   return (
     <View style={styles.card}>
@@ -101,7 +111,12 @@ export default function ReviewCard({ review, currentUserId }: ReviewCardProps) {
             </Text>
           </View>
           <View>
-            <Text style={styles.username}>{review.reviewer_name}</Text>
+            <View style={styles.nameRow}>
+              <Text style={styles.username}>{review.reviewer_name}</Text>
+              {review.reviewer_role === 'admin' ? (
+                <Text style={styles.adminTag}>{t('reviewCard.adminTag')}</Text>
+              ) : null}
+            </View>
             <View style={styles.starRow}>
               {[1, 2, 3, 4, 5].map(i => (
                 <Ionicons
@@ -115,7 +130,7 @@ export default function ReviewCard({ review, currentUserId }: ReviewCardProps) {
             </View>
           </View>
         </View>
-        <Text style={styles.date}>{review.created_at.slice(0, 10)}</Text>
+        <Text style={styles.date}>{reviewDate}</Text>
       </View>
 
       {/* 评价内容 */}
@@ -175,20 +190,29 @@ export default function ReviewCard({ review, currentUserId }: ReviewCardProps) {
           {visibleReplies.map(reply => (
             <View key={reply.id} style={styles.replyItem}>
               <View style={styles.replyHeader}>
-                <Text style={styles.replyAuthor}>
-                  {reply.author_id === currentUserId ? t('reviewCard.me') : reply.author_name}
+                <View style={styles.replyAuthorRow}>
+                  <Text style={styles.replyAuthor}>
+                    {reply.author_id === currentUserId ? t('reviewCard.me') : reply.author_name}
+                  </Text>
                   {reply.author_id === review.reviewer_id
                     ? <Text style={styles.reviewerTag}>{t('reviewCard.reviewerTag')}</Text>
                     : null}
+                  {reply.author_role === 'admin'
+                    ? <Text style={styles.adminTag}>{t('reviewCard.adminTag')}</Text>
+                    : null}
+                </View>
+                <Text style={styles.replyDate}>
+                  {new Date(reply.created_at).toLocaleDateString(
+                    i18n.language?.startsWith('zh') ? 'zh-CN' : 'en-US'
+                  )}
                 </Text>
-                <Text style={styles.replyDate}>{reply.created_at.slice(0, 10)}</Text>
               </View>
               <Text style={styles.replyContent}>{reply.content}</Text>
             </View>
           ))}
 
-          {/* 超过 3 条时显示「查看更多」或「收起」 */}
-          {hasMore && !expanded ? null : hasMore && expanded ? (
+          {/* 展开后始终保留「收起」，避免少量回复时无法折叠 */}
+          {canCollapse ? (
             <TouchableOpacity style={styles.collapseBtn} onPress={() => setExpanded(false)}>
               <Ionicons name="chevron-up" size={14} color={theme.colors.gray} />
               <Text style={styles.collapseText}>{t('reviewCard.collapse')}</Text>
@@ -238,7 +262,13 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     color: theme.colors.text,
+  },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
     marginBottom: 3,
+    flexWrap: 'wrap',
   },
   starRow: {
     flexDirection: 'row',
@@ -329,8 +359,16 @@ const styles = StyleSheet.create({
   replyHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: 4,
+    gap: 8,
+  },
+  replyAuthorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    flex: 1,
+    flexWrap: 'wrap',
   },
   replyAuthor: {
     fontSize: 12,
@@ -340,6 +378,11 @@ const styles = StyleSheet.create({
   reviewerTag: {
     fontSize: 11,
     color: '#FBBF24',
+    fontWeight: '600',
+  },
+  adminTag: {
+    fontSize: 11,
+    color: '#8B5CF6',
     fontWeight: '600',
   },
   replyContent: {

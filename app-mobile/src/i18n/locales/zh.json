@@ -1,12 +1,12 @@
 {
   "home": {
-    "searchPlaceholder": "搜索热门商品...",
+    "searchPlaceholder": "搜索设备或资料...",
     "recommendation": "为你推荐",
     "status": "状态: {{status}}",
     "statusAvailable": "现存",
-    "ad1": "全新上市，全场优惠",
-    "ad2": "限时折扣，不容错过",
-    "ad3": "优质精选，猜你喜欢"
+    "ad1": "校园借用更轻松",
+    "ad2": "设备资料快速查找",
+    "ad3": "按需预约，按时归还"
   },
   "splash": {
     "slogan": "高校领先的智能租赁仓库",
@@ -283,7 +283,7 @@
     "cancel": "取消",
     "retry": "重试",
     "languageEnglishShort": "EN",
-    "languageChineseShort": "中文"
+    "languageChineseShort": "中"
   },
   "auth": {
     "login": {
@@ -306,7 +306,17 @@
       "goLogin": "去登录",
       "failed": "注册失败",
       "title": "创建账号",
-      "subtitle": "加入 UniGear，开始智能借用之旅",
+      "subtitle": "完成学生身份认证后创建借用账号",
+      "stepLabel": "步骤 {{current}}/3",
+      "identityStepTitle": "学生身份验证",
+      "identityStepSubtitle": "请先输入学号和姓名，系统会核对花名册信息。",
+      "credentialsStepTitle": "设置登录信息",
+      "credentialsStepSubtitle": "身份验证通过后，请绑定邮箱并设置登录密码。",
+      "successStepTitle": "注册成功",
+      "successStepMessage": "你的账号已创建完成，请使用绑定邮箱登录后开始使用。",
+      "successWelcome": "欢迎，{{name}}！",
+      "studentIdLabel": "学号",
+      "studentIdPlaceholder": "请输入学号",
       "fullNameLabel": "姓名",
       "fullNamePlaceholder": "请输入真实姓名",
       "emailLabel": "邮箱",
@@ -315,13 +325,25 @@
       "passwordPlaceholder": "至少6位字符",
       "confirmPasswordLabel": "确认密码",
       "confirmPasswordPlaceholder": "再次输入密码",
+      "verifiedCardTitle": "验证通过",
+      "departmentValue": "院系",
+      "enrollmentYearValue": "年级",
+      "verifyAction": "验证身份",
+      "backAction": "上一步",
       "submit": "注 册",
       "existingAccount": "已有账号？",
       "loginAction": "返回登录",
+      "identityRequired": "请先完成学生身份验证",
+      "errorMissingIdentity": "请填写学号和姓名",
       "errorMissingFields": "请填写所有必填项",
       "errorInvalidEmail": "请输入有效的邮箱地址，例如 name@school.edu",
       "errorPasswordMismatch": "两次输入的密码不一致",
-      "errorPasswordTooShort": "密码长度不能少于6位"
+      "errorPasswordTooShort": "密码长度不能少于6位",
+      "studentNotFound": "未找到该学号对应的学生信息",
+      "nameMismatch": "姓名与学号信息不匹配，请重新检查",
+      "alreadyRegistered": "该学生身份已完成注册",
+      "identityVerificationFailed": "学生身份验证失败，请稍后重试",
+      "userNotCreated": "账号创建失败，请稍后重试"
     }
   },
   "bookingForm": {
@@ -683,6 +705,7 @@
     "replyPlaceholder": "写下你的追问或回复...",
     "me": "我",
     "reviewerTag": " [评价者]",
+    "adminTag": " [管理员]",
     "collapse": "收起回复"
   },
   "notifications": {
@@ -715,12 +738,24 @@
       "paymentAmount": "本次登记付款",
       "dueDate": "缴费截止",
       "paymentReference": "缴费备注码",
+      "returnReminderSection": "归还提醒详情",
+      "daysUntilDue": "距到期",
+      "dueToday": "今日到期",
+      "returnDeadline": "应还日期",
       "overdueDays": "逾期天数",
       "creditImpact": "信用分变化",
       "daysValue": "{{days}} 天",
       "creditDeductionValue": "-{{points}} 分"
     },
     "dynamic": {
+      "returnReminder": {
+        "todayTitle": "今日到期 — 请立即归还",
+        "soonTitle": "还有 {{days}} 天到期",
+        "assetLine": "设备：{{asset}}",
+        "endDateLine": "应还日期：{{date}}",
+        "todayMessage": "您借用的「{{asset}}」今天到期，请尽快归还，逾期将按天扣减信用分！",
+        "soonMessage": "您借用的「{{asset}}」还有 {{days}} 天到期，请记得按时归还。"
+      },
       "overdueAlert": {
         "title": "逾期归还扣分通知",
         "lostTitle": "设备已被判定为丢失",
@@ -733,7 +768,8 @@
       "damageReported": {
         "reported": {
           "title": "损坏已上报",
-          "message": "管理员已为您借用的「{{asset}}」提交损坏报告，当前判定为{{severity}}，正在等待进一步审核。"
+          "message": "管理员已为您借用的「{{asset}}」提交损坏报告，当前判定为{{severity}}，正在等待进一步审核。",
+          "messageNoAsset": "有一份新的损坏报告已提交，严重程度：{{severity}}，请前往损坏报告页面处理。"
         },
         "investigating": {
           "title": "损坏调查中",
@@ -792,6 +828,15 @@
           "title": "赔偿付款已登记",
           "message": "管理员已登记一笔新的赔偿付款，您可以在赔偿详情中继续查看余额与记录。"
         }
+      },
+      "reviewReply": {
+        "title": "有人回复了你的评价",
+        "adminTitle": "管理员回复了你的评价",
+        "someone": "有人",
+        "adminSuffix": "（管理员）",
+        "message": "{{name}}{{role}} 回复了你的评价。",
+        "messageWithAsset": "{{name}}{{role}} 回复了你对「{{asset}}」的评价。",
+        "preview": "回复内容：{{preview}}"
       }
     },
     "types": {

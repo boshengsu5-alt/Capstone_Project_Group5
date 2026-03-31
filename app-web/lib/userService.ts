@@ -2,7 +2,7 @@
 
 import { supabase } from '@/lib/supabase';
 import { getStoredLocale, translations } from '@/lib/i18n';
-import type { BookingStatus, CreditScoreLog, UserRole } from '@/types/database';
+import type { BookingStatus, CreditScoreLog } from '@/types/database';
 
 // Hand-written Database types and Supabase client generics do not fully align for
 // updates/RPC calls in this repo. Keep a local alias to preserve runtime behavior.
@@ -99,42 +99,17 @@ export async function getUserCreditLogs(userId: string): Promise<CreditScoreLog[
 
 interface UpdateUserProfileInput {
   userId: string;
-  role: UserRole;
   creditScore: number;
-  currentRole: UserRole;
   currentCreditScore: number;
 }
 
 export async function updateUserProfile({
   userId,
-  role,
   creditScore,
-  currentRole,
   currentCreditScore,
 }: UpdateUserProfileInput): Promise<void> {
   const nextCreditScore = Math.max(0, Math.min(200, Math.round(creditScore)));
   const creditDelta = nextCreditScore - currentCreditScore;
-
-  if (role !== currentRole) {
-    const { data, error } = await db
-      .from('profiles')
-      .update({ role })
-      .eq('id', userId)
-      .select('id')
-      .single();
-
-    if (error) {
-      throw error;
-    }
-
-    if (!data) {
-      throw new Error(
-        getStoredLocale() === 'zh'
-          ? '用户角色更新被阻止，请确认管理员权限是否正确。'
-          : 'User role update was blocked. Please verify admin permissions.'
-      );
-    }
-  }
 
   if (creditDelta !== 0) {
     const { error } = await db.rpc('update_credit_score', {

@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import type { Asset, AssetUpdate } from '@/types/database';
+import { getCurrentUser } from './auth';
 import { auditService } from './auditService';
 
 // Supabase 泛型 Database 接口的 Relationships 定义不完整，导致 .from() 推断为 never
@@ -231,8 +232,14 @@ export async function deleteAsset(id: string): Promise<boolean> {
  * @param assetId - The ID of the asset.
  * @returns List of reviews for this asset. 返回特定资产的评价列表。
  */
-export type ReviewWithName = import('@/types/database').Review & { reviewer_name: string };
-export type ReplyWithAuthor = import('@/types/database').ReviewReply & { author_name: string };
+export type ReviewWithName = import('@/types/database').Review & {
+  reviewer_name: string;
+  reviewer_role?: string | null;
+};
+export type ReplyWithAuthor = import('@/types/database').ReviewReply & {
+  author_name: string;
+  author_role?: string | null;
+};
 
 export async function getAssetReviews(assetId: string): Promise<ReviewWithName[]> {
   const { data: bookings, error: bookingsError } = await db
@@ -256,17 +263,21 @@ export async function getAssetReviews(assetId: string): Promise<ReviewWithName[]
   const reviewerIds = [...new Set((reviews as import('@/types/database').Review[]).map((r) => r.reviewer_id))];
   const { data: profiles } = await db
     .from('profiles')
-    .select('id, full_name, email')
+    .select('id, full_name, email, role')
     .in('id', reviewerIds);
 
   const profileMap = new Map(
-    ((profiles ?? []) as { id: string; full_name: string | null; email: string }[])
-      .map((p) => [p.id, p.full_name ?? p.email?.split('@')[0] ?? 'User'])
+    ((profiles ?? []) as { id: string; full_name: string | null; email: string; role?: string | null }[])
+      .map((p) => [p.id, {
+        name: p.full_name ?? p.email?.split('@')[0] ?? 'User',
+        role: p.role ?? null,
+      }])
   );
 
   return (reviews as import('@/types/database').Review[]).map((r) => ({
     ...r,
-    reviewer_name: profileMap.get(r.reviewer_id) ?? 'User',
+    reviewer_name: profileMap.get(r.reviewer_id)?.name ?? 'User',
+    reviewer_role: profileMap.get(r.reviewer_id)?.role ?? null,
   }));
 }
 
@@ -283,28 +294,80 @@ export async function getReviewReplies(reviewId: string): Promise<ReplyWithAutho
   const authorIds = [...new Set((replies as import('@/types/database').ReviewReply[]).map((r) => r.author_id))];
   const { data: profiles } = await db
     .from('profiles')
-    .select('id, full_name, email')
+    .select('id, full_name, email, role')
     .in('id', authorIds);
 
   const profileMap = new Map(
-    ((profiles ?? []) as { id: string; full_name: string | null; email: string }[])
-      .map((p) => [p.id, p.full_name ?? p.email?.split('@')[0] ?? 'User'])
+    ((profiles ?? []) as { id: string; full_name: string | null; email: string; role?: string | null }[])
+      .map((p) => [p.id, {
+        name: p.full_name ?? p.email?.split('@')[0] ?? 'User',
+        role: p.role ?? null,
+      }])
   );
 
   return (replies as import('@/types/database').ReviewReply[]).map((r) => ({
     ...r,
-    author_name: profileMap.get(r.author_id) ?? 'User',
+    author_name: profileMap.get(r.author_id)?.name ?? 'User',
+    author_role: profileMap.get(r.author_id)?.role ?? null,
   }));
 }
 
 /** Post a reply to a review as current admin. 以当前管理员身份回复评价 */
 export async function postReviewReply(reviewId: string, content: string): Promise<void> {
-  const { data: { user }, error: authErr } = await supabase.auth.getUser();
-  if (authErr || !user) throw new Error('Not authenticated');
+  const user = await getCurrentUser();
+  if (!user) throw new Error('Not authenticated');
 
   const { error } = await db
     .from('review_replies')
     .insert({ review_id: reviewId, author_id: user.id, content });
 
   if (error) throw error;
+
+  try {
+    const { data: review } = await db
+      .from('reviews')
+      .select('reviewer_id, booking_id')
+      .eq('id', reviewId)
+      .single();
+
+    if (!review || (review as { reviewer_id: string }).reviewer_id === user.id) return;
+
+    const [{ data: profile }, { data: booking }] = await Promise.all([
+      db
+        .from('profiles')
+        .select('full_name, email, role')
+        .eq('id', user.id)
+        .single(),
+      db
+        .from('bookings')
+        .select('asset_id, assets(name)')
+        .eq('id', (review as { booking_id: string }).booking_id)
+        .single(),
+    ]);
+
+    const profileData = profile as { full_name: string | null; email: string; role?: string | null } | null;
+    const bookingData = booking as { asset_id?: string | null; assets?: { name?: string | null } | null } | null;
+    const replierName = profileData?.full_name ?? profileData?.email?.split('@')[0] ?? 'Someone';
+    const preview = content.trim().replace(/\s+/g, ' ').slice(0, 80);
+
+    await db.from('notifications').insert({
+      user_id: (review as { reviewer_id: string }).reviewer_id,
+      type: 'review_reply',
+      title: 'Review Reply',
+      message: 'You have received a reply to your review.',
+      is_read: false,
+      metadata: {
+        review_id: reviewId,
+        booking_id: (review as { booking_id: string }).booking_id,
+        asset_id: bookingData?.asset_id ?? null,
+        asset_name: bookingData?.assets?.name ?? null,
+        reply_author_id: user.id,
+        reply_author_name: replierName,
+        reply_author_role: profileData?.role ?? null,
+        reply_preview: preview,
+      },
+    });
+  } catch {
+    // Notification delivery is best-effort and must not block the reply itself.
+  }
 }

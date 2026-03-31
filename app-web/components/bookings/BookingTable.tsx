@@ -16,69 +16,70 @@ interface BookingTableProps {
 
 export default function BookingTable({ bookings, onReview, onReportDamage, highlightId }: BookingTableProps) {
     const { t } = useLanguage();
-    const hasUnresolvedDamageReport = (booking: BookingWithDetails) =>
+    // dismissed 之外的任何状态（open/investigating/resolved）都视为「已有有效报告」，禁止重复报告
+    const hasActiveDamageReport = (booking: BookingWithDetails) =>
         Array.isArray(booking.damage_reports)
-        && booking.damage_reports.some((report) => report.status === 'open' || report.status === 'investigating');
+        && booking.damage_reports.some((report) => report.status !== 'dismissed');
 
     const getStatusBadge = (status: string) => {
         switch (status) {
             case 'pending':
                 return (
-                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border bg-amber-500/10 text-amber-400 border-amber-500/20 shadow-[0_0_8px_rgba(245,158,11,0.15)]">
+                    <span className="inline-flex items-center rounded-full border border-amber-500/20 bg-amber-500/10 px-2.5 py-1 text-xs font-semibold text-amber-400">
                         {t('status.pending')}
                     </span>
                 );
             case 'approved':
                 return (
-                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border bg-emerald-500/10 text-emerald-400 border-emerald-500/20 shadow-[0_0_8px_rgba(16,185,129,0.15)]">
+                    <span className="inline-flex items-center rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-xs font-semibold text-emerald-400">
                         {t('status.approved')}
                     </span>
                 );
             case 'rejected':
                 return (
-                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border bg-rose-500/10 text-rose-400 border-rose-500/20 shadow-[0_0_8px_rgba(244,63,94,0.15)]">
+                    <span className="inline-flex items-center rounded-full border border-rose-500/20 bg-rose-500/10 px-2.5 py-1 text-xs font-semibold text-rose-400">
                         {t('status.rejected')}
                     </span>
                 );
             case 'active':
                 return (
-                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border bg-blue-500/10 text-blue-400 border-blue-500/20 shadow-[0_0_8px_rgba(59,130,246,0.15)]">
+                    <span className="inline-flex items-center rounded-full border border-blue-500/20 bg-blue-500/10 px-2.5 py-1 text-xs font-semibold text-blue-400">
                         {t('status.active')}
                     </span>
                 );
             case 'lost_reported':
                 return (
-                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border bg-orange-500/10 text-orange-300 border-orange-500/20 shadow-[0_0_8px_rgba(249,115,22,0.2)]">
+                    <span className="inline-flex items-center rounded-full border border-orange-500/20 bg-orange-500/10 px-2.5 py-1 text-xs font-semibold text-orange-300">
                         {t('status.lost_reported')}
                     </span>
                 );
             case 'lost':
                 return (
-                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border bg-rose-500/10 text-rose-300 border-rose-500/20 shadow-[0_0_8px_rgba(244,63,94,0.2)]">
+                    <span className="inline-flex items-center rounded-full border border-rose-500/20 bg-rose-500/10 px-2.5 py-1 text-xs font-semibold text-rose-300">
                         {t('status.lost')}
                     </span>
                 );
             case 'returned':
                 return (
-                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border bg-purple-500/10 text-purple-400 border-purple-500/20 shadow-[0_0_8px_rgba(139,92,246,0.15)]">
+                    <span className="inline-flex items-center rounded-full border border-purple-500/20 bg-purple-500/10 px-2.5 py-1 text-xs font-semibold text-purple-400">
                         {t('status.returned')}
                     </span>
                 );
             case 'overdue':
                 return (
-                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border bg-red-500/10 text-red-400 border-red-500/20 shadow-[0_0_8px_rgba(239,68,68,0.2)] animate-pulse">
+                    <span className="inline-flex items-center rounded-full border border-red-500/20 bg-red-500/10 px-2.5 py-1 text-xs font-semibold text-red-400">
                         {t('status.overdue')}
                     </span>
                 );
             case 'cancelled':
                 return (
-                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border bg-gray-500/10 text-gray-400 border-gray-500/20">
+                    <span className="inline-flex items-center rounded-full border border-gray-500/20 bg-gray-500/10 px-2.5 py-1 text-xs font-semibold text-gray-400">
                         {t('status.cancelled')}
                     </span>
                 );
             default:
                 return (
-                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border bg-gray-500/10 text-gray-400 border-gray-500/20">
+                    <span className="inline-flex items-center rounded-full border border-gray-500/20 bg-gray-500/10 px-2.5 py-1 text-xs font-semibold text-gray-400">
                         {status}
                     </span>
                 );
@@ -98,16 +99,16 @@ export default function BookingTable({ bookings, onReview, onReportDamage, highl
     }
 
     return (
-        <div className="w-full bg-gray-900/40 rounded-2xl border border-white/5 overflow-hidden backdrop-blur-sm">
+        <div className="overflow-hidden rounded-3xl border border-white/5 bg-gray-900/40 backdrop-blur-sm">
             <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm whitespace-nowrap">
-                    <thead className="bg-white/5 border-b border-white/5">
+                <table className="min-w-full divide-y divide-white/5">
+                    <thead className="bg-white/5">
                         <tr>
-                            <th scope="col" className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">{t('tables.asset')}</th>
-                            <th scope="col" className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">{t('tables.user')}</th>
-                            <th scope="col" className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">{t('tables.date')}</th>
-                            <th scope="col" className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">{t('tables.status')}</th>
-                            <th scope="col" className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest text-right">{t('tables.actions')}</th>
+                            <th scope="col" className="py-4 pl-6 pr-3 text-left text-xs font-bold uppercase tracking-[0.24em] text-gray-500">{t('tables.asset')}</th>
+                            <th scope="col" className="px-3 py-4 text-left text-xs font-bold uppercase tracking-[0.24em] text-gray-500">{t('tables.user')}</th>
+                            <th scope="col" className="px-3 py-4 text-left text-xs font-bold uppercase tracking-[0.24em] text-gray-500">{t('tables.date')}</th>
+                            <th scope="col" className="px-3 py-4 text-left text-xs font-bold uppercase tracking-[0.24em] text-gray-500">{t('tables.status')}</th>
+                            <th scope="col" className="py-4 pl-3 pr-6 text-right text-xs font-bold uppercase tracking-[0.24em] text-gray-500">{t('tables.actions')}</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-white/5">
@@ -115,66 +116,63 @@ export default function BookingTable({ bookings, onReview, onReportDamage, highl
                             <tr
                                 key={booking.id}
                                 className={cn(
-                                    "hover:bg-white/5 transition-all group",
+                                    'group transition-colors hover:bg-white/[0.04]',
                                     highlightId === booking.id && "animate-highlight-gold ring-1 ring-amber-400/30"
                                 )}
                             >
-                                <td className="px-6 py-4">
+                                <td className="py-4 pl-6 pr-3">
                                     <div className="flex items-center gap-3">
                                         {booking.assets?.images?.[0] ? (
                                             <img
                                                 src={booking.assets.images[0]}
                                                 alt=""
-                                                className="w-10 h-10 rounded-lg object-cover flex-shrink-0 border border-white/10"
+                                                className="h-11 w-11 rounded-xl border border-white/10 object-cover flex-shrink-0"
                                             />
                                         ) : (
-                                            <div className="w-10 h-10 rounded-lg bg-gray-800 flex-shrink-0 border border-white/10" />
+                                            <div className="h-11 w-11 rounded-xl border border-white/10 bg-white/5 flex-shrink-0" />
                                         )}
                                         <div>
-                                            <div className="font-medium text-white">{booking.assets?.name ?? t('common.unknownAsset')}</div>
-                                            <div className="text-gray-500 text-xs mt-1 font-mono">{booking.assets?.qr_code ?? t('common.none')}</div>
+                                            <p className="text-sm font-semibold text-white">{booking.assets?.name ?? t('common.unknownAsset')}</p>
+                                            <p className="mt-1 text-xs text-gray-500 font-mono">{booking.assets?.qr_code ?? t('common.none')}</p>
                                         </div>
                                     </div>
                                 </td>
-                                <td className="px-6 py-4">
-                                    <div className="text-gray-200">{booking.profiles?.full_name ?? t('common.unknownUser')}</div>
-                                    <div className="text-gray-500 text-xs mt-0.5 font-mono">{booking.profiles?.student_id ?? t('common.noId')}</div>
+                                <td className="px-3 py-4">
+                                    <p className="text-sm font-medium text-gray-200">{booking.profiles?.full_name ?? t('common.unknownUser')}</p>
+                                    <p className="mt-1 text-xs font-mono text-gray-500">{booking.profiles?.student_id ?? t('common.noId')}</p>
                                 </td>
-                                <td className="px-6 py-4">
-                                    <div className="text-gray-200 leading-tight">{formatDateTime(booking.start_date)}</div>
-                                    <div className="text-gray-500 text-xs mt-1 leading-tight">{t('bookings.reportDateTo')} {formatDateTime(booking.end_date)}</div>
+                                <td className="px-3 py-4">
+                                    <p className="text-sm text-gray-200">{formatDateTime(booking.start_date)}</p>
+                                    <p className="mt-1 text-xs text-gray-500">{t('bookings.reportDateTo')} {formatDateTime(booking.end_date)}</p>
                                 </td>
-                                <td className="px-6 py-4">
+                                <td className="px-3 py-4">
                                     {getStatusBadge(booking.status)}
                                 </td>
-                                <td className="px-6 py-4 text-right">
+                                <td className="py-4 pl-3 pr-6 text-right">
                                     <div className="flex items-center justify-end gap-2">
-                                        {/* 仅对 overdue / returned 状态显示；只要本借用已有损坏报告就隐藏，避免重复创建 */}
+                                        {/* 仅对 overdue / returned 状态显示；已有任何非 dismissed 的损坏报告就隐藏，避免重复创建 */}
                                         {onReportDamage &&
                                             ['overdue', 'returned'].includes(booking.status) &&
                                             booking.rejection_reason !== 'VERIFIED' &&
-                                            !hasUnresolvedDamageReport(booking) && (
+                                            !hasActiveDamageReport(booking) && (
                                             <button
                                                 onClick={() => onReportDamage(booking)}
-                                                className="px-3 py-1.5 text-xs font-semibold text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-lg hover:bg-rose-500/20 hover:text-rose-300 transition-colors"
+                                                className="inline-flex items-center rounded-xl border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-sm font-semibold text-rose-300 transition hover:bg-rose-500/15"
                                             >
-                                                Report Damage
+                                                {t('bookings.reportDamage')}
                                             </button>
                                         )}
                                         {booking.status === 'pending' ? (
                                             <button
                                                 onClick={() => onReview(booking)}
-                                                className="px-4 py-1.5 text-sm font-semibold text-white rounded-lg transition-all
-                                                           bg-gradient-to-r from-purple-600 to-indigo-600
-                                                           hover:from-purple-500 hover:to-indigo-500
-                                                           shadow-[0_0_12px_rgba(139,92,246,0.35)] hover:shadow-[0_0_18px_rgba(139,92,246,0.5)]"
+                                                className="inline-flex items-center rounded-xl border border-violet-500/30 bg-violet-500/10 px-3 py-2 text-sm font-semibold text-violet-300 transition hover:bg-violet-500/15"
                                             >
                                                 {t('bookings.review')}
                                             </button>
                                         ) : (
                                             <button
                                                 onClick={() => onReview(booking)}
-                                                className="px-4 py-1.5 text-sm font-medium text-gray-400 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 hover:text-gray-200 transition-colors"
+                                                className="inline-flex items-center rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-semibold text-gray-300 transition hover:bg-white/10"
                                             >
                                                 {t('bookings.viewDetails')}
                                             </button>

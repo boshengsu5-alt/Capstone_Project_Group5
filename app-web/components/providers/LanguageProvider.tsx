@@ -12,7 +12,11 @@ interface LanguageContextType {
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>(() => getStoredLocale());
+  const [locale, setLocaleState] = useState<Locale>('zh');
+
+  useEffect(() => {
+    setLocaleState(getStoredLocale());
+  }, []);
 
   useEffect(() => {
     document.documentElement.lang = locale;

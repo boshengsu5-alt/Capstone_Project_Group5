@@ -65,6 +65,11 @@ export default function NotificationDetailScreen({ navigation, route }: Props) {
   const overdueDetails = notification.type === 'overdue_alert'
     ? getOverdueNotificationDetails(notification)
     : null;
+
+  // return_reminder 详情（设备名、剩余天数、到期日）
+  const returnReminderMeta = notification.type === 'return_reminder'
+    ? (notification.metadata ?? {}) as { asset_name?: string; days_until_due?: number; end_date?: string }
+    : null;
   const compensationDetails = notification.type === 'compensation_update'
     ? getCompensationNotificationDetails(notification)
     : null;
@@ -98,6 +103,32 @@ export default function NotificationDetailScreen({ navigation, route }: Props) {
 
         {/* 分割线 */}
         <View style={styles.divider} />
+
+        {returnReminderMeta?.asset_name ? (
+          <View style={styles.detailCard}>
+            <Text style={styles.detailCardTitle}>{t('notifications.detail.returnReminderSection')}</Text>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>{t('notifications.detail.asset')}</Text>
+              <Text style={styles.detailValue}>{returnReminderMeta.asset_name}</Text>
+            </View>
+            {typeof returnReminderMeta.days_until_due === 'number' && (
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>{t('notifications.detail.daysUntilDue')}</Text>
+                <Text style={[styles.detailValue, returnReminderMeta.days_until_due === 0 && styles.detailDanger]}>
+                  {returnReminderMeta.days_until_due === 0
+                    ? t('notifications.detail.dueToday')
+                    : t('notifications.detail.daysValue', { days: returnReminderMeta.days_until_due })}
+                </Text>
+              </View>
+            )}
+            {returnReminderMeta.end_date ? (
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>{t('notifications.detail.returnDeadline')}</Text>
+                <Text style={styles.detailValue}>{formatFullTime(returnReminderMeta.end_date, i18n.language)}</Text>
+              </View>
+            ) : null}
+          </View>
+        ) : null}
 
         {overdueDetails ? (
           <View style={styles.detailCard}>

@@ -9,14 +9,14 @@ import {
   AlertTriangle,
   Search,
   Filter,
-  ExternalLink,
+  ChevronDown,
   ChevronRight
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import Header from '@/components/layout/Header';
+import AssetDetailPanel, { AssetWithCategory } from '@/components/assets/AssetDetailPanel';
 import QRCodeModal from '@/components/assets/QRCodeModal';
 import { cn } from '@/lib/utils';
-import { Asset } from '@/types/database';
 import { getAssets } from '@/lib/assetService';
 import { supabase } from '@/lib/supabase';
 import { 
@@ -38,12 +38,13 @@ import { getConditionLabel, getStatusLabel, localizeCategoryName } from '@/lib/i
 
 export default function DashboardPage() {
   const { t, locale } = useLanguage();
-  const [assets, setAssets] = useState<Asset[]>([]);
+  const [assets, setAssets] = useState<AssetWithCategory[]>([]);
   const [bookings, setBookings] = useState<BookingWithDetails[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
-  const [selectedAssetForQR, setSelectedAssetForQR] = useState<Asset | null>(null);
+  const [selectedAssetForQR, setSelectedAssetForQR] = useState<AssetWithCategory | null>(null);
+  const [expandedAssetId, setExpandedAssetId] = useState<string | null>(null);
 
   const fetchData = async () => {
     try {
@@ -52,7 +53,7 @@ export default function DashboardPage() {
         getAssets(),
         bookingService.getBookings(),
       ]);
-      setAssets(assetsData);
+      setAssets(assetsData as AssetWithCategory[]);
       setBookings(bookingsData);
     } catch (error) {
       console.error('Failed to fetch dashboard data', error);
@@ -175,6 +176,16 @@ export default function DashboardPage() {
     const matchesCategory = selectedCategory === 'All' || asset.category_id === selectedCategory;
     return matchesSearch && matchesCategory;
   });
+
+  useEffect(() => {
+    if (expandedAssetId && !filteredAssets.some((asset) => asset.id === expandedAssetId)) {
+      setExpandedAssetId(null);
+    }
+  }, [expandedAssetId, filteredAssets]);
+
+  const handleToggleExpand = (assetId: string) => {
+    setExpandedAssetId((current) => current === assetId ? null : assetId);
+  };
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
@@ -411,6 +422,9 @@ export default function DashboardPage() {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-white/5 border-b border-white/10">
+                  <th className="w-12 px-4 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">
+                    <span className="sr-only">{t('common.viewDetails')}</span>
+                  </th>
                   <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">{t('tables.asset')}</th>
                   <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">{t('tables.identifier')}</th>
                   <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest">{t('tables.category')}</th>
@@ -422,7 +436,7 @@ export default function DashboardPage() {
               <tbody className="divide-y divide-white/5">
                 {isLoading ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-20 text-center">
+                    <td colSpan={7} className="px-6 py-20 text-center">
                       <div className="flex flex-col items-center gap-3">
                          <div className="w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
                          <p className="text-gray-500 text-sm">{t('dashboard.syncing')}</p>
@@ -431,86 +445,125 @@ export default function DashboardPage() {
                   </tr>
                 ) : filteredAssets.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-20 text-center text-gray-500 italic">
+                    <td colSpan={7} className="px-6 py-20 text-center text-gray-500 italic">
                        {t('dashboard.noMatch')}
                     </td>
                   </tr>
                 ) : (
-                  filteredAssets && filteredAssets.map((asset) => (
-                    <tr key={asset.id} className="hover:bg-white/5 transition-colors group">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                           <div className="w-10 h-10 bg-purple-500/10 rounded-lg overflow-hidden flex-shrink-0 flex items-center justify-center group-hover:scale-110 transition-transform border border-white/5">
-                              {asset.images && asset.images.length > 0 ? (
-                                <img src={asset.images[0]} alt={asset.name} className="w-full h-full object-cover" />
-                              ) : (
-                                <Package className="w-5 h-5 text-purple-400" />
-                              )}
-                           </div>
-                           <div>
-                              <p className="font-semibold text-white truncate max-w-[180px]">{asset.name || t('common.unknownAsset')}</p>
-                              <p className="text-xs text-gray-500">{asset.location || t('common.noLocation')}</p>
-                           </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                           {asset.qr_code ? (
-                             <div
-                               className="group relative w-10 h-10 cursor-pointer flex-shrink-0"
-                               onClick={() => setSelectedAssetForQR(asset)}
-                               title={t('dashboard.qrTooltip')}
-                             >
-                               <QRCodeSVG
-                                 value={asset.qr_code}
-                                 size={40}
-                                 className="transition-transform duration-300 group-hover:scale-110 bg-white p-1 rounded shadow-sm hover:ring-2 hover:ring-purple-500/50"
-                               />
-                             </div>
-                           ) : null}
-                           <span className="text-xs font-mono text-gray-400 bg-gray-800 px-2 py-1 rounded">
-                              {asset.serial_number || 'NO-SN'}
-                           </span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="text-sm text-gray-400">{localizeCategoryName((asset as any).categories, locale) || t('common.general')}</span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className={cn(
-                          "inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset capitalize",
-                          asset.status === 'available' && "bg-green-500/10 text-green-400 ring-green-500/20",
-                          asset.status === 'borrowed' && "bg-blue-500/10 text-blue-400 ring-blue-500/20",
-                          asset.status === 'maintenance' && "bg-yellow-500/10 text-yellow-400 ring-yellow-500/20",
-                          asset.status === 'retired' && "bg-red-500/10 text-red-400 ring-red-500/20"
-                        )}>
-                          {getStatusLabel(asset.status, t)}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        {(() => {
-                          const condBadge: Record<string, { color: string; label: string }> = {
-                            new:     { color: 'bg-emerald-500/10 text-emerald-400 ring-emerald-500/20', label: getConditionLabel('new', t) },
-                            good:    { color: 'bg-blue-500/10 text-blue-400 ring-blue-500/20',         label: getConditionLabel('good', t) },
-                            fair:    { color: 'bg-amber-500/10 text-amber-400 ring-amber-500/20',     label: getConditionLabel('fair', t) },
-                            poor:    { color: 'bg-orange-500/10 text-orange-400 ring-orange-500/20',  label: getConditionLabel('poor', t) },
-                            damaged: { color: 'bg-red-500/10 text-red-400 ring-red-500/20',           label: getConditionLabel('damaged', t) },
-                          };
-                          const b = condBadge[asset.condition] ?? { color: 'bg-gray-500/10 text-gray-400 ring-gray-500/20', label: getConditionLabel(asset.condition, t) };
-                          return (
-                            <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset ${b.color}`}>
-                              {b.label}
+                  filteredAssets.map((asset) => {
+                    const isExpanded = expandedAssetId === asset.id;
+
+                    return (
+                      <React.Fragment key={asset.id}>
+                        <tr
+                          onClick={() => handleToggleExpand(asset.id)}
+                          className={cn(
+                            'group cursor-pointer transition hover:bg-white/[0.03]',
+                            isExpanded && 'bg-violet-500/[0.05]'
+                          )}
+                        >
+                          <td className="px-4 py-4 text-gray-500">
+                            <div className="flex h-8 w-8 items-center justify-center rounded-full border border-white/8 bg-white/[0.03] transition group-hover:text-white">
+                              {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 bg-purple-500/10 rounded-lg overflow-hidden flex-shrink-0 flex items-center justify-center group-hover:scale-110 transition-transform border border-white/5">
+                                {asset.images && asset.images.length > 0 ? (
+                                  <img src={asset.images[0]} alt={asset.name} className="w-full h-full object-cover" />
+                                ) : (
+                                  <Package className="w-5 h-5 text-purple-400" />
+                                )}
+                              </div>
+                              <div>
+                                <p className="font-semibold text-white truncate max-w-[180px]">{asset.name || t('common.unknownAsset')}</p>
+                                <p className="text-xs text-gray-500">{asset.location || t('common.noLocation')}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-3">
+                              {asset.qr_code ? (
+                                <button
+                                  type="button"
+                                  className="group relative w-10 h-10 cursor-pointer flex-shrink-0"
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    setSelectedAssetForQR(asset);
+                                  }}
+                                  title={t('dashboard.qrTooltip')}
+                                >
+                                  <QRCodeSVG
+                                    value={asset.qr_code}
+                                    size={40}
+                                    className="transition-transform duration-300 group-hover:scale-110 bg-white p-1 rounded shadow-sm hover:ring-2 hover:ring-purple-500/50"
+                                  />
+                                </button>
+                              ) : null}
+                              <span className="text-xs font-mono text-gray-400 bg-gray-800 px-2 py-1 rounded">
+                                {asset.serial_number || 'NO-SN'}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className="text-sm text-gray-400">{localizeCategoryName(asset.categories, locale) || t('common.general')}</span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className={cn(
+                              'inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset capitalize',
+                              asset.status === 'available' && 'bg-green-500/10 text-green-400 ring-green-500/20',
+                              asset.status === 'borrowed' && 'bg-blue-500/10 text-blue-400 ring-blue-500/20',
+                              asset.status === 'maintenance' && 'bg-yellow-500/10 text-yellow-400 ring-yellow-500/20',
+                              asset.status === 'retired' && 'bg-red-500/10 text-red-400 ring-red-500/20'
+                            )}>
+                              {getStatusLabel(asset.status, t)}
                             </span>
-                          );
-                        })()}
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <button className="text-gray-500 hover:text-white transition-colors text-xs font-bold uppercase tracking-widest">
-                           {t('common.viewDetails')}
-                        </button>
-                      </td>
-                    </tr>
-                  ))
+                          </td>
+                          <td className="px-6 py-4">
+                            {(() => {
+                              const condBadge: Record<string, { color: string; label: string }> = {
+                                new:     { color: 'bg-emerald-500/10 text-emerald-400 ring-emerald-500/20', label: getConditionLabel('new', t) },
+                                good:    { color: 'bg-blue-500/10 text-blue-400 ring-blue-500/20',         label: getConditionLabel('good', t) },
+                                fair:    { color: 'bg-amber-500/10 text-amber-400 ring-amber-500/20',     label: getConditionLabel('fair', t) },
+                                poor:    { color: 'bg-orange-500/10 text-orange-400 ring-orange-500/20',  label: getConditionLabel('poor', t) },
+                                damaged: { color: 'bg-red-500/10 text-red-400 ring-red-500/20',           label: getConditionLabel('damaged', t) },
+                              };
+                              const b = condBadge[asset.condition] ?? { color: 'bg-gray-500/10 text-gray-400 ring-gray-500/20', label: getConditionLabel(asset.condition, t) };
+                              return (
+                                <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset ${b.color}`}>
+                                  {b.label}
+                                </span>
+                              );
+                            })()}
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                handleToggleExpand(asset.id);
+                              }}
+                              className="text-gray-500 hover:text-white transition-colors text-xs font-bold uppercase tracking-widest"
+                            >
+                              {isExpanded ? t('bookings.hideDetails') : t('common.viewDetails')}
+                            </button>
+                          </td>
+                        </tr>
+
+                        {isExpanded && (
+                          <tr className="bg-transparent">
+                            <td colSpan={7} className="p-0">
+                              <AssetDetailPanel
+                                asset={asset}
+                                onOpenQr={(selectedAsset) => setSelectedAssetForQR(selectedAsset)}
+                              />
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    );
+                  })
                 )}
               </tbody>
             </table>

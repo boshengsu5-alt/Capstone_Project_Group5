@@ -314,7 +314,7 @@ export default function UsersPage() {
                                   error={detailErrorMap[user.id]}
                                   onRetry={() => void loadDetailForUser(user.id, true)}
                                   onOpenCreditHistory={() => setCreditHistoryUser(user)}
-                                  onEditUser={() => setEditUser(user)}
+                                  onUserUpdated={() => { void loadUsers(); void loadDetailForUser(user.id, true); }}
                                 />
                               </td>
                             </tr>

@@ -31,6 +31,17 @@ type Props = {
 };
 
 // ============================================================
+// 模块级缓存：切屏时立即呈现上次数据，无需等待网络
+// Module-level cache for instant display on tab switch
+// ============================================================
+let _cachedProfile: Profile | null = null;
+let _cachedUnreadCount = 0;
+let _cachedAppSettings = DEFAULT_APP_SETTINGS;
+let _cachedCompensationSummary: CompensationSummary = {
+  totalCases: 0, activeCases: 0, totalOutstanding: 0, totalPaid: 0,
+};
+
+// ============================================================
 // Helpers. 辅助函数
 // ============================================================
 
@@ -91,23 +102,21 @@ function MenuItem({ icon, label, onPress, badge, danger, rightContent }: MenuIte
 
 export default function ProfileScreen({ navigation }: Props) {
   const { t, i18n } = useTranslation();
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [appSettings, setAppSettings] = useState(DEFAULT_APP_SETTINGS);
-  const [compensationSummary, setCompensationSummary] = useState<CompensationSummary>({
-    totalCases: 0,
-    activeCases: 0,
-    totalOutstanding: 0,
-    totalPaid: 0,
-  });
-  const [loading, setLoading] = useState(true);
+  // 用缓存初始化，切回页面立即展示上次数据
+  const [profile, setProfile] = useState<Profile | null>(_cachedProfile);
+  const [unreadCount, setUnreadCount] = useState(_cachedUnreadCount);
+  const [appSettings, setAppSettings] = useState(_cachedAppSettings);
+  const [compensationSummary, setCompensationSummary] = useState<CompensationSummary>(_cachedCompensationSummary);
+  // 只有首次（缓存为空）才显示全屏 spinner
+  const [loading, setLoading] = useState(_cachedProfile === null);
   const [refreshing, setRefreshing] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
 
   const fetchData = useCallback(async (isRefresh = false) => {
     if (isRefresh) {
       setRefreshing(true);
-    } else {
+    } else if (_cachedProfile === null) {
+      // 仅无缓存时才显示全屏 loading，切回 Tab 时静默后台刷新
       setLoading(true);
     }
 
@@ -118,6 +127,12 @@ export default function ProfileScreen({ navigation }: Props) {
         getAppSettings(),
         getMyCompensationSummary(),
       ]);
+      // 更新缓存
+      _cachedProfile = profileData as unknown as Profile;
+      _cachedUnreadCount = count;
+      _cachedAppSettings = settings;
+      _cachedCompensationSummary = nextCompensationSummary;
+      // 更新 UI
       setProfile(profileData as unknown as Profile);
       setUnreadCount(count);
       setAppSettings(settings);

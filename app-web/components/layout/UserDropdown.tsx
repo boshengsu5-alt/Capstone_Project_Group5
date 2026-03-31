@@ -4,10 +4,9 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { User as AuthUser } from '@supabase/supabase-js';
 import { Settings, ScrollText, LogOut, User, ChevronDown, Languages } from 'lucide-react';
-import { signOut } from '@/lib/auth';
+import { getCurrentUser, signOut } from '@/lib/auth';
 import { useLanguage } from '@/components/providers/LanguageProvider';
 import { useAuth } from '@/components/providers/AuthContext';
-import { supabase } from '@/lib/supabase';
 import { getRoleLabel } from '@/lib/i18n';
 
 interface UserDropdownProps {
@@ -24,8 +23,7 @@ export default function UserDropdown({ email }: UserDropdownProps) {
   const [user, setUser] = useState<AuthUser | null>(null);
 
   const fetchUser = async (): Promise<AuthUser | null> => {
-    const { data: { user } } = await supabase.auth.getUser();
-    return user;
+    return getCurrentUser();
   };
 
   useEffect(() => {
