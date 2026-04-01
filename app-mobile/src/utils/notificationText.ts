@@ -503,6 +503,30 @@ export function getNotificationText(
     }
   }
 
+  // 未取货提醒：+2h 超时提醒，用 metadata.asset_name 生成本地化文本
+  if (notification.type === 'pickup_reminder') {
+    const meta = (notification.metadata ?? {}) as { asset_name?: string };
+    const assetName = hasText(meta.asset_name) ? meta.asset_name : undefined;
+    return {
+      title: t('notifications.dynamic.pickupReminder.title'),
+      message: assetName
+        ? t('notifications.dynamic.pickupReminder.messageWithAsset', { asset: assetName })
+        : t('notifications.dynamic.pickupReminder.message'),
+    };
+  }
+
+  // 未取货自动取消：+24h 超时取消，用 metadata.asset_name 生成本地化文本
+  if (notification.type === 'no_show_cancelled') {
+    const meta = (notification.metadata ?? {}) as { asset_name?: string };
+    const assetName = hasText(meta.asset_name) ? meta.asset_name : undefined;
+    return {
+      title: t('notifications.dynamic.noShowCancelled.title'),
+      message: assetName
+        ? t('notifications.dynamic.noShowCancelled.messageWithAsset', { asset: assetName })
+        : t('notifications.dynamic.noShowCancelled.message'),
+    };
+  }
+
   const tTitle = t(`notifications.types.${notification.type}.title`);
   const tMessage = t(`notifications.types.${notification.type}.message`);
 

@@ -6,7 +6,7 @@ import { BookingWithDetails } from '@/lib/bookingService';
 import { formatDateTime, formatDateTimeRange } from '@/lib/dateTime';
 import {
     X, Calendar, Clock, User, QrCode, ImageIcon,
-    AlertTriangle, CheckCircle2, RotateCcw, ShieldAlert,
+    AlertTriangle, CheckCircle2, RotateCcw, ShieldAlert, TrendingDown,
 } from 'lucide-react';
 
 interface ApprovalModalProps {
@@ -138,12 +138,31 @@ export default function ApprovalModal({ isOpen, booking, onClose, onApprove, onR
                         <User className="w-4 h-4 text-gray-500 flex-shrink-0" />
                         <div className="flex-1 min-w-0">
                             <p className="text-xs text-gray-500 mb-0.5">{t('approvalModal.borrower')}</p>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
                                 <span className="text-sm font-semibold text-white">{booking.profiles?.full_name ?? t('approvalModal.unknownUser')}</span>
                                 {booking.profiles?.student_id && (
                                     <span className="text-xs font-mono text-gray-400 bg-white/5 border border-white/10 px-1.5 py-0.5 rounded">
                                         {booking.profiles.student_id}
                                     </span>
+                                )}
+                                {/* 信用分展示 + 跳转用户管理页 */}
+                                {typeof booking.profiles?.credit_score === 'number' && (
+                                    <a
+                                        href={`/dashboard/users?userId=${booking.borrower_id}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        title={t('approvalModal.viewCreditHistory')}
+                                        className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold border transition-opacity hover:opacity-80 ${
+                                            booking.profiles.credit_score >= 80
+                                                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                                                : booking.profiles.credit_score >= 50
+                                                ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                                                : 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                                        }`}
+                                    >
+                                        <TrendingDown className="w-3 h-3" />
+                                        {booking.profiles.credit_score} {t('approvalModal.creditScoreUnit')}
+                                    </a>
                                 )}
                             </div>
                         </div>

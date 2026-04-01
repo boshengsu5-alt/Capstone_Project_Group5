@@ -35,6 +35,8 @@ const TYPE_CONFIG: Record<NotificationType, { icon: string; color: string }> = {
   compensation_update: { icon: 'receipt-outline', color: '#8b5cf6' },
   review_reply: { icon: 'chatbubbles', color: '#8b5cf6' },
   system: { icon: 'information-circle', color: theme.colors.primary },
+  pickup_reminder: { icon: 'time-outline', color: '#f59e0b' },
+  no_show_cancelled: { icon: 'close-circle', color: theme.colors.danger },
 };
 
 function formatFullTime(dateStr: string, language: string): string {
@@ -70,6 +72,11 @@ export default function NotificationDetailScreen({ navigation, route }: Props) {
   const returnReminderMeta = notification.type === 'return_reminder'
     ? (notification.metadata ?? {}) as { asset_name?: string; days_until_due?: number; end_date?: string }
     : null;
+  // booking_rejected 详情（设备名、拒绝原因）
+  const rejectedMeta = notification.type === 'booking_rejected'
+    ? (notification.metadata ?? {}) as { asset_name?: string; rejection_reason?: string }
+    : null;
+
   const compensationDetails = notification.type === 'compensation_update'
     ? getCompensationNotificationDetails(notification)
     : null;
@@ -103,6 +110,22 @@ export default function NotificationDetailScreen({ navigation, route }: Props) {
 
         {/* 分割线 */}
         <View style={styles.divider} />
+
+        {rejectedMeta?.asset_name ? (
+          <View style={styles.detailCard}>
+            <Text style={styles.detailCardTitle}>{t('notifications.detail.rejectedSection')}</Text>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>{t('notifications.detail.asset')}</Text>
+              <Text style={styles.detailValue}>{rejectedMeta.asset_name}</Text>
+            </View>
+            {rejectedMeta.rejection_reason ? (
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>{t('notifications.detail.rejectionReason')}</Text>
+                <Text style={[styles.detailValue, styles.detailDanger]}>{rejectedMeta.rejection_reason}</Text>
+              </View>
+            ) : null}
+          </View>
+        ) : null}
 
         {returnReminderMeta?.asset_name ? (
           <View style={styles.detailCard}>

@@ -12,7 +12,7 @@ import { compensationService } from './compensationService';
 /** Booking with joined asset and borrower details. 包含资产和借用者详情的借用记录 */
 export type BookingWithDetails = Database['public']['Tables']['bookings']['Row'] & {
     assets: Pick<Database['public']['Tables']['assets']['Row'], 'name' | 'qr_code' | 'images' | 'purchase_date' | 'purchase_price'> | null;
-    profiles: Pick<Database['public']['Tables']['profiles']['Row'], 'full_name' | 'student_id'> | null;
+    profiles: Pick<Database['public']['Tables']['profiles']['Row'], 'full_name' | 'student_id' | 'credit_score'> | null;
     /** 学生端已提交的损坏报告（open/investigating 表示未处理）。 Student-submitted damage reports for this booking. */
     damage_reports: Array<{ id: string; status: string; severity: string }> | null;
 };
@@ -208,7 +208,7 @@ export const bookingService = {
             .select(`
                 *,
                 assets ( name, qr_code, images, purchase_date, purchase_price ),
-                profiles!borrower_id ( full_name, student_id ),
+                profiles!borrower_id ( full_name, student_id, credit_score ),
                 damage_reports ( id, status, severity )
             `)
             .order('created_at', { ascending: false });
@@ -340,7 +340,11 @@ export const bookingService = {
                 type: 'booking_rejected',
                 title: 'Booking Rejected',
                 message: `Your booking has been rejected. Reason: ${reason}`,
-                metadata: { booking_id: id }
+                metadata: {
+                    booking_id: id,
+                    asset_name: (booking as any).assets?.name ?? '',
+                    rejection_reason: reason,
+                }
             });
         }
 

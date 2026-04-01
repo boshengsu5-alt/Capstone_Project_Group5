@@ -738,6 +738,8 @@
       "paymentAmount": "本次登记付款",
       "dueDate": "缴费截止",
       "paymentReference": "缴费备注码",
+      "rejectedSection": "预约详情",
+      "rejectionReason": "拒绝原因",
       "returnReminderSection": "归还提醒详情",
       "daysUntilDue": "距到期",
       "dueToday": "今日到期",
@@ -837,6 +839,16 @@
         "message": "{{name}}{{role}} 回复了你的评价。",
         "messageWithAsset": "{{name}}{{role}} 回复了你对「{{asset}}」的评价。",
         "preview": "回复内容：{{preview}}"
+      },
+      "pickupReminder": {
+        "title": "取货提醒",
+        "message": "您的预约已超过取货时间 2 小时，请尽快前往取货，否则预约将被自动取消。",
+        "messageWithAsset": "您预约的「{{asset}}」已超过取货时间 2 小时，请尽快前往取货，否则预约将被自动取消。"
+      },
+      "noShowCancelled": {
+        "title": "预约已自动取消",
+        "message": "您的预约因超过 24 小时未取货已被自动取消，扣减 5 信用分。",
+        "messageWithAsset": "您预约的「{{asset}}」因超过 24 小时未取货已被自动取消，扣减 5 信用分。"
       }
     },
     "types": {

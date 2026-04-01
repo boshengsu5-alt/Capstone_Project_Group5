@@ -2003,4 +2003,76 @@ ALTER TYPE booking_status ADD VALUE IF NOT EXISTS 'suspended';
 | `check_overdue_bookings()` | 逾期检测（三节点扣分，30天自动转失物） | SECURITY DEFINER |
 | `update_credit_score(user_id, delta, reason, booking_id)` | 信用分变动（含0-200范围保护，自动写日志） | SECURITY DEFINER |
 | `restore_suspended_maintenance_bookings_for_asset(asset_id)` | 资产修复后恢复/取消被暂停的预约 | SECURITY DEFINER |
+| `check_no_show_bookings()` | 未取货检测（+2h提醒，+24h自动取消，爽约扣-5分） | SECURITY DEFINER |
+
+---
+
+## 附录 C：功能迭代更新记录
+
+### C.1 未取货自动取消机制（2026-04-01，负责人：Bosheng）
+
+#### 背景
+
+系统原有 `check_overdue_bookings()` 仅处理"已取货但超期未归还"的场景（`active → overdue`）。
+对于管理员已审批（`approved`）、但用户超过约定取货时间仍未到场取货的情况，系统此前无任何处理——资产会一直被锁定为不可借用，影响其他用户预约。
+
+#### 时间节点设计
+
+```
+start_date（用户约定的取货时间）
+     │
+     ├── +2 小时：仍为 approved → 发送站内提醒通知
+     │           通知类型：pickup_reminder
+     │           内容："您的预约「{资产名}」已超过取货时间 2 小时，请尽快前往取货，否则预约将被自动取消。"
+     │           字段标记：no_show_reminder_sent = true（防止重复发送）
+     │
+     └── +24 小时：仍为 approved → 自动取消
+                   booking.status：approved → cancelled
+                   asset.status：borrowed → available（解锁资产）
+                   信用分：-5（爽约惩罚，轻微）
+                   通知类型：no_show_cancelled
+                   内容："您的预约「{资产名}」因超时未取货已被系统自动取消，扣减 5 信用分。"
+```
+
+#### 信用分规则
+
+| 触发条件 | 扣分 | reason 字段 |
+|---------|------|------------|
+| 超时 24 小时未取货，系统自动取消 | -5 | `no_show_cancelled` |
+
+#### 数据库变更
+
+**新增字段（`bookings` 表）**
+
+| 字段名 | 类型 | 默认值 | 说明 |
+|-------|------|--------|------|
+| `no_show_reminder_sent` | `BOOLEAN` | `false` | 是否已发送 +2h 取货提醒，防重复发送 |
+
+**新增枚举值（`notification_type`）**
+
+| 新增值 | 触发场景 |
+|-------|---------|
+| `pickup_reminder` | 超过取货时间 +2h，仍未取货 |
+| `no_show_cancelled` | 超过取货时间 +24h，系统自动取消 |
+
+**新增迁移文件**：`037_no_show_auto_cancel.sql`
+
+**新增 RPC 函数**：`check_no_show_bookings()`
+
+#### 应用层变更
+
+| 文件 | 改动 |
+|-----|------|
+| `app-mobile/src/services/bookingService.ts` | 新增 `checkNoShowBookings()` 方法，调用 `check_no_show_bookings` RPC |
+| `app-mobile/src/screens/home/HomeScreen.tsx` | 页面加载时并列调用 `checkNoShowBookings()`（与现有 `checkOverdueBookings()` 并列） |
+
+#### 与现有机制的关系
+
+```
+approved ──(+2h未取货)──→ 发提醒通知（no_show_reminder_sent = true）
+         ──(+24h未取货)─→ 自动取消（cancelled）+ 扣 -5 分
+         ──(用户扫码)──→  active（正常流程，不受影响）
+
+active ──(超过end_date)─→ overdue（现有 check_overdue_bookings 处理，不变）
+```
 | `withdraw_damage_report(damage_report_id)` | 学生撤销自己的损坏报告（仅 `open` 状态可撤） | SECURITY DEFINER |

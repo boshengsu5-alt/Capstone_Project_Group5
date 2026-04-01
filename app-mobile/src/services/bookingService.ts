@@ -512,6 +512,15 @@ export async function checkOverdueBookings() {
 }
 
 /**
+ * Trigger no-show detection via RPC: sends +2h pickup reminder and auto-cancels at +24h.
+ * 触发未取货检测 RPC：+2h 发提醒通知，+24h 自动取消预约并扣 -5 信用分。
+ */
+export async function checkNoShowBookings() {
+  const { error } = await db.rpc('check_no_show_bookings');
+  if (error) throw error;
+}
+
+/**
  * Submit a review for a completed booking.
  * 为已完成的借用提交评价
  *

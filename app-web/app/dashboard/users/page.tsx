@@ -1,7 +1,7 @@
 'use client';
 
-import { Fragment, useCallback, useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Users as UsersIcon, Search, RefreshCw, Shield, GraduationCap, Briefcase, Star, ChevronDown, ChevronUp } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/components/ui/Toast';
@@ -21,6 +21,7 @@ export default function UsersPage() {
   const { showToast } = useToast();
   const { canManageUsers, isLoading: authLoading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [users, setUsers] = useState<Profile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -93,6 +94,19 @@ export default function UsersPage() {
       void loadDetailForUser(user.id);
     }
   }, [expandedUserId, loadDetailForUser]);
+
+  // ApprovalModal 点击信用分跳转过来时，自动定位到目标用户并打开信用历史
+  const targetUserId = searchParams.get('userId');
+  const autoExpandedRef = useRef(false);
+  useEffect(() => {
+    if (!targetUserId || isLoading || users.length === 0 || autoExpandedRef.current) return;
+    const user = users.find((u) => u.id === targetUserId);
+    if (!user) return;
+    autoExpandedRef.current = true;
+    setExpandedUserId(targetUserId);
+    void loadDetailForUser(targetUserId);
+    setCreditHistoryUser(user);
+  }, [targetUserId, isLoading, users, loadDetailForUser]);
 
   const filteredUsers = users.filter((user) => {
     const matchesSearch =

@@ -19,7 +19,7 @@ import { theme } from '../../theme';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { HomeStackParamList } from '../../navigation/HomeStackNavigator';
 import { getAssets, getCategories } from '../../services/assetService';
-import { checkOverdueBookings } from '../../services/bookingService';
+import { checkOverdueBookings, checkNoShowBookings } from '../../services/bookingService';
 import type { Asset, Category } from '../../../../database/types/supabase';
 import ErrorView from '../../components/ErrorView';
 import SafeImage from '../../components/SafeImage';
@@ -88,8 +88,10 @@ export default function HomeScreen({ navigation, route }: Props) {
     setError(false);
     setPage(0);
     setHasMore(true);
-    // 兜底逾期检测：pg_cron 免费版不可用，每次进入首页时触发一次（fire-and-forget）
+    // 兜底检测：pg_cron 免费版不可用，每次进入首页时触发（fire-and-forget）
+    // 同时检测归还逾期 和 未取货超时，两者互不影响
     checkOverdueBookings().catch(() => {});
+    checkNoShowBookings().catch(() => {});
     try {
       // 通过 service 层获取数据，不直接调用 supabase
       const [assetsData, categoriesData] = await Promise.all([

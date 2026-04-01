@@ -736,6 +736,8 @@
       "creditImpact": "Credit change",
       "daysValue": "{{days}} day(s)",
       "creditDeductionValue": "-{{points}} points",
+      "rejectedSection": "Booking Details",
+      "rejectionReason": "Rejection Reason",
       "returnReminderSection": "Return Reminder Details",
       "daysUntilDue": "Days until due",
       "dueToday": "Due today",
@@ -831,6 +833,16 @@
         "message": "{{name}}{{role}} replied to your review.",
         "messageWithAsset": "{{name}}{{role}} replied to your review on \"{{asset}}\".",
         "preview": "Reply: {{preview}}"
+      },
+      "pickupReminder": {
+        "title": "Pickup Reminder",
+        "message": "Your booking is overdue for pickup by 2 hours. Please pick up the item soon or your booking will be automatically cancelled.",
+        "messageWithAsset": "Your booking for \"{{asset}}\" is overdue for pickup by 2 hours. Please pick up the item soon or your booking will be automatically cancelled."
+      },
+      "noShowCancelled": {
+        "title": "Booking Auto-Cancelled",
+        "message": "Your booking was automatically cancelled due to no pickup within 24 hours. 5 credit points have been deducted.",
+        "messageWithAsset": "Your booking for \"{{asset}}\" was automatically cancelled due to no pickup within 24 hours. 5 credit points have been deducted."
       }
     },
     "types": {

@@ -146,6 +146,33 @@ export default function BookingHistoryScreen() {
     checkAndSendReturnReminders().catch(() => {});
   }, []);
 
+  // 管理员在后台修改借用状态时（如标记丢失），通过 Realtime 实时同步到列表
+  // 当 currentUserId 就绪后建立订阅，屏幕卸载时自动清理
+  useEffect(() => {
+    if (!currentUserId) return;
+
+    const channel = supabase
+      .channel(`booking-history-${currentUserId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'bookings',
+          filter: `borrower_id=eq.${currentUserId}`,
+        },
+        () => {
+          // 后台有变更时静默刷新（不触发全屏 loading）
+          fetchBookings();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentUserId, fetchBookings]);
+
   useFocusEffect(
     useCallback(() => {
       fetchBookings();

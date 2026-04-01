@@ -20,19 +20,19 @@ async function main() {
     'Prefer': 'return=representation'
   };
 
-  const bookingsRes = await fetch(`${SUPABASE_URL}/rest/v1/bookings?limit=10`, { headers });
+  const bookingsRes = await fetch(`${SUPABASE_URL}/rest/v1/bookings?limit=50`, { headers });
   const bookings = await bookingsRes.json();
-  const bookingToReturn = bookings.find(b => !b.actual_return_date || b.rejection_reason !== 'VERIFIED');
+  const bookingToReturn = bookings.find((b) =>
+    ['active', 'overdue'].includes(b.status)
+      && !b.actual_return_date
+  );
 
   if (!bookingToReturn) {
-    console.log('No unreturned bookings found. Taking the first booking to mock.');
-    if (bookings.length === 0) {
-        console.error('No bookings found at all');
-        return;
-    }
+    console.error('No active/overdue booking without a return record was found. Refusing to mock an invalid return.');
+    return;
   }
 
-  const target = bookingToReturn || bookings[0];
+  const target = bookingToReturn;
   console.log(`Mocking return for booking ID: ${target.id}`);
 
   // Patch the booking

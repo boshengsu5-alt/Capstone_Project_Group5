@@ -537,6 +537,8 @@ export const translations = {
       processing: 'Processing...',
       rejectRequestBtn: 'Reject Request',
       approveRequestBtn: 'Approve Request',
+      viewCreditHistory: 'View credit history',
+      creditScoreUnit: 'pts',
     },
     returns: {
       title: 'Return Verifications',
@@ -1581,6 +1583,8 @@ export const translations = {
       processing: '处理中...',
       rejectRequestBtn: '拒绝申请',
       approveRequestBtn: '批准申请',
+      viewCreditHistory: '查看信用分历史',
+      creditScoreUnit: '分',
     },
     returns: {
       title: '归还验证',
