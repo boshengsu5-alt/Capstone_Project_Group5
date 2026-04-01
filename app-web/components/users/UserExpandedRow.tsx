@@ -56,9 +56,6 @@ function getCreditTone(score: number) {
   };
 }
 
-function formatDate(value: string) {
-  return new Date(value).toLocaleString();
-}
 
 function StatCard({ label, value, hint }: { label: string; value: string | number; hint: string }) {
   return (

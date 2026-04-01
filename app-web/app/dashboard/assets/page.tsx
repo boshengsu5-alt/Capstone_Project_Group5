@@ -4,10 +4,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Header from '@/components/layout/Header';
-import { ChevronDown, ChevronRight, Download, Package, RefreshCw, Search } from 'lucide-react';
+import { CalendarDays, ChevronDown, ChevronRight, Clock3, Download, FileText, Hash, ImageOff, MapPin, Package, QrCode, RefreshCw, Search, ShieldCheck, Tag } from 'lucide-react';
 import { getAssets, deleteAsset, updateAsset } from '@/lib/assetService';
 import { bookingService } from '@/lib/bookingService';
-import AssetDetailPanel, { AssetWithCategory } from '@/components/assets/AssetDetailPanel';
 import RelistModal from '@/components/assets/RelistModal';
 import AssetForm from '@/components/assets/AssetForm';
 import AssetReviewsModal from '@/components/assets/AssetReviewsModal';
@@ -15,12 +14,17 @@ import QRCodeModal from '@/components/assets/QRCodeModal';
 import DeleteAssetModal from '@/components/assets/DeleteAssetModal';
 import { QRCodeSVG } from 'qrcode.react';
 import { cn } from '@/lib/utils';
-import { Asset } from '@/types/database';
+import { Asset, Category } from '@/types/database';
 import { useToast } from '@/components/ui/Toast';
 import { exportToExcel } from '@/lib/exportUtils';
 import { useLanguage } from '@/components/providers/LanguageProvider';
 import { useAuth } from '@/components/providers/AuthContext';
 import { getConditionLabel, getIntlLocale, getStatusLabel, getWarrantyLabel, localizeCategoryName } from '@/lib/i18n';
+
+/** Asset row with joined category info from API response. */
+type AssetWithCategory = Asset & {
+  categories?: Pick<Category, 'id' | 'name'> | null;
+};
 
 function getAssetAgeLabel(purchaseDate: string, locale: string) {
   const ms = Date.now() - new Date(purchaseDate).getTime();
@@ -45,6 +49,51 @@ function getDepreciationRate(purchaseDate: string) {
   if (years <= 3) return '80%';
   if (years <= 5) return '50%';
   return '20%';
+}
+
+function formatAssetDate(value: string | null | undefined, locale: string, withTime = false) {
+  if (!value) return null;
+  const date = new Date(value);
+  return withTime
+    ? date.toLocaleString(getIntlLocale(locale))
+    : date.toLocaleDateString(getIntlLocale(locale));
+}
+
+function ImageWithFallback({ src, alt, className, iconClassName }: { src: string; alt?: string; className?: string; iconClassName?: string }) {
+  const [error, setError] = useState(false);
+  if (error || !src) {
+    return (
+      <div className={cn("flex flex-col items-center justify-center bg-white/[0.02] border border-white/10 backdrop-blur-md", className)}>
+        <ImageOff className={cn("text-gray-500/50 mb-1.5", iconClassName)} />
+        <span className="text-[9px] font-bold tracking-widest text-gray-500/70 uppercase">Not Found</span>
+      </div>
+    );
+  }
+  return <img src={src} alt={alt} className={className} onError={() => setError(true)} />;
+}
+
+function AssetDetailItem({
+  icon: Icon,
+  label,
+  value,
+  mono = false,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: string;
+  mono?: boolean;
+}) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+      <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.2em] text-gray-500">
+        <Icon className="h-3.5 w-3.5" />
+        <span>{label}</span>
+      </div>
+      <p className={cn('mt-3 text-sm font-medium text-white', mono && 'font-mono break-all')}>
+        {value}
+      </p>
+    </div>
+  );
 }
 
 export default function AssetsPage() {
@@ -102,6 +151,7 @@ export default function AssetsPage() {
 
   useEffect(() => {
     fetchAssets();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -258,6 +308,149 @@ export default function AssetsPage() {
     setExpandedAssetId((current) => current === assetId ? null : assetId);
   };
 
+  const renderExpandedDetail = (asset: AssetWithCategory) => {
+    const purchaseDateText = formatAssetDate(asset.purchase_date, locale) ?? t('common.none');
+    const createdAtText = formatAssetDate(asset.created_at, locale, true) ?? t('common.none');
+    const updatedAtText = formatAssetDate(asset.updated_at, locale, true) ?? t('common.none');
+    const warrantyExpiryText = formatAssetDate(asset.warranty_expiry, locale) ?? t('common.none');
+    const assetAgeText = asset.purchase_date ? getAssetAgeLabel(asset.purchase_date, locale) : t('common.none');
+    const depreciationText = asset.purchase_date ? getDepreciationRate(asset.purchase_date) : t('common.none');
+    const purchasePriceText = asset.purchase_price != null ? `¥${asset.purchase_price.toLocaleString()}` : t('common.none');
+    const categoryLabel = localizeCategoryName(asset.categories, locale);
+    const statusLabel = getStatusLabel(asset.status, t);
+    const conditionLabel = condBadge[asset.condition]?.label ?? getConditionLabel(asset.condition, t);
+    const warrantyLabel = getWarrantyLabel(asset.warranty_status, t);
+    const qrValueText = asset.qr_code || t('common.none');
+
+    return (
+      <div className="mx-4 mb-4 rounded-[28px] border border-white/10 bg-[#0B1120] p-5 shadow-[0_24px_70px_rgba(2,8,23,0.45)] sm:mx-6 sm:p-6">
+        <div className="grid gap-5 xl:grid-cols-[1.15fr_0.85fr]">
+          <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-5">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div className="flex items-center gap-4">
+                {asset.images?.[0] ? (
+                  <ImageWithFallback
+                    src={asset.images[0]}
+                    alt={asset.name}
+                    className="h-20 w-20 rounded-2xl border border-white/10 object-cover shadow-lg"
+                    iconClassName="h-6 w-6"
+                  />
+                ) : (
+                  <div className="flex h-20 w-20 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.05]">
+                    <Package className="h-8 w-8 text-gray-500" />
+                  </div>
+                )}
+
+                <div>
+                  <div className="inline-flex items-center gap-2 rounded-full bg-white/[0.06] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-300 ring-1 ring-white/10">
+                    <ShieldCheck className="h-3.5 w-3.5" />
+                    {t('assets.detailOverview')}
+                  </div>
+                  <h3 className="mt-3 text-2xl font-semibold tracking-tight text-white">{asset.name}</h3>
+                  <p className="mt-1 text-sm text-gray-400">{categoryLabel}</p>
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <span className={cn(
+                      'inline-flex items-center rounded-lg px-2.5 py-1 text-xs font-medium ring-1 ring-inset',
+                      asset.status === 'available' && 'bg-emerald-500/10 text-emerald-400 ring-emerald-500/20',
+                      asset.status === 'borrowed' && 'bg-sky-500/10 text-sky-400 ring-sky-500/20',
+                      asset.status === 'maintenance' && 'bg-amber-500/10 text-amber-400 ring-amber-500/20',
+                      asset.status === 'retired' && 'bg-rose-500/10 text-rose-400 ring-rose-500/20',
+                    )}>
+                      {statusLabel}
+                    </span>
+                    <span className={cn('inline-flex items-center rounded-lg px-2.5 py-1 text-xs font-semibold border', condBadge[asset.condition]?.color)}>
+                      {conditionLabel}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {asset.qr_code && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedAssetForQR(asset)}
+                  className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-semibold text-gray-200 transition hover:bg-white/[0.07]"
+                >
+                  <QrCode className="h-4 w-4" />
+                  {t('dashboard.qrTooltip')}
+                </button>
+              )}
+            </div>
+
+            <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              <AssetDetailItem icon={Tag} label={t('tables.category')} value={categoryLabel} />
+              <AssetDetailItem icon={Hash} label={t('tables.serial')} value={asset.serial_number || t('common.none')} mono />
+              <AssetDetailItem icon={MapPin} label={t('tables.location')} value={asset.location || t('common.noLocation')} />
+              <AssetDetailItem icon={CalendarDays} label={t('tables.purchaseDate')} value={purchaseDateText} />
+              <AssetDetailItem icon={CalendarDays} label={t('assets.detailAge')} value={assetAgeText} />
+              <AssetDetailItem icon={CalendarDays} label={t('assets.detailDepreciation')} value={depreciationText} />
+              <AssetDetailItem icon={Package} label={t('tables.status')} value={statusLabel} />
+              <AssetDetailItem icon={ShieldCheck} label={t('tables.condition')} value={conditionLabel} />
+              <AssetDetailItem icon={Tag} label={t('tables.warranty')} value={warrantyLabel} />
+              <AssetDetailItem icon={CalendarDays} label={t('tables.warrantyExpiry')} value={warrantyExpiryText} />
+              <AssetDetailItem icon={QrCode} label={t('assets.detailQrValue')} value={qrValueText} mono />
+              <AssetDetailItem icon={Package} label={t('tables.price')} value={purchasePriceText} />
+            </div>
+          </div>
+
+          <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-5">
+            <div className="flex items-center gap-2 text-xs uppercase tracking-[0.22em] text-gray-500">
+              <Package className="h-4 w-4" />
+              <span>{t('assets.detailImages')}</span>
+            </div>
+
+            {asset.images?.length ? (
+              <div className="mt-4 grid grid-cols-2 gap-3">
+                {asset.images.map((imageUrl, index) => (
+                  <button
+                    key={`${asset.id}-image-${index}`}
+                    type="button"
+                    onClick={() => window.open(imageUrl, '_blank', 'noopener,noreferrer')}
+                    className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] transition hover:-translate-y-0.5 hover:border-indigo-400/40"
+                  >
+                    <ImageWithFallback
+                      src={imageUrl}
+                      alt={`${asset.name} ${index + 1}`}
+                      className="h-32 w-full object-cover"
+                      iconClassName="h-8 w-8"
+                    />
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="mt-4 rounded-2xl border border-dashed border-white/10 bg-white/[0.03] px-4 py-8 text-center text-sm text-gray-500">
+                {t('assets.detailNoImages')}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="mt-5 grid gap-5 xl:grid-cols-[1fr_0.9fr]">
+          <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-5">
+            <div className="flex items-center gap-2 text-xs uppercase tracking-[0.22em] text-gray-500">
+              <FileText className="h-4 w-4" />
+              <span>{t('assets.detailDescription')}</span>
+            </div>
+            <div className="mt-4 rounded-2xl border border-white/10 bg-black/15 px-4 py-4 text-sm leading-7 text-gray-300">
+              {asset.description?.trim() || t('assets.detailNoDescription')}
+            </div>
+          </div>
+
+          <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-5">
+            <div className="flex items-center gap-2 text-xs uppercase tracking-[0.22em] text-gray-500">
+              <Clock3 className="h-4 w-4" />
+              <span>{t('assets.detailHistory')}</span>
+            </div>
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              <AssetDetailItem icon={Clock3} label={t('tables.createdAt')} value={createdAtText} />
+              <AssetDetailItem icon={Clock3} label={t('tables.updatedAt')} value={updatedAtText} />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="flex flex-col flex-1 h-full w-full bg-[#050505] overflow-y-auto text-gray-100">
       <Header />
@@ -404,7 +597,7 @@ export default function AssetsPage() {
             </div>
 
             {/* ── 资产列表 ── */}
-            <div className="overflow-hidden rounded-3xl border border-white/5 bg-gray-900/40 backdrop-blur-sm">
+            <div className="rounded-3xl border border-white/5 bg-white/[0.03] overflow-hidden">
               {isLoading ? (
                 <div className="flex h-64 flex-col items-center justify-center">
                   <div className="mb-4 h-10 w-10 animate-spin rounded-full border-4 border-indigo-400 border-t-transparent" />
@@ -435,20 +628,20 @@ export default function AssetsPage() {
               ) : (
                 <table className="min-w-full">
                   <thead>
-                    <tr className="bg-white/5">
-                      <th className="w-12 py-4 pl-4 text-left text-xs font-bold uppercase tracking-[0.24em] text-gray-500">
+                    <tr className="border-b border-white/5">
+                      <th className="w-12 py-4 pl-4 text-left text-xs font-semibold uppercase tracking-[0.15em] text-gray-500">
                         <span className="sr-only">{t('common.viewDetails')}</span>
                       </th>
-                      <th className="py-4 pl-6 pr-3 text-left text-xs font-bold uppercase tracking-[0.24em] text-gray-500">{t('tables.name')}</th>
-                      <th className="px-3 py-4 text-left text-xs font-bold uppercase tracking-[0.24em] text-gray-500">{t('tables.qrCode')}</th>
-                      <th className="hidden xl:table-cell px-3 py-4 text-left text-xs font-bold uppercase tracking-[0.24em] text-gray-500">{t('tables.location')}</th>
-                      <th className="px-3 py-4 text-left text-xs font-bold uppercase tracking-[0.24em] text-gray-500">{t('tables.category')}</th>
-                      <th className="px-3 py-4 text-left text-xs font-bold uppercase tracking-[0.24em] text-gray-500">{t('tables.condition')}</th>
-                      <th className="px-3 py-4 text-left text-xs font-bold uppercase tracking-[0.24em] text-gray-500">{t('tables.status')}</th>
-                      <th className="py-4 pl-3 pr-6 text-right text-xs font-bold uppercase tracking-[0.24em] text-gray-500">{t('tables.actions')}</th>
+                      <th className="py-4 pl-6 pr-3 text-left text-xs font-semibold uppercase tracking-[0.15em] text-gray-500">{t('tables.name')}</th>
+                      <th className="px-3 py-4 text-left text-xs font-semibold uppercase tracking-[0.15em] text-gray-500">{t('tables.qrCode')}</th>
+                      <th className="hidden xl:table-cell px-3 py-4 text-left text-xs font-semibold uppercase tracking-[0.15em] text-gray-500">{t('tables.location')}</th>
+                      <th className="px-3 py-4 text-left text-xs font-semibold uppercase tracking-[0.15em] text-gray-500">{t('tables.category')}</th>
+                      <th className="px-3 py-4 text-left text-xs font-semibold uppercase tracking-[0.15em] text-gray-500">{t('tables.condition')}</th>
+                      <th className="px-3 py-4 text-left text-xs font-semibold uppercase tracking-[0.15em] text-gray-500">{t('tables.status')}</th>
+                      <th className="py-4 pl-3 pr-6 text-right text-xs font-semibold uppercase tracking-[0.15em] text-gray-500">{t('tables.actions')}</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-white/5">
+                  <tbody className="divide-y divide-white/[0.04]">
                     {filteredAssets.map((asset: AssetWithCategory) => {
                       const isExpanded = expandedAssetId === asset.id;
                       const conditionMeta = condBadge[asset.condition] ?? { color: 'bg-gray-500/10 text-gray-400 border-gray-500/20', label: asset.condition };
@@ -458,12 +651,12 @@ export default function AssetsPage() {
                           <tr
                             onClick={() => handleToggleExpand(asset.id)}
                             className={cn(
-                              'group cursor-pointer transition-colors hover:bg-white/[0.04]',
-                              isExpanded && 'bg-white/[0.04]'
+                              'group cursor-pointer transition hover:bg-white/[0.03]',
+                              isExpanded && 'bg-violet-500/[0.05]'
                             )}
                           >
                             <td className="py-4 pl-4 text-gray-500">
-                              <div className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/5 transition group-hover:text-white">
+                              <div className="flex h-8 w-8 items-center justify-center rounded-full border border-white/8 bg-white/[0.03] transition group-hover:text-white">
                                 {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                               </div>
                             </td>
@@ -472,14 +665,14 @@ export default function AssetsPage() {
                             <td className="whitespace-nowrap py-4 pl-6 pr-3">
                               <div className="flex items-center gap-3">
                                 {asset.images?.[0] ? (
-                                  <img src={asset.images[0]} alt={asset.name} className="h-11 w-11 rounded-xl border border-white/10 object-cover flex-shrink-0" />
+                                  <img src={asset.images[0]} alt={asset.name} className="w-10 h-10 rounded-xl object-cover flex-shrink-0" />
                                 ) : (
-                                  <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/5 flex-shrink-0">
+                                  <div className="w-10 h-10 rounded-xl bg-white/[0.06] flex items-center justify-center flex-shrink-0">
                                     <Package className="w-5 h-5 text-gray-600" />
                                   </div>
                                 )}
                                 <div>
-                                  <p className="text-sm font-semibold text-white">{asset.name}</p>
+                                  <p className="text-sm font-medium text-white">{asset.name}</p>
                                   {asset.purchase_date && (() => {
                                     const ageLabel = getAssetAgeLabel(asset.purchase_date, locale);
                                     const deprLabel = getDepreciationRate(asset.purchase_date);
@@ -531,7 +724,7 @@ export default function AssetsPage() {
                             {/* 状态 */}
                             <td className="whitespace-nowrap px-3 py-4 text-sm">
                               <span className={cn(
-                                'inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset capitalize',
+                                'inline-flex items-center rounded-lg px-2 py-1 text-xs font-medium ring-1 ring-inset capitalize',
                                 asset.status === 'available'   && 'bg-emerald-500/10 text-emerald-400 ring-emerald-500/20',
                                 asset.status === 'borrowed'    && 'bg-sky-500/10 text-sky-400 ring-sky-500/20',
                                 asset.status === 'maintenance' && 'bg-amber-500/10 text-amber-400 ring-amber-500/20',
@@ -601,10 +794,7 @@ export default function AssetsPage() {
                           {isExpanded && (
                             <tr className="bg-transparent">
                               <td colSpan={8} className="p-0">
-                                <AssetDetailPanel
-                                  asset={asset}
-                                  onOpenQr={(selectedAsset) => setSelectedAssetForQR(selectedAsset)}
-                                />
+                                {renderExpandedDetail(asset)}
                               </td>
                             </tr>
                           )}

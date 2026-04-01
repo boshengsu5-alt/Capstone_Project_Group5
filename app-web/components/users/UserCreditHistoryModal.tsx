@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowDownLeft, ArrowUpRight, History, Loader2, ShieldAlert, Star, X } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, History, Loader2, ShieldAlert, X } from 'lucide-react';
 import { useToast } from '@/components/ui/Toast';
 import { cn } from '@/lib/utils';
 import { getCreditReasonLabel, getUserCreditLogs } from '@/lib/userService';
@@ -17,9 +17,6 @@ interface UserCreditHistoryModalProps {
 
 type FilterMode = 'all' | 'bonus' | 'penalty';
 
-function formatDateTime(value: string) {
-  return new Date(value).toLocaleString();
-}
 
 function getScoreTone(score: number) {
   if (score >= 150) return 'text-emerald-300';
@@ -67,7 +64,7 @@ export default function UserCreditHistoryModal({ user, isOpen, onClose }: UserCr
     return () => {
       ignore = true;
     };
-  }, [isOpen, showToast, user]);
+  }, [isOpen, showToast, user, t]);
 
   useEffect(() => {
     if (!isOpen) {
