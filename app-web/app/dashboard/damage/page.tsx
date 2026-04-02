@@ -30,6 +30,7 @@ export default function DamageReportsPage() {
 
     useEffect(() => {
         loadReports();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const handleUpdateStatus = async (id: string, status: string, notes: string, severity: string) => {

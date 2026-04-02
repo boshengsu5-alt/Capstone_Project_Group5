@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { bookingService, BookingWithDetails, calcOverduePenalty } from '@/lib/bookingService';
+import { bookingService, BookingWithDetails } from '@/lib/bookingService';
 import ReturnVerify from '@/components/returns/ReturnVerify';
 import DamageSeverityModal from '@/components/damage/DamageSeverityModal';
 import { AlertCircle, CheckCircle2, RefreshCw, RotateCcw } from 'lucide-react';
@@ -45,6 +45,7 @@ export default function ReturnsPage() {
 
     useEffect(() => {
         loadReturns();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const handleVerify = async (id: string, isDamaged: boolean) => {
@@ -97,7 +98,7 @@ export default function ReturnsPage() {
             } else {
                 showToast(t('returns.acknowledgeFailed'), 'error');
             }
-        } catch (error) {
+        } catch {
             showToast(t('returns.verifyFailed'), 'error');
         }
     };
