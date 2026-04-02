@@ -8,7 +8,7 @@
     "userInterfaceStyle": "light",
     "splash": {
       "image": "./assets/splash.png",
-      "backgroundColor": "#1E1B4B",
+      "backgroundColor": "#0C0F18",
       "resizeMode": "contain"
     },
     "platforms": [
@@ -27,7 +27,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#1E1B4B"
+        "backgroundColor": "#0C0F18"
       },
       "package": "com.unigear.mobile",
       "permissions": [

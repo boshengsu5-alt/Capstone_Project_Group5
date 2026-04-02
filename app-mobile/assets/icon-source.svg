@@ -1,0 +1,75 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="140" y1="96" x2="892" y2="940" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#131A2A"/>
+      <stop offset="0.48" stop-color="#0C0F18"/>
+      <stop offset="1" stop-color="#1F1647"/>
+    </linearGradient>
+    <radialGradient id="goldGlow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(248 210) rotate(32.4) scale(406 332)">
+      <stop stop-color="#F4C14F" stop-opacity="0.42"/>
+      <stop offset="1" stop-color="#F4C14F" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="violetGlow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(758 804) rotate(-135.5) scale(470 408)">
+      <stop stop-color="#8B7BFF" stop-opacity="0.3"/>
+      <stop offset="1" stop-color="#8B7BFF" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="panelFill" x1="214" y1="178" x2="808" y2="844" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#191F30" stop-opacity="0.98"/>
+      <stop offset="0.5" stop-color="#111623" stop-opacity="0.94"/>
+      <stop offset="1" stop-color="#191336" stop-opacity="0.98"/>
+    </linearGradient>
+    <linearGradient id="panelStroke" x1="201" y1="174" x2="784" y2="832" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F7D982" stop-opacity="0.62"/>
+      <stop offset="0.34" stop-color="#FFFFFF" stop-opacity="0.1"/>
+      <stop offset="1" stop-color="#8B7BFF" stop-opacity="0.46"/>
+    </linearGradient>
+    <linearGradient id="uStroke" x1="348" y1="302" x2="688" y2="722" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F8FBFF"/>
+      <stop offset="0.56" stop-color="#E9E8FF"/>
+      <stop offset="1" stop-color="#BFB4FF"/>
+    </linearGradient>
+    <linearGradient id="uAccent" x1="402" y1="602" x2="618" y2="602" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F6CF6A"/>
+      <stop offset="1" stop-color="#F0AE37"/>
+    </linearGradient>
+    <linearGradient id="spark" x1="640" y1="284" x2="754" y2="398" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFF2BF"/>
+      <stop offset="0.52" stop-color="#F4C14F"/>
+      <stop offset="1" stop-color="#E68A1F"/>
+    </linearGradient>
+    <filter id="softShadow" x="104" y="108" width="816" height="816" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feFlood flood-opacity="0" result="BackgroundImageFix"/>
+      <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+      <feOffset dy="20"/>
+      <feGaussianBlur stdDeviation="26"/>
+      <feColorMatrix type="matrix" values="0 0 0 0 0.0117647 0 0 0 0 0.027451 0 0 0 0 0.0627451 0 0 0 0.34 0"/>
+      <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_1_1"/>
+      <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_1_1" result="shape"/>
+    </filter>
+    <filter id="glyphGlow" x="250" y="218" width="524" height="544" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feFlood flood-opacity="0" result="BackgroundImageFix"/>
+      <feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
+      <feGaussianBlur stdDeviation="20" result="effect1_foregroundBlur_1_1"/>
+    </filter>
+  </defs>
+
+  <rect width="1024" height="1024" rx="232" fill="url(#bg)"/>
+  <rect width="1024" height="1024" rx="232" fill="url(#goldGlow)"/>
+  <rect width="1024" height="1024" rx="232" fill="url(#violetGlow)"/>
+  <rect x="20" y="20" width="984" height="984" rx="212" stroke="white" stroke-opacity="0.08" stroke-width="2"/>
+
+  <g filter="url(#softShadow)">
+    <rect x="156" y="156" width="712" height="712" rx="196" fill="url(#panelFill)"/>
+    <rect x="156" y="156" width="712" height="712" rx="196" stroke="url(#panelStroke)" stroke-width="4"/>
+    <path d="M238 238C310 188 408 160 512 160C616 160 714 188 786 238" stroke="white" stroke-opacity="0.14" stroke-width="4" stroke-linecap="round"/>
+    <path d="M238 786C316 834 408 860 512 860C616 860 708 834 786 786" stroke="#8B7BFF" stroke-opacity="0.14" stroke-width="4" stroke-linecap="round"/>
+
+    <g opacity="0.28" filter="url(#glyphGlow)">
+      <path d="M360 322V514C360 620 425 706 512 706C599 706 664 620 664 514V322" stroke="#8B7BFF" stroke-width="110" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+
+    <path d="M360 322V514C360 620 425 706 512 706C599 706 664 620 664 514V322" stroke="url(#uStroke)" stroke-width="92" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M420 594C445 640 479 664 512 664C545 664 579 640 604 594" stroke="url(#uAccent)" stroke-width="24" stroke-linecap="round"/>
+    <path d="M697 258L721 304L767 328L721 352L697 398L673 352L627 328L673 304L697 258Z" fill="url(#spark)"/>
+  </g>
+</svg>

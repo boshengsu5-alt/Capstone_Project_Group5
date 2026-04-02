@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { theme } from '../../theme';
@@ -60,9 +61,11 @@ export default function LoginScreen({ navigation }: Props) {
         <View style={styles.content}>
           {/* Logo */}
           <View style={styles.logoContainer}>
-            <View style={styles.logoCircle}>
-              <Text style={styles.logoText}>U</Text>
-            </View>
+            <Image
+              source={require('../../../assets/icon.png')}
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
             <Text style={styles.brandName}>UniGear</Text>
             <Text style={styles.slogan}>{t('auth.login.slogan')}</Text>
           </View>
@@ -143,24 +146,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 48,
   },
-  logoCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: theme.colors.authPrimary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
-    shadowColor: theme.colors.authPrimary,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.6,
-    shadowRadius: 15,
-    elevation: 8,
-  },
-  logoText: {
-    fontSize: 40,
-    fontWeight: '900',
-    color: '#fff',
+  logoImage: {
+    width: 92,
+    height: 92,
+    marginBottom: 18,
   },
   brandName: {
     fontSize: 32,

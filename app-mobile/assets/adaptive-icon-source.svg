@@ -1,0 +1,46 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="panelFill" x1="246" y1="196" x2="778" y2="782" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1B2234" stop-opacity="0.98"/>
+      <stop offset="0.55" stop-color="#101522" stop-opacity="0.95"/>
+      <stop offset="1" stop-color="#1D163E" stop-opacity="0.98"/>
+    </linearGradient>
+    <linearGradient id="panelStroke" x1="236" y1="198" x2="746" y2="780" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F8D67E" stop-opacity="0.72"/>
+      <stop offset="0.32" stop-color="#FFFFFF" stop-opacity="0.12"/>
+      <stop offset="1" stop-color="#8B7BFF" stop-opacity="0.5"/>
+    </linearGradient>
+    <linearGradient id="uStroke" x1="360" y1="302" x2="688" y2="720" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FAFCFF"/>
+      <stop offset="0.56" stop-color="#E8E7FF"/>
+      <stop offset="1" stop-color="#BDAEFF"/>
+    </linearGradient>
+    <linearGradient id="uAccent" x1="420" y1="596" x2="604" y2="596" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F6CF6A"/>
+      <stop offset="1" stop-color="#EAA136"/>
+    </linearGradient>
+    <linearGradient id="spark" x1="640" y1="282" x2="754" y2="396" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFF0B6"/>
+      <stop offset="0.52" stop-color="#F4C14F"/>
+      <stop offset="1" stop-color="#E5851E"/>
+    </linearGradient>
+    <filter id="softShadow" x="168" y="140" width="688" height="744" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feFlood flood-opacity="0" result="BackgroundImageFix"/>
+      <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+      <feOffset dy="22"/>
+      <feGaussianBlur stdDeviation="28"/>
+      <feColorMatrix type="matrix" values="0 0 0 0 0.0117647 0 0 0 0 0.027451 0 0 0 0 0.0627451 0 0 0 0.34 0"/>
+      <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_1_1"/>
+      <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_1_1" result="shape"/>
+    </filter>
+  </defs>
+
+  <g filter="url(#softShadow)">
+    <rect x="212" y="184" width="600" height="600" rx="170" fill="url(#panelFill)"/>
+    <rect x="212" y="184" width="600" height="600" rx="170" stroke="url(#panelStroke)" stroke-width="4"/>
+    <path d="M286 252C344 214 424 192 512 192C600 192 680 214 738 252" stroke="white" stroke-opacity="0.14" stroke-width="4" stroke-linecap="round"/>
+    <path d="M380 332V514C380 612 438 690 512 690C586 690 644 612 644 514V332" stroke="url(#uStroke)" stroke-width="84" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M430 592C452 632 481 654 512 654C543 654 572 632 594 592" stroke="url(#uAccent)" stroke-width="24" stroke-linecap="round"/>
+    <path d="M676 266L698 308L740 330L698 352L676 394L654 352L612 330L654 308L676 266Z" fill="url(#spark)"/>
+  </g>
+</svg>
