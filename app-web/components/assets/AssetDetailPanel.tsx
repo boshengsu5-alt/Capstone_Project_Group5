@@ -56,8 +56,8 @@ function formatAssetDate(value: string | null | undefined, locale: string, withT
   if (!value) return null;
   const date = new Date(value);
   return withTime
-    ? date.toLocaleString(getIntlLocale(locale))
-    : date.toLocaleDateString(getIntlLocale(locale));
+    ? date.toLocaleString(getIntlLocale(locale as any))
+    : date.toLocaleDateString(getIntlLocale(locale as any));
 }
 
 function AssetDetailItem({

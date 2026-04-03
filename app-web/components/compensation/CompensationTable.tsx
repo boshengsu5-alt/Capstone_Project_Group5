@@ -322,7 +322,7 @@ function UpdateModal({
   const [paymentReference, setPaymentReference] = useState(item.payment_reference);
   const [adminNotes, setAdminNotes] = useState(item.admin_notes ?? '');
   const [paymentAmount, setPaymentAmount] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState(item.payment_method || t('compensation.defaultMethod'));
+  const [paymentMethod, setPaymentMethod] = useState((item as any).payment_method || t('compensation.defaultMethod'));
   const [paymentRecordReference, setPaymentRecordReference] = useState('');
   const [paymentNote, setPaymentNote] = useState('');
 

@@ -87,8 +87,7 @@ export default function SettingsPage() {
 
     setProfileSaving(true);
     try {
-      const { error } = await supabase
-        .from('profiles')
+      const { error } = await (supabase.from('profiles') as any)
         .update({ full_name: trimmed })
         .eq('id', user.id);
       if (error) throw error;
