@@ -146,10 +146,12 @@ export default function BookingHistoryScreen() {
     checkAndSendReturnReminders().catch(() => {});
   }, []);
 
-  // 管理员在后台修改借用状态时（如标记丢失），通过 Realtime 实时同步到列表
+  // 管理员在后台修改借用状态、提交损坏报告或创建赔偿单时，通过 Realtime 实时同步到列表
   // 当 currentUserId 就绪后建立订阅，屏幕卸载时自动清理
   useEffect(() => {
     if (!currentUserId) return;
+
+    const silentRefresh = () => fetchBookings();
 
     const channel = supabase
       .channel(`booking-history-${currentUserId}`)
@@ -161,10 +163,19 @@ export default function BookingHistoryScreen() {
           table: 'bookings',
           filter: `borrower_id=eq.${currentUserId}`,
         },
-        () => {
-          // 后台有变更时静默刷新（不触发全屏 loading）
-          fetchBookings();
-        }
+        silentRefresh
+      )
+      // 管理员新建/更新损坏报告时触发刷新（RLS 保证只收到本人相关记录的通知）
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'damage_reports' },
+        silentRefresh
+      )
+      // 管理员创建/更新赔偿单时触发刷新
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'compensation_cases' },
+        silentRefresh
       )
       .subscribe();
 
@@ -296,6 +307,32 @@ export default function BookingHistoryScreen() {
             review={existingReview}
             currentUserId={currentUserId}
           />
+        )}
+
+        {/* 损坏报告已提交但赔偿案例尚未生成（管理员还未审核完成）时，显示"审核中"提示 */}
+        {hasNonDismissedDamageReport && !compensationCase && ownDamageReport && (
+          <View style={[styles.compensationLinkCard, { backgroundColor: '#FFFBEB', borderColor: '#FDE68A' }]}>
+            <View style={styles.compensationLinkLeft}>
+              <View style={[styles.compensationIconWrap, { backgroundColor: '#FEF3C7' }]}>
+                <Ionicons name="warning-outline" size={18} color="#D97706" />
+              </View>
+              <View style={styles.compensationTextWrap}>
+                <Text style={styles.compensationLabel}>{t('bookings.damageReportFiled')}</Text>
+                <Text style={styles.compensationHint}>
+                  {ownDamageReport.status === 'investigating'
+                    ? t('bookings.damageReportInvestigatingHint')
+                    : t('bookings.damageReportPendingHint')}
+                </Text>
+              </View>
+            </View>
+            <View style={[styles.compensationBadge, { backgroundColor: '#FEF3C7' }]}>
+              <Text style={[styles.compensationBadgeText, { color: '#B45309' }]}>
+                {ownDamageReport.status === 'investigating'
+                  ? t('bookings.damageStatusInvestigating')
+                  : t('bookings.damageStatusPending')}
+              </Text>
+            </View>
+          </View>
         )}
 
         {compensationCase && compensationMeta && hasNonDismissedDamageReport && (
